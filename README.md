@@ -77,6 +77,11 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 
 
 ### ⚙️ Asynchronous Document Processing (BullMQ & Redis)
+- **Unified MongoDB Connection Lifecycle**: Worker process shares the core `connectDatabase` manager and Mongoose singleton with the server layer, guaranteeing that background workers and domain models share connected database state.
+- **Connection Readiness Gate**: Worker process asserts verified database connection (`readyState === 1`) before initializing BullMQ job processors or background sweepers.
+- **Safe Connection Loss & Reconnection Handling**: Lifecycle hooks (`onDatabaseDisconnected`) immediately pause BullMQ workers to prevent jobs from being picked up during a database outage, resuming cleanly (`onDatabaseConnected`) and triggering catch-up reconciliation when connectivity is restored.
+- **Throttled Reconciliation Sweeper**: Periodic and startup sweepers (`document-recovery.service.ts`) verify active database connectivity prior to query execution, preventing buffered query timeouts and database hammering during outages.
+- **Secondary Failure Prevention**: Database unavailability during job processing fails immediately as a transient retryable error without false terminal transitions (`REJECTED` or `FAILED`), preserving authentic verification error semantics.
 - **Non-Blocking Upload Flow**: Document uploads store the file and persist metadata with status `PENDING`, enqueueing a background verification job to BullMQ rather than blocking HTTP responses.
 - **Enqueue Failure Isolation**: If Redis experiences a transient outage during document upload, the HTTP request completes with HTTP 201; the document is safely persisted in MongoDB in `PENDING` state with zero external error leakage.
 - **Background Reconciliation Sweeper**: Automated sweeper (`document-recovery.service.ts`) periodically scans for stale `PENDING` documents and stalled `PROCESSING` documents (from crashed or ungracefully terminated workers), resetting their status with audit notes and re-enqueueing for verification.

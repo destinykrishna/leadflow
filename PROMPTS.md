@@ -2207,6 +2207,70 @@ COMPLETED
    - Monorepo typecheck: 0 errors across `server`, `worker`, `client`.
    - Production bundle: Vite build passed cleanly in 999ms.
 
+---
+
+## Worker Runtime Failure Fix: Shared MongoDB Connection Lifecycle & Resiliency
+```
+Fix the worker runtime failure shown in the current logs.
+
+Read AGENTS.md and inspect the MongoDB connection lifecycle shared by server/worker.
+
+Symptoms:
+- `documents.find()` / `findOne()` buffer for 10s and time out.
+- Worker then reports BullMQ lock renewal / `moveToDelayed` errors.
+- Redis 5.0.14.1 warning is present but is not the primary failure.
+
+Find the actual MongoDB connectivity/lifecycle problem. Do not mask it by increasing timeouts or disabling Mongoose buffering.
+
+Ensure:
+- worker does not start document/email processing until MongoDB is actually ready;
+- connection loss is handled safely;
+- reconciliation does not continuously hammer a disconnected DB;
+- BullMQ jobs do not produce misleading secondary failures when DB is unavailable;
+- existing retry/recovery semantics remain intact.
+
+Reproduce the failure if possible, fix the root cause, then run relevant worker tests, typecheck and build.
+
+Do not refactor unrelated code. Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Root Cause Analysis & Reproduction
+1. **Mongoose Instance Divergence Across Monorepo Modules**:
+   - `worker/` and `server/` maintain separate `node_modules` dependencies without npm workspaces.
+   - `worker/src/worker.ts` was executing `import mongoose from 'mongoose'; await mongoose.connect(MONGODB_URI);`, which connected the Mongoose singleton located in `worker/node_modules/mongoose`.
+   - Meanwhile, `document.worker.ts`, `email.worker.ts`, and `document-recovery.service.ts` import domain models (`Document`, `Lead`, `TriggerExecution`) located in `server/src/models/`, which resolve and bind to `server/node_modules/mongoose`.
+   - `server/node_modules/mongoose` was never connected (`readyState: 0`), causing every Mongoose query (`DocumentModel.find()`, `DocumentModel.findOne()`, etc.) to buffer for the full 10,000ms timeout before failing with `MongooseError: Operation documents.find() buffering timed out after 10000ms`.
+   - This 10-second blocking delay prevented BullMQ workers from renewing locks in time, causing stalled jobs and `moveToDelayed` secondary failures.
+
+### Implementation Decisions & Changes
+1. **Unified Database Lifecycle Across Worker & Server**:
+   - Updated `worker/src/worker.ts` to import `connectDatabase`, `disconnectDatabase`, `isDatabaseConnected`, `onDatabaseConnected`, and `onDatabaseDisconnected` directly from `server/src/config/database.ts`.
+   - Re-exported `mongoose` from `database.ts` ensuring all models and workers share the exact same connected singleton.
+   - Hardened `connectDatabase` idempotency to safely await an in-progress connection (`readyState === 2`) instead of returning prematurely.
+2. **Strict Readiness Gate**:
+   - `startWorkerProcess()` awaits `connectDatabase(MONGODB_URI)` and asserts `isDatabaseConnected() === true` before initializing BullMQ workers (`startDocumentWorker()`, `startEmailWorker()`) or periodic recovery (`documentRecoveryService.startPeriodicReconciliation()`).
+3. **Safe Connection Loss & Reconnection Handling**:
+   - Implemented `onDatabaseDisconnected` callback in `database.ts` that immediately calls `pauseDocumentWorker()` and `pauseEmailWorker()`, preventing BullMQ from pulling new jobs off Redis during a database outage.
+   - Implemented `onDatabaseConnected` callback that resumes paused workers (`resumeDocumentWorker()`, `resumeEmailWorker()`) and triggers a non-blocking catch-up reconciliation sweep (`reconcileAll()`).
+4. **Reconciliation Throttling on Disconnected DB**:
+   - Added `isDatabaseConnected()` guard checks to `reconcilePendingDocuments`, `reconcileStalledDocuments`, and `reconcileAll` in `document-recovery.service.ts`.
+   - If the database is disconnected, sweeps immediately log a warning and return `0` instead of firing buffered queries.
+5. **Secondary Failure Prevention & Retry Semantics**:
+   - In `processDocumentJob` and `processEmailJob`: added fast pre-check on `!isDatabaseConnected()` throwing a transient retryable error immediately (bypassing the 10s buffer timeout).
+   - In `handleExhaustedJobFailure`: checked for database unavailability errors (`buffering timed out`, `Database is disconnected`, `MongoNetworkError`). Disconnection errors skip transitioning documents to `REJECTED`, preserving retry/recovery semantics for true verification errors.
+6. **Test Isolation**:
+   - Scoped BullMQ queue names in test mode (`document-processing-test`, `email-delivery-test`), preventing background dev workers from intercepting in-memory test jobs.
+7. **Verification**:
+   - Created `server/tests/unit/worker-lifecycle.test.ts` (8 tests) verifying connection lifecycle callbacks, disconnection safety in reconciliation, fast-fail transient job behavior, and pause/resume worker controls.
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Client test suite: **44 passed across 7 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `server`, `worker`, `client`.
+   - Production bundle: clean Vite build in 1.02s.
+
+
 
 
 
