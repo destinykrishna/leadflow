@@ -33,6 +33,13 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **"Already Known" Person Detection**: Matches incoming leads against existing `Client` profiles in the brokerage, linking client IDs and preserving advisor assignments.
 - **Tenant-Aware Ingestion Rate Limiting**: 1,000 requests/minute per verified brokerage placed after authentication. Protects brokerages from noisy neighbors sharing external webhook IPs (e.g. Typeform or Zapier egress).
 
+### 📊 Realtime Lead Pipeline & Optimistic Concurrency
+- **Stage Progression State Machine**: Strictly enforces forward pipeline moves: `NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST`. Disallows stage skipping, self-transitions, and backward moves.
+- **Terminal Stage Guarantees**: `WON` and `LOST` represent final lifecycle states with zero allowed outgoing transitions. Early drop-off to `LOST` is permitted from any active intermediate stage.
+- **Zero-Infrastructure Optimistic Concurrency**: Prevents lost updates using native MongoDB conditional updates matching exact status and `__v` versioning. Concurrent updates return HTTP 409 `ConflictError` cleanly without locking.
+- **Socket.IO Realtime Broadcasting**: Live pipeline stage updates broadcast to verified brokerage rooms (`brokerage:<brokerageId>`) and `platform:admins` post-commit.
+- **Tenant-Isolated WebSocket Security**: Handshake authentication enforces JWT verification, database active-user status, and active-brokerage checks. Clients are strictly excluded from internal brokerage pipeline rooms, and client room manipulation attempts are blocked. Zero sensitive PII exposed in socket event payloads.
+
 ### 📄 Expat Mortgage Document Verification
 - Domain-tailored checklist types including `PAYSLIP` (*Gehaltsabrechnung*), `BANK_STATEMENT`, `ID_DOCUMENT`, and `TAX_RETURN`.
 - Asynchronous verification pipeline architecture prepared for background workers.
@@ -63,7 +70,8 @@ leadflow/
     ├── architecture.md     # Multi-tenancy, service boundaries, and system topology
     ├── auth-security.md    # Token lifecycle, RBAC matrix, and IDOR defenses
     ├── database-design.md  # Schema definitions, compound indexes, and query patterns
-    └── lead-ingestion.md   # Webhook specs, HMAC verification, and burst ingestion
+    ├── lead-ingestion.md   # Webhook specs, HMAC verification, and burst ingestion
+    └── lead-pipeline.md    # Pipeline Kanban state machine, optimistic concurrency, and APIs
 ```
 
 ---

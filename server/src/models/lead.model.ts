@@ -38,7 +38,9 @@ export interface ILead {
   updatedAt: Date;
 }
 
-export interface ILeadDocument extends ILead, Document {}
+export interface ILeadDocument extends ILead, Document {
+  __v: number;
+}
 
 const leadSchema = new Schema<ILeadDocument>(
   {

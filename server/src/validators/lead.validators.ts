@@ -1,8 +1,99 @@
 import { z } from 'zod';
-import { LEAD_SOURCES, type LeadSource } from '../models/lead.model.js';
+import { Types } from 'mongoose';
+import { LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from '../models/lead.model.js';
 import { ValidationError } from '../utils/errors.js';
+import { objectIdSchema } from './common.validators.js';
 
 export const leadSourceEnum = z.enum(LEAD_SOURCES);
+export const leadStatusEnum = z.enum(LEAD_STATUSES);
+
+/**
+ * Valid stage transitions for LeadFlow sales pipeline:
+ * NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST
+ *
+ * Terminal stages: WON and LOST permit no transitions.
+ * Active stages can advance to the next linear stage or transition to LOST.
+ * Backward transitions and stage skipping are strictly forbidden.
+ */
+export const VALID_STAGE_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
+  NEW: ['CONTACTED', 'LOST'],
+  CONTACTED: ['QUALIFIED', 'LOST'],
+  QUALIFIED: ['PROPOSAL', 'LOST'],
+  PROPOSAL: ['NEGOTIATION', 'LOST'],
+  NEGOTIATION: ['WON', 'LOST'],
+  WON: [],
+  LOST: [],
+} as const;
+
+/**
+ * Returns true if moving from currentStatus to nextStatus is a valid stage transition.
+ */
+export function isValidStageTransition(
+  currentStatus: LeadStatus,
+  nextStatus: LeadStatus
+): boolean {
+  if (currentStatus === nextStatus) return false;
+  const allowed = VALID_STAGE_TRANSITIONS[currentStatus];
+  return allowed ? allowed.includes(nextStatus) : false;
+}
+
+/**
+ * Schema for updating a lead's stage.
+ * Accepts 'stage' or 'status' for ergonomics, with optional optimistic concurrency version.
+ */
+export const updateLeadStageSchema = z
+  .object({
+    stage: leadStatusEnum.optional(),
+    status: leadStatusEnum.optional(),
+    version: z
+      .number()
+      .int('Version must be an integer')
+      .min(0, 'Version cannot be negative')
+      .optional(),
+  })
+  .refine((data) => data.stage !== undefined || data.status !== undefined, {
+    message: "Either 'stage' or 'status' must be provided",
+    path: ['stage'],
+  });
+
+export type UpdateLeadStageInput = z.infer<typeof updateLeadStageSchema>;
+
+/**
+ * Schema validating lead ID URL route parameters.
+ */
+export const leadIdParamSchema = z.object({
+  id: objectIdSchema,
+});
+
+/**
+ * Schema for querying and filtering pipeline leads.
+ */
+export const pipelineQuerySchema = z.object({
+  stage: leadStatusEnum.optional(),
+  status: leadStatusEnum.optional(),
+  groupBy: z.enum(['stage', 'status']).optional(),
+  assignedTo: z
+    .string()
+    .trim()
+    .refine((val) => Types.ObjectId.isValid(val), {
+      message: 'Invalid assignedTo ObjectId format',
+    })
+    .optional(),
+  brokerageId: z
+    .string()
+    .trim()
+    .refine((val) => Types.ObjectId.isValid(val), {
+      message: 'Invalid brokerageId ObjectId format',
+    })
+    .optional(),
+  search: z.string().trim().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  page: z.coerce.number().int().min(1).default(1),
+  sort: z.enum(['createdAt', 'updatedAt', 'score', 'name']).default('createdAt'),
+  order: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export type PipelineQuery = z.infer<typeof pipelineQuerySchema>;
 
 /**
  * Standard LeadFlow Webhook Payload Schema.

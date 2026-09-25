@@ -821,6 +821,233 @@ COMPLETED (Phase 3 Finalized & Ready for Push)
 - Updated `docs/lead-ingestion.md`, `AGENTS.md`, and `README.md`.
 - All 164 tests passing across the workspace. Zero TypeScript or build errors.
 
+## Prompt 7 (Phase 4, Prompt 1: Pipeline Foundation)
+```
+LeadFlow — Phase 4, Prompt 1: Pipeline Foundation
+
+Read assignment.md, AGENTS.md, README.md, relevant architecture/domain docs, and only the existing Lead, Client, auth/RBAC, repository, controller, route, validation, and test files needed for this phase. Do not broadly scan or refactor the repository. Preserve the current layered folder structure.
+
+Implement the core Lead Pipeline functionality.
+
+Requirements:
+
+1. Lead stages
+   - Support the existing stages:
+     NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST
+   - Define and enforce valid stage transitions server-side.
+   - Prevent invalid/backward transitions unless the existing assignment/domain rules explicitly require them.
+   - Do not let clients bypass transition rules by directly modifying the stage.
+
+2. Pipeline APIs
+   - Add the minimal authenticated API needed to:
+     - list pipeline leads for the current brokerage
+     - filter/group by stage
+     - move a lead between valid stages
+     - retrieve the lead details needed by the pipeline
+   - Respect the existing role matrix.
+   - Preserve strict brokerage tenant isolation.
+
+3. Concurrent stage updates
+   - Prevent lost updates when two advisors attempt to move the same lead concurrently.
+   - Use an appropriate database-level/optimistic concurrency mechanism already compatible with the current architecture.
+   - Do not introduce unnecessary infrastructure.
+
+4. Authorization
+   - Brokerage admins/advisors may operate only within their brokerage.
+   - Clients must not be able to manipulate pipeline stages.
+   - Preserve platform-admin behavior according to the existing authorization model.
+
+5. Validation and errors
+   - Validate lead IDs, target stages, and request payloads.
+   - Return consistent safe errors for invalid transitions, missing leads, unauthorized access, and concurrency conflicts.
+   - Do not expose Mongo/database internals.
+
+6. Tests
+   Add focused tests covering:
+   - valid stage transitions
+   - invalid transitions
+   - brokerage isolation
+   - role authorization
+   - client attempting stage manipulation
+   - nonexistent/malformed lead IDs
+   - concurrent stage updates/lost-update prevention
+   - final WON/LOST behavior
+   - pipeline filtering/grouping
+
+Focused self-audit before finishing:
+- Can a user move another brokerage's lead?
+- Can a CLIENT modify a lead stage?
+- Can an invalid stage transition bypass validation?
+- Can two concurrent updates silently overwrite each other?
+- Can a client-supplied brokerageId affect the query?
+- Are all pipeline queries tenant-scoped?
+- Are errors safe and consistent?
+- Does the implementation leave a clean seam for future realtime/WebSocket updates without implementing realtime now?
+
+Fix genuine issues found during the self-audit.
+
+Run the relevant tests, full typecheck, and production build.
+
+Update AGENTS.md, README.md, PROMPTS.md, and relevant pipeline documentation with the final state and architectural decisions.
+
+Do not implement WebSockets/realtime, BullMQ, email triggers, tasks, dashboard, frontend, or document features in this prompt.
+
+Stop after Pipeline Foundation is complete and report:
+- files changed
+- architectural decisions
+- tests/results
+- typecheck/build results
+- self-audit findings
+- any intentional limitations
+```
+
+### Status
+COMPLETED (Phase 4, Prompt 1 Finalized & Verified)
+
+### Decisions & Assumptions
+1. **Pipeline State Machine Enforcements**:
+   - Defined `VALID_STAGE_TRANSITIONS` mapping strictly valid linear transitions: `NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST`.
+   - Disallowed stage skipping forward (e.g., `NEW → QUALIFIED` or `NEW → WON`), backward moves (e.g., `QUALIFIED → CONTACTED`), and self-transitions (e.g., `NEW → NEW`).
+   - Terminal stages: `WON` and `LOST` permit zero outgoing transitions. Once reached, a lead cannot be reopened or moved to another stage.
+   - Drop-off: Leads can transition from any active stage directly to `LOST`.
+2. **Zero-Infrastructure Database Optimistic Concurrency Control**:
+   - Integrated atomic conditional update using MongoDB's native `findOneAndUpdate`: `{ _id, brokerageId, status: lead.status, __v: lead.__v }` with `{ $set: { status: targetStage }, $inc: { __v: 1 } }` and `{ returnDocument: 'after' }`.
+   - Prevented lost updates when two advisors update simultaneously: exactly one transaction matches the initial state; the loser matches 0 documents and returns HTTP 409 `ConflictError` (`code: 'CONFLICT'`).
+   - Supports explicit `version` parameter in requests, throwing upfront 409 if stale.
+3. **Strict Brokerage Isolation & Anti-IDOR Defense**:
+   - All pipeline queries and updates for `BROKERAGE_ADMIN` and `ADVISOR` are strictly scoped to `req.user.brokerageId`.
+   - Guessed lead IDs belonging to another brokerage return HTTP 404 `NotFoundError`, concealing existence without leaking status.
+   - Any client-supplied `brokerageId` in request query strings or bodies is discarded for tenant users.
+4. **Role Matrix**:
+   - `PLATFORM_ADMIN`: Global platform access across brokerages.
+   - `BROKERAGE_ADMIN` & `ADVISOR`: Scoped access strictly to their brokerage.
+   - `CLIENT`: Strictly forbidden from listing leads, viewing pipeline boards, retrieving lead details, or updating stages (HTTP 403 `ForbiddenError`).
+5. **Realtime Broadcast Seam**:
+   - Created `emitPipelineStageChanged(event: LeadStageChangedEvent)` hook in `lead-pipeline.service.ts` decoupling stage transitions from future Socket.IO broadcasting in Phase 4 Prompt 2.
+
+### Completed Work
+- Added `VALID_STAGE_TRANSITIONS`, `isValidStageTransition`, `updateLeadStageSchema`, `pipelineQuerySchema`, and `leadIdParamSchema` in `server/src/validators/lead.validators.ts`.
+- Added `findPipelineLeads`, `findLeadById`, and `atomicUpdateStage` to `LeadRepository` in `server/src/repositories/lead.repository.ts`.
+- Implemented `LeadPipelineService` with list, get, atomic stage transitions, and realtime seam hook in `server/src/services/lead-pipeline.service.ts`.
+- Implemented `LeadController` handling `/pipeline`, `/`, `/:id`, and `/:id/stage` in `server/src/controllers/lead.controller.ts`.
+- Mounted authenticated pipeline routes guarded by `authenticate`, `requireActiveUser`, and `requireRoles` in `server/src/routes/lead.routes.ts`.
+- Added 32 comprehensive integration tests in `server/tests/integration/pipeline.test.ts`.
+- Created persistent pipeline documentation in `docs/lead-pipeline.md`.
+- Updated `AGENTS.md`, `README.md`, and `PROMPTS.md`.
+- 196 tests passing across 9 test files. Clean TypeScript typecheck and production build.
+
+## Prompt 8 (Phase 4, Prompt 2: Realtime Pipeline Updates)
+```
+LeadFlow — Phase 4, Prompt 2: Realtime Pipeline Updates
+
+Read assignment.md, AGENTS.md, README.md, docs/lead-pipeline.md, and only the existing pipeline/service/repository/auth/server/bootstrap/test files needed for this work. Do not broadly scan or refactor the repository. Preserve the current layered architecture and the existing pipeline implementation.
+
+Implement realtime pipeline updates using Socket.IO.
+
+Requirements:
+
+1. Socket.IO foundation
+   - Add Socket.IO to the existing server without replacing the current HTTP architecture.
+   - Authenticate socket connections using the existing authentication model.
+   - Reject unauthenticated or invalid sessions.
+   - Respect active-user and active-brokerage checks.
+
+2. Brokerage room isolation
+   - Each authenticated brokerage user joins only their brokerage room.
+   - PLATFORM_ADMIN may receive events across brokerages according to the existing authorization model.
+   - CLIENT users must not receive internal pipeline events.
+   - Never trust a client-supplied brokerageId when determining room membership.
+
+3. Pipeline stage events
+   - Wire the existing `emitPipelineStageChanged` seam from Phase 4 Prompt 1 to Socket.IO.
+   - Emit an event only after a stage transition is successfully persisted.
+   - Include only the minimum useful event data: lead identifier, brokerage identifier, previous stage, new stage, and relevant timestamp/version metadata.
+   - Do not expose credentials, tokens, or unnecessary lead PII.
+
+4. Tenant isolation
+   - A brokerage must never receive another brokerage's pipeline events.
+   - Ensure guessed or client-supplied room names cannot allow cross-brokerage subscriptions.
+   - PLATFORM_ADMIN behavior must remain intentional and server-controlled.
+
+5. Connection lifecycle
+   - Handle disconnects cleanly.
+   - Do not create duplicate room memberships or duplicate event delivery from repeated connection/setup logic.
+   - Keep the implementation simple; do not introduce Redis adapters or horizontal-scaling infrastructure yet.
+
+6. Tests
+   Add focused tests covering:
+   - authenticated socket connection
+   - unauthenticated/invalid connection rejection
+   - correct brokerage room membership
+   - CLIENT rejection from internal pipeline events
+   - stage-change event after successful transition
+   - no event when the database transition fails
+   - cross-brokerage event isolation
+   - client-supplied brokerage/room manipulation attempts
+   - disconnect/reconnect behavior where practical
+
+Focused self-audit:
+- Can a user join another brokerage's room?
+- Can a CLIENT receive internal pipeline events?
+- Can an unauthenticated socket subscribe?
+- Can a stage event be emitted before the database update succeeds?
+- Can one stage transition produce duplicate events?
+- Does the event contain unnecessary sensitive data?
+- Is PLATFORM_ADMIN cross-brokerage access intentional and server-controlled?
+- Does the implementation leave a clean path for a future Redis Socket.IO adapter without requiring it now?
+
+Fix genuine issues found during the self-audit.
+
+Run the relevant tests, full typecheck, and production build.
+
+Update AGENTS.md, README.md, PROMPTS.md, and relevant realtime/pipeline documentation with the final architecture and decisions.
+
+Do not implement BullMQ, Redis Socket.IO adapters, email/tasks, documents, dashboard, or frontend realtime UI in this prompt.
+
+Stop after Phase 4 Prompt 2 and report:
+- files changed
+- realtime architecture
+- authentication/authorization behavior
+- tenant isolation behavior
+- tests/results
+- typecheck/build results
+- self-audit findings
+- intentional limitations
+```
+
+### Status
+COMPLETED (Phase 4, Prompt 2 Finalized & Verified)
+
+### Decisions & Assumptions
+1. **Socket.IO Foundation & Dual-Transport Architecture**:
+   - Attached Socket.IO cleanly to HTTP server using `httpServer = http.createServer(app)` in `server/src/server.ts`, preserving the Express 5 HTTP REST API intact.
+   - Configured CORS aligned with REST API configuration (`env.CORS_ORIGIN`, `credentials: true`).
+2. **Handshake Authentication & Active Tenant Validation**:
+   - Implemented `socketAuthMiddleware` verifying JWT tokens from `socket.handshake.auth.token`, `Authorization: Bearer` headers, or `accessToken` cookies.
+   - Enforced database validation: rejects inactive/suspended users and inactive/suspended brokerages before granting socket connection.
+3. **Strict Server-Controlled Room Isolation**:
+   - `BROKERAGE_ADMIN` & `ADVISOR` automatically join `brokerage:<brokerageId>` strictly based on database-verified user context.
+   - `PLATFORM_ADMIN` automatically joins `platform:admins` to monitor platform-wide pipeline activity.
+   - `CLIENT` users join private `client:<userId>` rooms only and are strictly excluded from internal brokerage rooms.
+   - Intercepted and rejected client-initiated room manipulation (`join`, `join_room`, `subscribe`) with HTTP 403 `FORBIDDEN`.
+   - Allowed dynamic brokerage subscription exclusively for `PLATFORM_ADMIN` via `subscribe_brokerage` with ObjectId validation.
+4. **Post-Commit Minimal Event Broadcasting**:
+   - Wired `emitPipelineStageChanged` to broadcast `pipeline:stage_changed` and `lead:stage_changed` to `brokerage:<brokerageId>` and `platform:admins`.
+   - Broadcast occurs strictly after successful atomic database persistence (`atomicUpdateStage`). If validation or concurrency conflicts fail the write, zero socket events are emitted.
+   - Payload is strictly sanitized: contains `leadId`, `brokerageId`, `previousStage`, `newStage`, `version`, `timestamp`, and `updatedBy`. Zero lead emails, phone numbers, notes, financial values, or tokens are exposed.
+5. **Clean Scaling Seam**:
+   - All room emits utilize standard `io.to(...).emit(...)`, ready for Redis adapter (`@socket.io/redis-adapter`) horizontal clustering without refactoring service code.
+
+### Completed Work
+- Created `server/src/sockets/socket.auth.ts`, `server/src/sockets/socket.handlers.ts`, `server/src/sockets/socket.server.ts`, and `server/src/sockets/index.ts`.
+- Attached Socket.IO to HTTP server in `server/src/server.ts`.
+- Wired `emitPipelineStageChanged` in `server/src/services/lead-pipeline.service.ts` to broadcast over Socket.IO.
+- Added 20 integration tests in `server/tests/integration/realtime.test.ts`.
+- Updated `docs/lead-pipeline.md`, `AGENTS.md`, and `README.md`.
+- All 216 tests passing across 10 test files. Clean TypeScript typecheck and production build.
+
+
+
 
 
 
