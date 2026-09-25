@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "seed": "tsx scripts/seed.ts",
     "benchmark": "tsx scripts/benchmark.ts"
   },
   "keywords": [],

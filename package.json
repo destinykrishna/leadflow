@@ -6,8 +6,9 @@
     "dev:server": "npm --prefix server run dev",
     "dev:worker": "npm --prefix worker run dev",
     "dev:client": "npm --prefix client run dev",
-    "test": "npm --prefix server test",
+    "test": "npm --prefix server test && npm --prefix client test",
     "test:coverage": "npm --prefix server run test:coverage",
+    "seed": "npm --prefix server run seed",
     "typecheck": "npm --prefix server run typecheck && npm --prefix worker run typecheck && npm --prefix client run typecheck",
     "build": "npm run typecheck && npm --prefix client run build"
   },

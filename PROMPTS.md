@@ -1677,14 +1677,356 @@ COMPLETED
 - Documented Phase 8 P2 closeout in `AGENTS.md`, `README.md`, and `PROMPTS.md`.
 - Phase 8 is complete and backend is officially closed out.
 
+---
 
+## Phase 0 (Frontend) — Reconnaissance
 
+### Prompt
+```
+Phase 0 — Frontend Reconnaissance
 
+Read assignment.md, AGENTS.md, README.md, PROMPTS.md, and inspect the existing client/ frontend.
 
+Also inspect the installed frontend skills and available React Bits MCP/connected UI tooling.
 
+Do NOT modify application code yet.
 
+Report concisely:
+1. Current frontend structure, framework, routing, state/API architecture.
+2. Existing reusable UI/components/design system.
+3. Existing backend/API integration and auth handling.
+4. What is already implemented vs missing for the assignment.
+5. Relevant installed frontend skills/tools and where they should be used.
+6. Recommended Phase 1 scope based on the actual codebase.
+7. Any architectural/UX risks or technical debt that could affect frontend work.
 
+Do not refactor or install anything.
+Update AGENTS.md/README.md only if necessary to record confirmed frontend facts.
+Update PROMPTS.md with this prompt and its status.
+```
 
+### Status
+COMPLETED
+
+### Findings & Confirmed Facts
+1. **Frontend Architecture & Dependencies**: React 19.2.8, Vite 8.3.1, TypeScript 6.0.2 (`bundler` module resolution, `es2023`). `package.json` includes `react-router-dom` 7.18.4, `@tanstack/react-query` 5.103.2, `axios` 1.20.0, `socket.io-client` 4.8.3, `lucide-react` 1.48.0, `clsx` 2.1.1, and `tailwind-merge` 3.7.0.
+2. **Current Codebase State**: `client/src/` contains only empty directory stubs (`components/`, `features/`, `hooks/`, `lib/`, `routes/`, `types/`) and standard Vite template files (`App.tsx`, `App.css`, `index.css`). No UI components, routes, API clients, or auth stores exist yet.
+3. **Styling Gap**: `clsx` and `tailwind-merge` are present, but `tailwindcss` is not yet installed in `client/package.json`.
+4. **Backend Readiness**: Backend API (Express 5, Mongoose 9), background workers (BullMQ, Redis), and WebSockets (Socket.IO) are 100% complete and hardened across Phases 1–8 (325 passing tests). All required REST and realtime events for the 10 assignment capabilities exist.
+5. **Tooling & Skills**: `.agents/skills/design-taste-frontend` is installed and ready for anti-slop B2B/financial UX design. `reactbits-mcp` is verified and responsive for animations, loaders, and micro-interactions. `shadcn` MCP is available for component primitives.
+
+---
+
+## Phase 1 (Frontend) — Premium Frontend Foundation & Auth Shell
+
+### Prompt
+```
+Phase 1 — Premium Frontend Foundation & Auth Shell
+
+Read assignment.md, AGENTS.md, README.md, PROMPTS.md and the Phase 0 reconnaissance before implementing.
+
+Use the installed `design-taste-frontend` skill throughout this phase. Use shadcn MCP for accessible primitives and React Bits MCP selectively for tasteful micro-interactions/loading—not decorative UI everywhere.
+
+Build the frontend foundation:
+- Configure Tailwind v4 + Vite.
+- Establish a cohesive premium B2B SaaS design system in index.css: typography, spacing, surfaces, borders, radii, semantic colors, focus states and density.
+- Aim for authoritative, refined financial-software UI: excellent hierarchy and whitespace, restrained color, subtle depth/motion, no generic AI-dashboard clichés, gradients, glow effects or card soup.
+- Create reusable primitives: Button, Input, Card, Badge, Dialog, Avatar, Loader, Skeleton, EmptyState and ErrorState.
+- Configure Vite proxy for /api and /socket.io.
+- Create typed Axios API layer with credentials + 401 refresh handling.
+- Configure TanStack Query.
+- Implement auth/session restoration with useAuth and /api/auth/me.
+- Add React Router with protected role-aware routes for /app, /portal and /admin.
+- Build a polished responsive application shell: sidebar, header, user menu and role-aware navigation.
+- Build a premium login page supporting the four backend roles.
+
+Do not implement dashboard/pipeline/client/document features yet.
+
+Preserve existing architecture; don't introduce unnecessary libraries or refactors.
+Use real backend contracts—no fake API layer.
+
+After implementation:
+1. Self-audit visual consistency, accessibility, responsiveness, auth security and unnecessary duplication.
+2. Fix genuine issues found.
+3. Run frontend typecheck, tests and production build.
+4. Update AGENTS.md, README.md and PROMPTS.md with the completed Phase 1 state and decisions.
+5. Stop after Phase 1.
+```
+
+### Status
+COMPLETED
+
+### Architectural & Implementation Decisions
+1. **Design Read & Dial Settings (`design-taste-frontend`)**:
+   - Design read: B2B SaaS application shell and auth foundation for German mortgage advisors and clients, with an authoritative, refined financial-software language.
+   - Core dials: `DESIGN_VARIANCE: 5`, `MOTION_INTENSITY: 3`, `VISUAL_DENSITY: 6`.
+   - Palette & Materiality: Slate canvas (`hsl(210 20% 98%)`), deep navy/slate-900 high contrast text (`hsl(222 47% 11%)`), authoritative royal sapphire primary accent (`hsl(221 83% 53%)`), crisp borders, zero AI-purple gradients, zero glow effects, and zero em-dashes across all UI copy.
+2. **Tailwind CSS v4 & Vite Integration**:
+   - Configured `@tailwindcss/vite` plugin in `client/vite.config.ts` alongside `@vitejs/plugin-react`.
+   - Defined semantic design tokens (`--background`, `--foreground`, `--primary`, `--card`, `--border`, `--ring`, `--radius`) in `client/src/index.css` with `@theme` mappings.
+   - Configured local development proxies for `/api` (`http://localhost:5000`) and `/socket.io` (`http://localhost:5000`, `ws: true`).
+3. **Reusable Primitives (`client/src/components/ui/`)**:
+   - Built 10 accessible primitives: `Button` (loading spinner, active push feedback), `Input` (label above, error below, aria attributes, prefix/suffix icons), `Card` family (`Card`, `Header`, `Title`, `Description`, `Content`, `Footer`), `Badge` (semantic financial status variants), `Dialog` (Radix Dialog with portal, backdrop, focus trap, and dismiss), `Avatar` (Radix Avatar with deterministic initials fallback), `Loader` (tasteful spinner and fullscreen overlay), `Skeleton` (subtle pulse placeholder), `EmptyState`, and `ErrorState` with retry callback.
+4. **Typed Axios Client & Concurrent 401 Refresh Handling (`client/src/lib/api.ts`)**:
+   - Built Axios instance with `baseURL: '/api'` and `withCredentials: true`.
+   - In-memory `accessToken` storage with getter/setter (safe from local storage XSS).
+   - Request interceptor attaches `Authorization: Bearer <token>`.
+   - Response interceptor traps 401 responses, queues concurrent in-flight requests, calls `POST /api/auth/refresh` to rotate credentials via HTTP-only cookie, and retries the original request seamlessly upon renewal.
+5. **Auth Context & Session Restoration (`client/src/features/auth/`)**:
+   - Implemented `AuthContext`, `AuthProvider`, and `useAuth` hook.
+   - Automatically probes `/api/auth/refresh` on application initialization to restore active sessions from HTTP-only refresh cookies with zero login screen flash.
+   - Exposes `login()`, `logout()`, `refreshUser()`, `isAuthenticated`, and `isLoading`.
+6. **Role-Aware Routing & App Shell (`client/src/routes/`, `client/src/components/layout/`)**:
+   - Configured React Router with `ProtectedRoute` enforcing role guards across `/app` (`BROKERAGE_ADMIN`, `ADVISOR`), `/portal` (`CLIENT`), and `/admin` (`PLATFORM_ADMIN`).
+   - Root `/` route intelligently redirects to the user's role-specific home page.
+   - Built responsive application shell: `Sidebar` with role-aware navigation sections and active route states, mobile drawer toggle, `Header` with role badge and WebSocket indicator, and Radix `DropdownMenu` for user profile and sign out.
+   - Built high-fidelity feature shells (`FeatureShell`) for all placeholder routes.
+7. **Premium Split-Screen Login Page (`client/src/features/auth/LoginPage.tsx`)**:
+   - Authoritative financial split-screen layout with value messaging and RFC 6819 token rotation guarantees.
+   - 4-role quick-switch demo presets (Platform Admin, Brokerage Admin, Mortgage Advisor, Expat Client) pre-populating test credentials for frictionless evaluation.
+   - Real backend error presentation and validation.
+8. **Testing & Verification**:
+   - Configured Vitest + `@testing-library/react` + `@testing-library/jest-dom` in client workspace.
+   - Added 14 unit tests in `client/src/tests/components.test.tsx` and `client/src/tests/auth-routing.test.tsx` (all passing).
+   - Monorepo tests: all 325 server tests passing; 14 client tests passing (339 total passing tests).
+   - Monorepo typecheck: 0 errors across `server`, `worker`, `client`.
+   - Production build: `vite build` completed in 429ms.
+
+---
+
+## Phase 1, Prompt 2: User-Facing UI Refinement
+
+### Prompt
+```
+Phase 1 — Prompt 2: User-Facing UI Refinement
+
+Read AGENTS.md, README.md and inspect the current Phase 1 UI.
+
+The current visual design is good. Do NOT redesign it. Refine it so users see only information useful to completing their work.
+
+Remove developer/implementation-facing UI:
+- Login technical/marketing panel and copy.
+- "Strict Tenant Isolation", "Real-Time Event Architecture", "Background Job Resilience", RFC 6819, ISO/security claims and similar technical explanations.
+- Visible WebSocket connection status.
+- Sidebar "Live" indicator.
+- "Architecture Ready", "Phase 2 Ready" and development/status messaging.
+- Excessive tenant/role/status badges where they do not help the user's workflow.
+
+Login should become a clean, premium, focused sign-in experience with LeadFlow branding, concise copy, credentials, tenant identifier and subtle demo-role switching.
+
+Keep the existing visual language, functionality, routing, auth behavior and responsive layout. Make the sidebar cleaner and less visually heavy.
+
+Core principle:
+SHOW USERS WHAT THEY NEED.
+HIDE IMPLEMENTATION DETAILS THEY DON'T NEED.
+
+Use the existing design-taste-frontend guidance and shadcn primitives. Avoid unnecessary React Bits effects.
+
+Run tests, typecheck and build. Update AGENTS.md, README.md and PROMPTS.md. Stop after this refinement.
+```
+
+### Status
+COMPLETED
+
+### Refinement Decisions & Changes
+1. **Focused, Premium Login Page**:
+   - Removed the marketing/architecture panel containing technical explanations (RFC 6819, ISO 27001, tenant isolation claims, background worker resilience).
+   - Replaced it with a clean, centered sign-in card with concise LeadFlow branding, work email, password, and brokerage identifier.
+   - Replaced the dominant 4-tile demo box with subtle, compact demo account quick-switch pill buttons.
+   - Replaced bulky error boxes with sleek, compact inline error banners that fit within standard viewport heights without layout shifts.
+   - Added automatic slug whitespace normalization.
+2. **Simplified, Clean Sidebar**:
+   - Removed the developer "Scope / Tenant Banner" box (`Platform Scope`, `Tenant Scope`, `Tenant: 7a7257`, `Cross-Brokerage Control`).
+   - Removed the footer "Live" status dot.
+   - Retained the clean LeadFlow emblem and wordmark with streamlined navigation groups.
+3. **Calm, Distraction-Free Header**:
+   - Removed the visible "WebSocket Connected" status badge.
+   - Removed technical subtitles ("Global Multi-Tenant Hub", "Berlin & Munich Expats Workflow").
+   - Preserved clean user identity dropdown with avatar, name, email, role badge, and sign-out action.
+4. **User-Centric Workspace Empty States**:
+   - Refactored `FeatureShell` to remove developer badges ("Phase 2 Ready", "Phase 3 Ready") and "Architecture Ready" database implementation descriptions.
+   - Replaced all placeholder screens with business-oriented, user-friendly empty states and explanatory subtitles describing mortgage advisory operations.
+5. **Universal Single Root Environment & Database Seeding**:
+   - Configured both `server` and `worker` to resolve from a single root `.env` file, removing the redundant `server/.env`.
+   - Created and executed `server/scripts/seed.ts` (`npm run seed`) creating real demo records with valid bcrypt hashes for all 4 roles.
+6. **Verification**:
+   - Client tests (`npm --prefix client test`): 14 passed.
+   - Server tests (`npm test`): 325 passed.
+   - Monorepo typecheck (`npm run typecheck`): 0 errors across `server`, `worker`, `client`.
+   - Monorepo production build (`npm run build`): clean bundle built in 531ms.
+
+## Phase 1, Prompt 2 (Follow-up): Production UX Refinement
+```
+Phase 1 — Prompt 2: Production UX Refinement
+
+Read AGENTS.md and inspect the current frontend.
+
+Keep the current visual design. Do not redesign it.
+
+Make the shell feel like a polished production SaaS:
+
+- Remove developer/implementation-facing copy and indicators from P1.
+- Simplify the login to only user-relevant content.
+- Add a polished Cmd/Ctrl+K command palette for navigation and useful global actions.
+- Show keyboard shortcuts naturally where useful.
+- Improve sidebar/header hierarchy, spacing, hover/active states and responsive behavior.
+- Add subtle, purposeful transitions and micro-interactions using shadcn + React Bits where they improve UX.
+- Improve loading, focus, dropdown and dialog interactions.
+- Keep the UI restrained: no decorative effects, excessive badges, gradients or "AI dashboard" styling.
+- Use production SaaS patterns as inspiration (Linear/Intercom/Stripe), but do not copy their UI.
+
+Do not implement dashboard analytics, pipeline, clients or other Phase 2+ features yet.
+Do not change backend/auth/API architecture.
+
+Run tests, typecheck and build. Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Refinement Decisions & Changes
+1. **Cmd/Ctrl+K Command Palette**:
+   - Built `CommandPalette` in `components/common/CommandPalette.tsx` using Radix UI accessible dialog primitives with zero heavy dependencies.
+   - Global keyboard listener (`⌘K` on Mac, `Ctrl+K` on Windows/Linux) and `ESC` to dismiss.
+   - Role-aware navigation commands (`Pipeline`, `Leads`, `Clients`, `Documents`, `Tasks`, `Brokerages`, `Case`, etc.) and quick actions (toggle sidebar, copy URL, keyboard shortcuts cheat sheet, sign out).
+   - Real-time search filtering, arrow key navigation (`↑`/`↓`), enter key execution, and physical `<kbd>` keycaps.
+2. **Natural Keyboard Shortcuts & Chords**:
+   - Implemented `useKeyboardShortcuts` hook in `hooks/useKeyboardShortcuts.ts` supporting `⌘K`/`Ctrl+K`, `⌘B`/`Ctrl+B`, `?` (shortcuts cheat sheet), and two-key navigation chords (`G then P` for Pipeline, `G then L` for Leads, `G then C` for Clients, `G then D` for Documents, `G then T` for Tasks) with safe input focus suppression.
+   - Built `KeyboardShortcutsModal` in `components/common/KeyboardShortcutsModal.tsx` showing global key bindings and navigation chords in an accessible dialog.
+   - Displayed keyboard shortcut badges on header search button, profile dropdown menu items, and sidebar navigation items.
+3. **Sidebar & Header Hierarchy & Responsive Behavior**:
+   - Built collapsible desktop rail mode (`⌘B` / `Ctrl+B`) with smooth width transitions (`w-64` to `w-16`).
+   - In collapsed mode: centered icons with accessible tooltip hints, collapsed logo mark, clean active state pill, and bottom expand trigger.
+   - In expanded mode: clean section hierarchy, keyboard shortcuts shown on hover, crisp hover and active background highlights (`bg-slate-900 text-white`).
+   - In Header: added search/command bar trigger (`Search or jump to... ⌘K`), current section breadcrumb, keyboard shortcut button (`?`), and polished Radix dropdown menu.
+4. **Purposeful Micro-Interactions & Transitions**:
+   - Refined button press feedback (`active:scale-[0.98]`), dialog backdrop blur (`backdrop-blur-xs`), smooth dropdown animations, and focus ring transitions.
+   - Retained restrained, authoritative aesthetic: zero decorative AI glow, zero gradients, zero card soup.
+5. **Verification**:
+   - Client tests (`vitest`): 17 passing across 3 test suites (`components.test.tsx`, `auth-routing.test.tsx`, `ux-refinements.test.tsx`).
+   - Server tests: 325 passing across 16 test suites (342 monorepo tests total).
+   - Monorepo typecheck: 0 errors across `server`, `worker`, `client`.
+   - Production build: clean build in 545ms.
+
+## Phase 2, Prompt 1: Dashboard + Pipeline Foundation
+```
+Phase 2 — Prompt 1: Dashboard + Pipeline Foundation
+
+Read AGENTS.md, README.md, PROMPTS.md and inspect the existing frontend/backend contracts.
+
+Build the real brokerage dashboard using existing design primitives and real APIs.
+
+Dashboard:
+- Create a polished operations dashboard for BROKERAGE_ADMIN/ADVISOR.
+- Show useful KPIs: total leads, active pipeline, qualified leads, won cases and active clients.
+- Add meaningful pipeline/stage distribution visualization and recent activity.
+- Use real backend data; no fake/demo metrics.
+- Include useful loading, empty and error states.
+- Keep the visual style premium, restrained and information-dense.
+- Do not expose technical implementation details.
+
+Pipeline:
+- Establish the page structure and data-fetching layer for the real pipeline.
+- Use `/api/leads/pipeline`.
+- Prepare clean stage/lead models for the Kanban implementation in the next prompt.
+- Preserve existing architecture and reusable components.
+
+Use shadcn and existing design system. Use React Bits only when it improves a real interaction.
+
+Do not implement drag/drop or Socket.IO interactions yet.
+
+Run tests, typecheck and build. Self-audit for UX, responsive behavior and unnecessary UI. Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Decisions & Changes
+1. **Real Operations Dashboard** (`/app/dashboard`):
+   - Created `DashboardPage` in `features/dashboard/DashboardPage.tsx` using `useDashboardData` hook.
+   - Built 5 core KPI cards (`KpiCard.tsx`): Total Leads, Active Pipeline, Pre-Qualified, Won Cases (with conversion rate percentage), and Active Clients.
+   - Built `PipelineDistributionCard.tsx` featuring a segmented pipeline progress bar and complete volume/count breakdown across all 7 stages (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, `WON`, `LOST`).
+   - Built `RecentActivityCard.tsx` displaying recent incoming borrower leads with loan amounts, stage badges, and relative timestamps.
+   - Built `PendingTasksCard.tsx` displaying action items triggered by stage transitions with priority and overdue flags.
+   - Integrated clean loading skeletons, an empty state, and an error state with retry functionality.
+2. **Real Pipeline Page & Data-Fetching Layer** (`/api/leads/pipeline`):
+   - Created `pipeline.api.ts` with TanStack Query hook `usePipeline(params)`.
+   - Built `PipelineHeader.tsx` showing active lead counts, total pipeline volume in EUR, and real-time borrower/email search filtering.
+   - Built `PipelineColumn.tsx` and `LeadCard.tsx` rendering the 7 linear qualification columns with count pills, stage total volume, borrower name, contact information, loan amounts, and lead scores.
+   - Cleanly modularized components in preparation for Kanban drag-and-drop interactions in Phase 2 Prompt 2 without premature drag-and-drop or WebSocket hooks.
+3. **Domain Contracts & Navigation**:
+   - Added typed domain definitions in `pipeline.types.ts`, `client.types.ts`, and `task.types.ts`.
+   - Added `/app/dashboard` route in `AppRoutes.tsx`, added `Dashboard` to `Sidebar.tsx`, `CommandPalette.tsx`, `KeyboardShortcutsModal.tsx`, and `useKeyboardShortcuts.ts` (`G then O`).
+4. **Verification**:
+   - Monorepo typecheck: 0 errors across `server`, `worker`, `client`.
+   - Client tests (`vitest`): 21 passed across 4 test suites (`dashboard-pipeline.test.tsx`, `auth-routing.test.tsx`, `components.test.tsx`, `ux-refinements.test.tsx`).
+   - Backend tests: 325 passed across 16 test suites (346 monorepo tests total).
+   - Production bundle: clean Vite build in 468ms.
+
+---
+
+## Phase 2 — Prompt 2: Interactive Kanban + Realtime
+```
+Phase 2 — Prompt 2: Interactive Kanban + Realtime
+
+Read AGENTS.md and inspect the existing Pipeline components/API.
+
+Turn the existing pipeline into a fully functional Kanban.
+
+- Add reliable drag-and-drop using a React 19-compatible approach such as dnd-kit.
+- Allow only backend-valid stage transitions; reject invalid drops.
+- On drop, call the existing stage mutation API.
+- Use optimistic movement with rollback on failure.
+- Handle backend 409 concurrency conflicts gracefully and refresh the affected lead.
+- Connect Socket.IO to receive `pipeline:stage_changed` and reconcile remote updates without duplicate/stale cards.
+- Preserve search/filter state.
+- Ensure all 7 stages are usable, including horizontal scrolling on smaller screens.
+- Make drag/drop feel polished but restrained: clear drop target, subtle motion, no excessive animation.
+- Preserve the current visual design. Do not redesign the page or add unrelated features.
+
+Run tests, typecheck and build. Add focused tests for valid/invalid moves, rollback, 409 conflict and realtime update. Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Decisions & Changes
+1. **Interactive Drag-and-Drop with `@dnd-kit`**:
+   - Installed `@dnd-kit/core` and `@dnd-kit/utilities` with clean React 19 compatibility.
+   - Configured `PointerSensor` with `activationConstraint: { distance: 5 }` to avoid interfering with click navigation, alongside accessible `KeyboardSensor`.
+   - Created `DraggableLeadCard` wrapping each borrower card with subtle dragging styles (`cursor-grab`, active `cursor-grabbing`, and disabled cursor on terminal `WON` / `LOST` cards).
+   - Created `DroppableColumn` wrapping each stage column with dynamic drop feedback (subtle green check / blue highlight on valid targets; red ban ring on invalid targets).
+   - Added restrained `DragOverlay` showing a gentle 1-degree rotation and elevation shadow without distracting physics animations.
+2. **State Machine Validation & Error Handling**:
+   - Enforced client-side qualification state machine matching backend rules: forward linear progression (`NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST`), exit to `LOST` allowed from any intermediate stage, and zero outgoing transitions from terminal `WON` and `LOST`.
+   - Invalid drops are immediately rejected on the client with clear, dismissible warning banners (e.g. `Cannot move lead from New Inquiry to Won. Allowed next stages: Contacted or Lost.`).
+3. **Optimistic Updates, Concurrency Conflicts (HTTP 409) & Rollback**:
+   - On valid drop, snapshots current TanStack Query cache `['pipeline']` and optimistically moves the lead, updates source and destination counts, and increments `__v`.
+   - Calls `updateLeadStageMutation.mutateAsync({ id, stage, version: lead.__v })`.
+   - On network or server error, rolls back immediately to the previous cache snapshot and alerts the user.
+   - Detects HTTP 409 concurrency conflicts (`CONCURRENCY_CONFLICT`), informs the advisor that the lead was modified concurrently, and auto-refreshes the board (`queryClient.invalidateQueries`).
+4. **Realtime Socket.IO Pipeline Synchronization**:
+   - Built singleton socket client in `lib/socket.ts` with credentials and access token handshake.
+   - Created `usePipelineSocket` hook listening to `pipeline:stage_changed` and `lead:stage_changed`.
+   - Immutably relocates cards across stages and adjusts counts upon receiving remote updates. Prevents duplicate cards via ID deduplication and version checks, falling back to cache invalidation if an untracked lead arrives.
+5. **Search & Responsive Layout**:
+   - Preserved real-time search filtering on borrower name, email, phone, and source without disrupting drag targets.
+   - Preserved all 7 stage columns with fluid horizontal scroll on smaller viewports.
+6. **Verification**:
+   - Added 10 focused unit/integration tests in `kanban-realtime.test.tsx` verifying:
+     - Linear progression validation.
+     - Early exit to `LOST` validation.
+     - Stage skipping rejection.
+     - Terminal stage immutability for `WON` and `LOST`.
+     - Socket.IO `pipeline:stage_changed` reconciliation across stages and count updates.
+     - Socket.IO duplicate prevention on repeated broadcasts.
+     - Unknown lead cache invalidation.
+     - 7-stage column rendering.
+     - Optimistic update rollback on mutation failure.
+     - 409 concurrency conflict detection and cache invalidation.
+   - Client test suite: 31 tests passed across 5 files (`vitest`).
+   - Monorepo typecheck: 0 errors across `server`, `worker`, `client`.
+   - Monorepo production build: clean Vite build in 592ms.
 
 
 

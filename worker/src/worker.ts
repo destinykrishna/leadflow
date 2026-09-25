@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { pino } from 'pino';
@@ -8,6 +10,10 @@ import { closeEmailQueue } from '../../server/src/queues/email.queue.js';
 import { closeRedisConnections } from '../../server/src/queues/redis.connection.js';
 import { documentRecoveryService } from '../../server/src/queues/document-recovery.service.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load root .env first (monorepo single source of truth), with cwd fallback
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
 const logger = pino({

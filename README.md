@@ -55,6 +55,25 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Compensating Rollback Architecture**: If database record persistence fails after an ImageKit upload, the system automatically triggers a compensation deletion in ImageKit, preventing orphaned storage files.
 - **Zero Credential Exposure**: ImageKit private keys remain strictly server-side; client uploads are proxied through authenticated API endpoints (`POST /api/documents/upload`, `GET /api/documents`, `GET /api/documents/:id`).
 
+### 🎨 Premium Frontend Architecture & Auth Shell
+- **Modern UI Stack**: React 19.2, Vite 8.3, Tailwind CSS v4 (`@tailwindcss/vite`), TanStack Query 5.103, React Router 7.18, and Radix UI accessible primitives.
+- **Financial B2B SaaS Design System**: Authoritative typography, neutral canvas (`slate-50`), deep cobalt/sapphire primary (`#2563eb`), zero em-dashes, and strict WCAG AA contrast compliance following `design-taste-frontend`.
+- **User-Centric UI**: Distraction-free interface showing users only the information needed to complete mortgage workflows, with zero implementation noise or technical status claims.
+- **Operations Dashboard**: Real-time performance dashboard for `BROKERAGE_ADMIN` and `ADVISOR` featuring 5 core KPIs (Total Leads, Active Pipeline, Pre-Qualified, Won Cases, Active Clients), 7-stage pipeline volume distribution, recent borrower activity, and pending operational tasks.
+- **Interactive Kanban Drag-and-Drop**: Reliable drag-and-drop powered by React 19-compatible `@dnd-kit` (`@dnd-kit/core`, `@dnd-kit/utilities`) with `PointerSensor` (5px activation threshold) and `KeyboardSensor`.
+- **State Machine Enforcement**: Client-side validation enforcing the exact backend qualification sequence (`NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST`), rejecting invalid drops and terminal moves with actionable feedback notices.
+- **Optimistic Updates & Concurrency Rollback**: Instant card relocation with rollback snapshot on network failure, paired with graceful HTTP 409 concurrency conflict handling that alerts advisors and auto-refreshes the board.
+- **Realtime Socket.IO Pipeline Synchronization**: Live subscription to `pipeline:stage_changed` and `lead:stage_changed` reconciling remote advisor moves across columns without duplicate cards or stale counts.
+- **7-Stage Pipeline Board**: Complete linear qualification columns (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, `WON`, `LOST`) with lead volume summaries, real-time search filtering, horizontal scrolling, and restrained visual drag feedback with `DragOverlay`.
+- **Cmd/Ctrl+K Command Palette**: Fast, keyboard-accessible command palette (`⌘K` / `Ctrl+K`) for rapid page navigation, workspace URL copying, sidebar toggling, and role-scoped commands.
+- **Natural Keyboard Navigation**: Power-user keyboard shortcuts and two-key chords (`G then P` for Pipeline, `G then L` for Leads, `G then C` for Clients, etc.) with physical `<kbd>` keycaps and an accessible cheat sheet dialog (`?`).
+- **Collapsible Navigation Rail**: Desktop sidebar with fluid toggle (`⌘B` / `Ctrl+B`) supporting an icon-rail mode with accessible tooltips and clear active states.
+- **Reusable Primitives**: Fully accessible `Button`, `Input`, `Card`, `Badge`, `Dialog`, `Avatar`, `Loader`, `Skeleton`, `EmptyState`, and `ErrorState`.
+- **Typed API & Refresh Interceptor**: Axios instance configured with `withCredentials: true`, in-memory access token storage, and automatic 401 token refresh queue handling.
+- **Role-Aware Protected Shell**: `useAuth` hook with transparent session restoration, role-based navigation and protected routes for `/app` (advisors & brokerage admins), `/portal` (expat clients), and `/admin` (platform superadmins).
+- **Focused Login Experience**: Clean, focused sign-in interface with subtle demo-role switcher pills for testing all 4 roles out of the box.
+
+
 ### ⚙️ Asynchronous Document Processing (BullMQ & Redis)
 - **Non-Blocking Upload Flow**: Document uploads store the file and persist metadata with status `PENDING`, enqueueing a background verification job to BullMQ rather than blocking HTTP responses.
 - **Enqueue Failure Isolation**: If Redis experiences a transient outage during document upload, the HTTP request completes with HTTP 201; the document is safely persisted in MongoDB in `PENDING` state with zero external error leakage.
