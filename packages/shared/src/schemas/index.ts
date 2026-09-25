@@ -1,0 +1,4 @@
+/**
+ * Shared validation schemas.
+ */
+export {};

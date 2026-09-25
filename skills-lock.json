@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "auth-implementation-patterns": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/auth-implementation-patterns/SKILL.md",
+      "computedHash": "975c2129bf11efd8c4cc81cf447d40bccd0b621dadcd54a567073c203e268ab7"
+    },
+    "backend-security-coder": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/backend-security-coder/SKILL.md",
+      "computedHash": "f9c4364e1c99867774b991f75908928973b497218e35270d7f9f8c2f48525635"
+    },
+    "data-engineer": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/data-engineer/SKILL.md",
+      "computedHash": "394d75c6bb2ddaeeb6ced771871197c02b6fce77b5a2c4c2b0be4da979cd6b64"
+    },
+    "database-architect": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/database-architect/SKILL.md",
+      "computedHash": "4200c80bbaa1c1ec1ef77363c99a87c3fe74c9768739e22ee41662c4d9621c02"
+    }
+  }
+}

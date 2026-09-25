@@ -1,0 +1,4 @@
+/**
+ * Email Processor Placeholder
+ */
+export {};
