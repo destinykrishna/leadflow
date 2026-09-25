@@ -3,7 +3,10 @@ import mongoose from 'mongoose';
 import { pino } from 'pino';
 import { startDocumentWorker, closeDocumentWorker } from '../../server/src/queues/document.worker.js';
 import { closeDocumentQueue } from '../../server/src/queues/document.queue.js';
+import { startEmailWorker, closeEmailWorker } from '../../server/src/queues/email.worker.js';
+import { closeEmailQueue } from '../../server/src/queues/email.queue.js';
 import { closeRedisConnections } from '../../server/src/queues/redis.connection.js';
+import { documentRecoveryService } from '../../server/src/queues/document-recovery.service.js';
 
 dotenv.config();
 
@@ -21,13 +24,18 @@ async function startWorkerProcess(): Promise<void> {
     logger.info('Worker MongoDB connected successfully');
 
     startDocumentWorker();
-    logger.info('Document processing worker actively polling for jobs');
+    startEmailWorker();
+    documentRecoveryService.startPeriodicReconciliation();
+    logger.info('Document & email processing workers actively polling for jobs with periodic reconciliation');
 
     const shutdown = async (signal: string) => {
       logger.info({ signal }, 'Graceful shutdown initiated for background worker');
       try {
+        documentRecoveryService.stopPeriodicReconciliation();
         await closeDocumentWorker();
         await closeDocumentQueue();
+        await closeEmailWorker();
+        await closeEmailQueue();
         await closeRedisConnections();
         await mongoose.disconnect();
         logger.info('Worker shutdown completed cleanly');

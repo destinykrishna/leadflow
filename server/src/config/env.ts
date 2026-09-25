@@ -33,6 +33,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   DOCUMENT_PROCESSING_CONCURRENCY: z.coerce.number().int().positive().default(5),
   DOCUMENT_PROCESSING_DELAY_MS: z.coerce.number().int().nonnegative().default(2000),
+  PENDING_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(15000),
+  STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(300000),
+  RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import http from 'node:http';
 import request from 'supertest';
 import { Types } from 'mongoose';
@@ -23,7 +23,11 @@ import {
   closeDocumentWorker,
   DOCUMENT_PROCESSING_QUEUE_NAME,
   type DocumentJobPayload,
+  reconcilePendingDocuments,
+  reconcileStalledDocuments,
+  reconcileAll,
 } from '../../src/queues/index.js';
+import * as queueModule from '../../src/queues/document.queue.js';
 import { closeRedisConnections } from '../../src/queues/redis.connection.js';
 
 describe('BullMQ Document Processing Foundation Integration Tests', () => {
@@ -663,6 +667,216 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
 
       const finalDoc = await DocumentModel.findById(doc._id);
       expect(finalDoc?.status).toBe('VERIFIED');
+    });
+  });
+
+  describe('11. Enqueue Failure Isolation & PENDING State Durability', () => {
+    it('succeeds HTTP upload with 201 and stores PENDING doc when Redis/BullMQ enqueue throws', async () => {
+      // Spy on enqueueDocumentProcessing to simulate transient Redis outage during upload
+      const enqueueSpy = vi
+        .spyOn(queueModule, 'enqueueDocumentProcessing')
+        .mockRejectedValueOnce(new Error('Redis connection timeout during enqueue'));
+
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenClientA}`)
+        .field('title', 'Proof of Income Unqueued')
+        .field('type', 'PAYSLIP')
+        .attach('file', dummyPdfBuffer, 'payslip-redis-fail.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.status).toBe('PENDING');
+
+      const docId = res.body.data.document.id || res.body.data.document._id;
+      const persisted = await DocumentModel.findById(docId);
+      expect(persisted).not.toBeNull();
+      expect(persisted?.status).toBe('PENDING');
+
+      enqueueSpy.mockRestore();
+    });
+  });
+
+  describe('12. Background Reconciliation for Stale PENDING Documents', () => {
+    it('sweeper identifies unenqueued PENDING document and enqueues it for verification', async () => {
+      // Create a stale PENDING document directly in MongoDB (simulating enqueue gap)
+      const staleDoc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA._id,
+        uploadedBy: clientUserA._id,
+        title: 'Old Unprocessed W-2',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/old_w2.pdf',
+        type: 'PAYSLIP',
+        status: 'PENDING',
+      });
+
+      // Update createdAt to 5 minutes in the past directly on MongoDB collection
+      await DocumentModel.collection.updateOne(
+        { _id: staleDoc._id },
+        { $set: { createdAt: new Date(Date.now() - 5 * 60 * 1000) } }
+      );
+
+      // Run reconciliation sweep with threshold older than 1 minute
+      const recoveredCount = await reconcilePendingDocuments({ olderThanMs: 60 * 1000 });
+      expect(recoveredCount).toBeGreaterThanOrEqual(1);
+
+      // Verify the job was enqueued in BullMQ
+      const queue = getDocumentQueue();
+      const job = await queue.getJob(`doc-verify-${staleDoc._id}`);
+      expect(job).not.toBeNull();
+
+      // Process the recovered job
+      if (job) {
+        await processDocumentJob(job as any);
+      }
+
+      const verifiedDoc = await DocumentModel.findById(staleDoc._id);
+      expect(verifiedDoc?.status).toBe('VERIFIED');
+    });
+
+    it('returns 0 recovered documents when all PENDING documents are newer than threshold', async () => {
+      // Newly created PENDING doc
+      await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA._id,
+        uploadedBy: clientUserA._id,
+        title: 'Brand New Doc',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/brand_new.pdf',
+        type: 'OTHER',
+        status: 'PENDING',
+      });
+
+      // Sweep with threshold of 10 minutes: brand new doc should NOT be prematurely re-enqueued
+      const recoveredCount = await reconcilePendingDocuments({ olderThanMs: 10 * 60 * 1000 });
+      expect(recoveredCount).toBe(0);
+    });
+  });
+
+  describe('13. Background Reconciliation for Stalled PROCESSING Documents', () => {
+    it('recovers crashed worker job by resetting stalled PROCESSING document to PENDING and re-enqueueing', async () => {
+      // Simulate a document left in PROCESSING because worker crashed/died
+      const stalledDoc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA._id,
+        uploadedBy: clientUserA._id,
+        title: 'Stalled Mortgage Contract',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/stalled_contract.pdf',
+        type: 'CONTRACT',
+        status: 'PROCESSING',
+      });
+
+      // Set updatedAt to 10 minutes ago without triggering Mongoose automatic timestamp update
+      await DocumentModel.updateOne(
+        { _id: stalledDoc._id },
+        { $set: { updatedAt: new Date(Date.now() - 10 * 60 * 1000) } },
+        { timestamps: false }
+      );
+
+      const recoveredCount = await reconcileStalledDocuments({ olderThanMs: 5 * 60 * 1000 });
+      expect(recoveredCount).toBeGreaterThanOrEqual(1);
+
+      const resetDoc = await DocumentModel.findById(stalledDoc._id);
+      expect(resetDoc?.status).toBe('PENDING');
+      expect(resetDoc?.verificationNotes).toContain('Re-queued by background reconciliation');
+
+      // Verify re-enqueued in BullMQ
+      const queue = getDocumentQueue();
+      const job = await queue.getJob(`doc-verify-${stalledDoc._id}`);
+      expect(job).not.toBeNull();
+
+      if (job) {
+        await processDocumentJob(job as any);
+      }
+
+      const finalDoc = await DocumentModel.findById(stalledDoc._id);
+      expect(finalDoc?.status).toBe('VERIFIED');
+    });
+  });
+
+  describe('14. Duplicate Delivery Handling on Terminal REJECTED Documents', () => {
+    it('safely skips processing if a duplicate delivery arrives for a REJECTED document', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA._id,
+        uploadedBy: clientUserA._id,
+        title: 'Already Rejected Document',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/rejected.pdf',
+        type: 'OTHER',
+        status: 'REJECTED',
+        verificationNotes: 'Unreadable resolution',
+      });
+
+      const duplicateJob = {
+        id: `doc-verify-${doc._id}`,
+        data: {
+          documentId: doc._id.toString(),
+          brokerageId: brokerageA._id.toString(),
+          processingDelayMs: 10,
+        },
+        attemptsMade: 1,
+        opts: { attempts: 3 },
+      } as any;
+
+      const result = await processDocumentJob(duplicateJob);
+
+      expect(result.status).toBe('REJECTED');
+      expect(result.message).toContain('already completed with status: REJECTED');
+
+      // Verify database state remains unmodified
+      const docAfter = await DocumentModel.findById(doc._id);
+      expect(docAfter?.status).toBe('REJECTED');
+      expect(docAfter?.verificationNotes).toBe('Unreadable resolution');
+    });
+  });
+
+  describe('15. Security & Sanitization in Processing Logs and Realtime Payloads', () => {
+    it('never leaks internal storage secrets, passwords, or tokens in realtime events', async () => {
+      const socketAdvisor = createClientSocket(tokenAdvisorA);
+      await connectSocket(socketAdvisor);
+
+      const receivedEvents: any[] = [];
+      socketAdvisor.on('document:status_changed', (evt) => receivedEvents.push(evt));
+
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA._id,
+        uploadedBy: clientUserA._id,
+        title: 'Bank Statement With Sensitive Data',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/statement.pdf',
+        type: 'BANK_STATEMENT',
+        status: 'PENDING',
+      });
+
+      const job = {
+        id: `doc-verify-${doc._id}`,
+        data: {
+          documentId: doc._id.toString(),
+          brokerageId: brokerageA._id.toString(),
+          processingDelayMs: 10,
+        },
+        attemptsMade: 0,
+        opts: { attempts: 3 },
+      } as any;
+
+      await processDocumentJob(job);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(receivedEvents.length).toBe(2);
+
+      for (const event of receivedEvents) {
+        // Assert absence of sensitive fields
+        expect((event as any).imagekitPrivateKey).toBeUndefined();
+        expect((event as any).storagePrivateKey).toBeUndefined();
+        expect((event as any).redisPassword).toBeUndefined();
+        expect((event as any).jwtSecret).toBeUndefined();
+        expect((event as any).passwordHash).toBeUndefined();
+        expect((event as any).password).toBeUndefined();
+
+        // Assert strictly required domain fields are present
+        expect(event.documentId).toBe(doc._id.toString());
+        expect(event.brokerageId).toBe(brokerageA._id.toString());
+        expect(['PROCESSING', 'VERIFIED']).toContain(event.newStatus);
+      }
     });
   });
 });

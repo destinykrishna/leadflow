@@ -1,21 +1,10 @@
 import { Types } from 'mongoose';
 import { leadRepository, type IngestLeadResult } from '../repositories/lead.repository.js';
 import { normalizeIncomingLeadPayload, type NormalizedLeadData } from '../validators/lead.validators.js';
+import { triggerService } from './trigger.service.js';
 import { logger } from '../utils/logger.js';
 
-/**
- * Masks email address for safe logging without exposing PII.
- */
-function maskEmail(email: string): string {
-  const parts = email.split('@');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return '***@***';
-  }
-  const name = parts[0];
-  const domain = parts[1];
-  const maskedLocal = name.length > 2 ? `${name[0]}***${name[name.length - 1]}` : `${name[0]}***`;
-  return `${maskedLocal}@${domain}`;
-}
+import { maskEmail } from '../utils/mask.js';
 
 export class LeadIngestionService {
   /**
@@ -64,6 +53,21 @@ export class LeadIngestionService {
         },
         'New lead ingested successfully'
       );
+
+      // Execute configured stage automation triggers (e.g. welcome email, 2h call task) non-blocking
+      triggerService
+        .handleStageTransition({
+          brokerageId,
+          lead: result.lead,
+          previousStage: null,
+          newStage: 'NEW',
+        })
+        .catch((err) => {
+          logger.error(
+            { err: (err as Error).message, leadId: result.lead._id.toString() },
+            'Error running stage triggers for ingested lead'
+          );
+        });
     }
 
     return result;

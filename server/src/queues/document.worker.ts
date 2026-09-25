@@ -9,6 +9,7 @@ import {
   type DocumentJobPayload,
 } from './document.queue.js';
 import { emitDocumentStatusChanged } from './document-events.js';
+import { documentRecoveryService } from './document-recovery.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface DocumentProcessingResult {
@@ -360,9 +361,19 @@ export function createDocumentWorker(
     {
       connection,
       concurrency: env.DOCUMENT_PROCESSING_CONCURRENCY,
+      lockDuration: 30000,
+      stalledInterval: 15000,
+      maxStalledCount: 2,
       ...options,
     }
   );
+
+  worker.on('stalled', (jobId, prev) => {
+    logger.warn(
+      { jobId, prev },
+      'Document processing job detected as stalled; BullMQ re-assigning'
+    );
+  });
 
   worker.on('failed', (job, err) => {
     logger.warn(
@@ -395,6 +406,12 @@ export function startDocumentWorker(
 
   documentWorkerInstance = createDocumentWorker(options);
   logger.info('Document processing worker started successfully');
+
+  // Trigger non-blocking startup reconciliation for any documents queued while worker was offline
+  void documentRecoveryService.reconcileAll().catch((err) => {
+    logger.warn({ err }, 'Initial document reconciliation failed on worker start');
+  });
+
   return documentWorkerInstance;
 }
 

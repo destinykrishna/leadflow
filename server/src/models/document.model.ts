@@ -120,9 +120,13 @@ const documentSchema = new Schema<IDocumentDocument>(
 );
 
 // Compound indexes for client documents, lead documents, and verification queue filters
+documentSchema.index({ brokerageId: 1, createdAt: -1 });
+documentSchema.index({ brokerageId: 1, status: 1, createdAt: -1 });
 documentSchema.index({ brokerageId: 1, clientId: 1, createdAt: -1 });
 documentSchema.index({ brokerageId: 1, leadId: 1, createdAt: -1 });
 documentSchema.index({ brokerageId: 1, status: 1 });
 documentSchema.index({ brokerageId: 1, uploadedBy: 1 });
+documentSchema.index({ status: 1, createdAt: 1 });
+documentSchema.index({ status: 1, updatedAt: 1 });
 
 export const Document = model<IDocumentDocument>('Document', documentSchema);

@@ -263,6 +263,10 @@ export class DocumentService implements IDomainService {
     caller: AuthUserContext,
     query?: DocumentQuery
   ): Promise<IDocumentDocument[]> {
+    const limit = Math.min(query?.limit ?? 100, 200);
+    const page = Math.max(query?.page ?? 1, 1);
+    const skip = (page - 1) * limit;
+
     if (caller.role === 'CLIENT') {
       if (!caller.brokerageId) {
         throw new BrokerageIsolationError('Brokerage context missing for client user');
@@ -291,7 +295,10 @@ export class DocumentService implements IDomainService {
         clientFilter.status = query.status;
       }
 
-      return DocumentModel.find(clientFilter).sort({ createdAt: -1 });
+      return DocumentModel.find(clientFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
     }
 
     if (caller.role === 'ADVISOR' || caller.role === 'BROKERAGE_ADMIN') {
@@ -322,7 +329,10 @@ export class DocumentService implements IDomainService {
         filter.status = query.status;
       }
 
-      return DocumentModel.find(filter).sort({ createdAt: -1 });
+      return DocumentModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
     }
 
     if (caller.role === 'PLATFORM_ADMIN') {
@@ -341,7 +351,10 @@ export class DocumentService implements IDomainService {
         filter.status = query.status;
       }
 
-      return DocumentModel.find(filter).sort({ createdAt: -1 });
+      return DocumentModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
     }
 
     throw new ForbiddenError('Unauthorized user role for listing documents');

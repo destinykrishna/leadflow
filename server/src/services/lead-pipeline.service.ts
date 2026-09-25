@@ -3,6 +3,7 @@ import { LEAD_STATUSES, type ILeadDocument, type LeadStatus } from '../models/le
 import { leadRepository } from '../repositories/lead.repository.js';
 import type { PipelineQuery } from '../validators/lead.validators.js';
 import { NotFoundError, ValidationError, ConflictError } from '../utils/errors.js';
+import { triggerService } from './trigger.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface LeadStageChangedEvent {
@@ -209,6 +210,30 @@ export class LeadPipelineService {
       lead: result.lead!,
       timestamp: new Date(),
     });
+
+    // Execute configured stage automation triggers (tasks & emails) non-blocking
+    triggerService
+      .handleStageTransition({
+        brokerageId: userContext.brokerageId || result.lead!.brokerageId.toString(),
+        lead: result.lead!,
+        previousStage: result.previousStage!,
+        newStage: result.currentStage!,
+        updatedBy: {
+          id: userContext.id,
+          name: userContext.name,
+          role: userContext.role,
+        },
+      })
+      .catch((triggerErr) => {
+        logger.error(
+          {
+            err: (triggerErr as Error).message,
+            leadId: result.lead!._id.toString(),
+            targetStage,
+          },
+          'Error executing background stage transition triggers'
+        );
+      });
 
     return {
       lead: result.lead!,

@@ -90,7 +90,9 @@ const filter = withBrokerageScope(brokerageId, { status: 'NEW' });
   - `timestamps`: `true`
 - **Indexes**:
   - `{ brokerageId: 1, email: 1 }` (unique: true — scoped duplicate lead detection)
+  - `{ brokerageId: 1, createdAt: -1 }` (pipeline Kanban full board / chronological sorting)
   - `{ brokerageId: 1, status: 1, createdAt: -1 }` (pipeline Kanban / filter ordering)
+  - `{ brokerageId: 1, assignedTo: 1, createdAt: -1 }` (advisor assigned lead chronological sorting)
   - `{ brokerageId: 1, assignedTo: 1, status: 1 }` (agent dashboard views)
   - `{ brokerageId: 1, score: -1 }` (lead qualification ranking)
 
@@ -111,6 +113,7 @@ const filter = withBrokerageScope(brokerageId, { status: 'NEW' });
   - `timestamps`: `true`
 - **Indexes**:
   - `{ brokerageId: 1, email: 1 }` (unique: true — client uniqueness per brokerage)
+  - `{ brokerageId: 1, createdAt: -1 }` (chronological client listing)
   - `{ brokerageId: 1, status: 1 }`
   - `{ brokerageId: 1, assignedTo: 1 }`
   - `{ brokerageId: 1, leadId: 1 }`
@@ -134,10 +137,14 @@ const filter = withBrokerageScope(brokerageId, { status: 'NEW' });
   - `verifiedAt`: Date (optional)
   - `timestamps`: `true`
 - **Indexes**:
+  - `{ brokerageId: 1, createdAt: -1 }` (brokerage document chronological listing)
+  - `{ brokerageId: 1, status: 1, createdAt: -1 }` (status-filtered chronological listing)
   - `{ brokerageId: 1, clientId: 1, createdAt: -1 }`
   - `{ brokerageId: 1, leadId: 1, createdAt: -1 }`
   - `{ brokerageId: 1, status: 1 }`
   - `{ brokerageId: 1, uploadedBy: 1 }`
+  - `{ status: 1, createdAt: 1 }` (BullMQ recovery sweeper)
+  - `{ status: 1, updatedAt: 1 }` (BullMQ stalled job sweeper)
 
 ### 3.6 Task (Broker & Agent Tasks)
 - **Collection**: `tasks`
@@ -154,10 +161,14 @@ const filter = withBrokerageScope(brokerageId, { status: 'NEW' });
   - `completedAt`: Date (optional)
   - `timestamps`: `true`
 - **Indexes**:
+  - `{ brokerageId: 1, dueDate: 1, createdAt: -1 }` (upcoming tasks sorted by due date)
+  - `{ brokerageId: 1, status: 1, dueDate: 1 }` (overdue task filtering)
+  - `{ brokerageId: 1, createdAt: -1 }` (chronological task listing)
   - `{ brokerageId: 1, assignedTo: 1, status: 1 }`
   - `{ brokerageId: 1, dueDate: 1, status: 1 }`
   - `{ brokerageId: 1, leadId: 1 }`
   - `{ brokerageId: 1, clientId: 1 }`
+  - `{ brokerageId: 1, idempotencyKey: 1 }` (unique partial index)
 
 ### 3.7 EmailTemplate (Automated & Manual Email Compositions)
 - **Collection**: `emailtemplates`

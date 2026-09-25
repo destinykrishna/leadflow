@@ -147,3 +147,33 @@ Realtime events are emitted strictly **after** database updates are committed:
 - **Privacy & Security**:
   - Event payloads contain minimal domain metadata (`documentId`, `brokerageId`, `status`, `title`, `verificationNotes`).
   - Storage credentials, private keys, and internal tokens are never included.
+
+---
+
+## 8. Enqueue Failure Recovery & Periodic Reconciliation
+
+### Consistency Tradeoff
+In a distributed microservice/modular monolith environment, writing to MongoDB and enqueueing to Redis BullMQ cannot be wrapped in a single ACID transaction without expensive two-phase commit (2PC) protocols that degrade HTTP latency and introduce distributed deadlocks.
+
+LeadFlow employs an **eventual consistency** pattern:
+1. **Durable Intent in MongoDB**: Document metadata and binary upload references are committed first to MongoDB in `PENDING` status.
+2. **Enqueue Isolation**: If Redis is unreachable or times out during HTTP upload, the error is isolated: the API client receives HTTP 201 with their document in `PENDING` state rather than experiencing a 500 failure.
+3. **Reconciliation Sweeper (`document-recovery.service.ts`)**:
+   - **Stale PENDING Recovery (`reconcilePendingDocuments`)**: Scans for documents created in `PENDING` status older than `PENDING_DOCUMENT_RECOVERY_THRESHOLD_MS` (default: 5 minutes) lacking active BullMQ jobs. Enqueues missing jobs into BullMQ.
+   - **Stalled PROCESSING Recovery (`reconcileStalledDocuments`)**: Scans for documents in `PROCESSING` status older than `STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS` (default: 10 minutes) whose worker crashed or stalled. Atomically resets them to `PENDING` with audit notes and re-enqueues for processing.
+   - **Execution Cadence**: Runs as a non-blocking sweep upon worker startup (`worker.ts` and `document.worker.ts`) and on a recurring interval (`RECONCILIATION_INTERVAL_MS`, default: 1 minute).
+
+---
+
+## 9. Failure & Reliability Matrix
+
+| Scenario | Immediate System Reaction | Eventual State & Recovery |
+| :--- | :--- | :--- |
+| **Redis Down on Upload** | HTTP 201 returned; document saved in MongoDB as `PENDING`; enqueue error logged with correlation context. | Background reconciliation sweeper discovers unenqueued `PENDING` document once Redis is restored and safely enqueues it. |
+| **Worker Process Crash** | In-flight job loses heartbeat; BullMQ lock expires after `lockDuration` (30s); stalled job emitted. | BullMQ stalls handler retries or recovery service atomically resets document from `PROCESSING` to `PENDING` and re-queues. |
+| **Transient Service Glitch** | Worker throws retryable error; BullMQ initiates exponential backoff (1s, 2s, 4s). | Job re-runs on next attempt; resumes from `PROCESSING` status without duplicate client events. |
+| **Exhausted Retries (3 failures)**| BullMQ marks job as failed; `handleExhaustedJobFailure` triggers. | Document atomically transitions to `REJECTED` with notes (`Verification failed after 3 attempts`); realtime event broadcast. |
+| **Domain Rejection (Illegible/Corrupt)**| Worker flags compliance failure; transitions document directly to `REJECTED`. | Job completes successfully without BullMQ retries; client notified in realtime. |
+| **Duplicate Job Delivery** | Worker verifies current document state via atomic query. | If already `VERIFIED` or `REJECTED`, job exits idempotently (`SKIPPED_TERMINAL`) with zero side effects. |
+| **Cross-Brokerage Payload Tampering**| Worker checks `withBrokerageScope(payload.brokerageId)`; detects mismatch with persisted document. | Worker throws `UnrecoverableError`; job fails immediately without retrying; foreign document remains untouched. |
+| **Concurrent Workers** | Atomic `findOneAndUpdate` conditional on `status: 'PENDING'`. | Exactly one worker claims the document; rival worker aborts cleanly without double-processing. |

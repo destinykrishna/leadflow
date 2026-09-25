@@ -7,6 +7,7 @@ import { withBrokerageScope } from '../repositories/base.repository.js';
 import { clientRepository } from '../repositories/client.repository.js';
 import { authorizationService } from './authorization.service.js';
 import { emitPipelineStageChanged } from './lead-pipeline.service.js';
+import { triggerService } from './trigger.service.js';
 import { hashPassword } from '../utils/password.js';
 import {
   ConflictError,
@@ -259,7 +260,7 @@ export class ClientService implements IDomainService {
       const clientDoc = await Client.create(clientPayload);
       const newClient = clientDoc as unknown as IClientDocument;
 
-      // 11. Realtime Pipeline Notification (if stage changed to WON)
+      // 11. Realtime Pipeline Notification & Stage Triggers (if stage changed to WON)
       if (previousStatus !== 'WON') {
         emitPipelineStageChanged({
           brokerageId: lead.brokerageId.toString(),
@@ -274,6 +275,25 @@ export class ClientService implements IDomainService {
           lead: claimedLead,
           timestamp: new Date(),
         });
+
+        triggerService
+          .handleStageTransition({
+            brokerageId: lead.brokerageId.toString(),
+            lead: claimedLead,
+            previousStage: previousStatus,
+            newStage: 'WON',
+            updatedBy: {
+              id: caller.id,
+              name: caller.name,
+              role: caller.role,
+            },
+          })
+          .catch((err) => {
+            logger.error(
+              { err: (err as Error).message, leadId: lead._id.toString() },
+              'Error running stage triggers for converted lead'
+            );
+          });
       }
 
       logger.info(

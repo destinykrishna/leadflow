@@ -12,10 +12,13 @@ export type TriggerRecipientType = (typeof TRIGGER_RECIPIENT_TYPES)[number];
 
 export interface ITriggerActionConfig {
   taskTitle?: string;
+  taskDescription?: string;
   taskPriority?: string;
   dueDaysOffset?: number;
+  dueHoursOffset?: number;
   templateId?: Types.ObjectId;
   recipientType?: TriggerRecipientType;
+  customRecipientEmail?: string;
 }
 
 export interface IPipelineTrigger {
@@ -35,14 +38,17 @@ export interface IPipelineTriggerDocument extends IPipelineTrigger, Document {}
 const triggerActionConfigSchema = new Schema<ITriggerActionConfig>(
   {
     taskTitle: { type: String, trim: true },
+    taskDescription: { type: String, trim: true },
     taskPriority: { type: String, default: 'MEDIUM' },
     dueDaysOffset: { type: Number, default: 1, min: 0 },
+    dueHoursOffset: { type: Number, default: null, min: 0 },
     templateId: { type: Schema.Types.ObjectId, ref: 'EmailTemplate', default: null },
     recipientType: {
       type: String,
       enum: TRIGGER_RECIPIENT_TYPES,
       default: 'LEAD',
     },
+    customRecipientEmail: { type: String, trim: true, default: null },
   },
   { _id: false }
 );

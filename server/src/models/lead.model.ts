@@ -138,7 +138,9 @@ leadSchema.index(
 );
 
 // Compound indexes for pipeline querying, agent filtering, and chronological sorting
+leadSchema.index({ brokerageId: 1, createdAt: -1 });
 leadSchema.index({ brokerageId: 1, status: 1, createdAt: -1 });
+leadSchema.index({ brokerageId: 1, assignedTo: 1, createdAt: -1 });
 leadSchema.index({ brokerageId: 1, assignedTo: 1, status: 1 });
 leadSchema.index({ brokerageId: 1, score: -1 });
 

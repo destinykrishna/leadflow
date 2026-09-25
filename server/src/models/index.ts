@@ -6,4 +6,5 @@ export * from './document.model.js';
 export * from './task.model.js';
 export * from './email-template.model.js';
 export * from './pipeline-trigger.model.js';
+export * from './trigger-execution.model.js';
 export * from './session.model.js';

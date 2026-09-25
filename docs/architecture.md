@@ -7,7 +7,6 @@ The repository is structured as a TypeScript monorepo:
 - `client/`: Single-page application built with React, Vite, and TanStack Query.
 - `server/`: REST API and real-time backend powered by Express 5, Mongoose, and Socket.IO.
 - `worker/`: Asynchronous background processing worker powered by BullMQ and Redis.
-- `packages/shared/`: Shared domain contracts, constants, and validation schemas across services.
 - `docs/`: Persistent architectural and database design specifications.
 
 ---

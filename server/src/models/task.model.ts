@@ -9,19 +9,23 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 export interface ITask {
   brokerageId: Types.ObjectId;
   title: string;
-  description?: string;
+  description?: string | null | undefined;
   status: TaskStatus;
   priority: TaskPriority;
-  dueDate?: Date;
+  dueDate?: Date | null | undefined;
   assignedTo: Types.ObjectId;
-  leadId?: Types.ObjectId;
-  clientId?: Types.ObjectId;
-  completedAt?: Date;
+  leadId?: Types.ObjectId | null | undefined;
+  clientId?: Types.ObjectId | null | undefined;
+  triggerId?: Types.ObjectId | null | undefined;
+  idempotencyKey?: string | null | undefined;
+  completedAt?: Date | null | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface ITaskDocument extends ITask, Document {}
+export interface ITaskDocument extends ITask, Document {
+  isOverdue: boolean;
+}
 
 const taskSchema = new Schema<ITaskDocument>(
   {
@@ -81,6 +85,17 @@ const taskSchema = new Schema<ITaskDocument>(
       default: null,
       index: true,
     },
+    triggerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PipelineTrigger',
+      default: null,
+      index: true,
+    },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     completedAt: {
       type: Date,
       default: null,
@@ -88,13 +103,34 @@ const taskSchema = new Schema<ITaskDocument>(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
+// Virtual property calculating overdue status safely
+taskSchema.virtual('isOverdue').get(function (this: ITaskDocument) {
+  if (this.status === 'COMPLETED' || this.status === 'CANCELLED') {
+    return false;
+  }
+  return this.dueDate ? this.dueDate < new Date() : false;
+});
+
 // Compound indexes for assigned user tasks, upcoming due dates, and entity associations
 taskSchema.index({ brokerageId: 1, assignedTo: 1, status: 1 });
+taskSchema.index({ brokerageId: 1, dueDate: 1, createdAt: -1 });
 taskSchema.index({ brokerageId: 1, dueDate: 1, status: 1 });
+taskSchema.index({ brokerageId: 1, status: 1, dueDate: 1 });
+taskSchema.index({ brokerageId: 1, createdAt: -1 });
 taskSchema.index({ brokerageId: 1, leadId: 1 });
 taskSchema.index({ brokerageId: 1, clientId: 1 });
+taskSchema.index(
+  { brokerageId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+  }
+);
 
 export const Task = model<ITaskDocument>('Task', taskSchema);
+

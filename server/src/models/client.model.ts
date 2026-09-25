@@ -118,6 +118,7 @@ const clientSchema = new Schema<IClientDocument>(
 
 // Compound unique index for client uniqueness within a brokerage
 clientSchema.index({ brokerageId: 1, email: 1 }, { unique: true });
+clientSchema.index({ brokerageId: 1, createdAt: -1 });
 clientSchema.index({ brokerageId: 1, status: 1 });
 clientSchema.index({ brokerageId: 1, assignedTo: 1 });
 clientSchema.index(
