@@ -120,7 +120,19 @@ const clientSchema = new Schema<IClientDocument>(
 clientSchema.index({ brokerageId: 1, email: 1 }, { unique: true });
 clientSchema.index({ brokerageId: 1, status: 1 });
 clientSchema.index({ brokerageId: 1, assignedTo: 1 });
-clientSchema.index({ brokerageId: 1, leadId: 1 });
-clientSchema.index({ brokerageId: 1, userId: 1 });
+clientSchema.index(
+  { brokerageId: 1, leadId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { leadId: { $type: 'objectId' } },
+  }
+);
+clientSchema.index(
+  { brokerageId: 1, userId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { userId: { $type: 'objectId' } },
+  }
+);
 
 export const Client = model<IClientDocument>('Client', clientSchema);

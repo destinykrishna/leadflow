@@ -32,6 +32,7 @@ export interface ILead {
   source: LeadSource;
   score: number;
   assignedTo?: Types.ObjectId;
+  convertedClientId?: Types.ObjectId | null;
   notes?: string;
   customFields?: Record<string, unknown>;
   createdAt: Date;
@@ -101,6 +102,12 @@ const leadSchema = new Schema<ILeadDocument>(
       default: null,
       index: true,
     },
+    convertedClientId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Client',
+      default: null,
+      index: true,
+    },
     notes: {
       type: String,
       trim: true,
@@ -120,6 +127,15 @@ const leadSchema = new Schema<ILeadDocument>(
 // Compound unique index for duplicate lead detection within a brokerage
 // (allows cross-brokerage duplicate email existence)
 leadSchema.index({ brokerageId: 1, email: 1 }, { unique: true });
+
+// Compound unique index ensuring at most one conversion link per lead within a brokerage
+leadSchema.index(
+  { brokerageId: 1, convertedClientId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { convertedClientId: { $type: 'objectId' } },
+  }
+);
 
 // Compound indexes for pipeline querying, agent filtering, and chronological sorting
 leadSchema.index({ brokerageId: 1, status: 1, createdAt: -1 });

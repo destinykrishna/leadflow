@@ -1,10 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { leadPipelineService } from '../services/lead-pipeline.service.js';
+import { clientService } from '../services/client.service.js';
 import {
   pipelineQuerySchema,
   leadIdParamSchema,
   updateLeadStageSchema,
 } from '../validators/lead.validators.js';
+import { convertLeadSchema } from '../validators/client.validators.js';
 import { ValidationError, UnauthorizedError } from '../utils/errors.js';
 
 export class LeadController {
@@ -126,6 +128,40 @@ export class LeadController {
           previousStage: result.previousStage,
           currentStage: result.currentStage,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Converts an eligible lead to a client case.
+   */
+  async convertLeadToClient(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const parsedBody = convertLeadSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError('Invalid conversion input', parsedBody.error.format());
+      }
+
+      const result = await clientService.convertLead(req.user, {
+        ...parsedBody.data,
+        leadId: parsedParam.data.id,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Lead successfully converted to client case',
+        data: result,
       });
     } catch (error) {
       next(error);

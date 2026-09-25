@@ -109,5 +109,14 @@ router.patch(
   leadController.updateLeadStage.bind(leadController)
 );
 
+// Convert lead to client case (authorized staff only)
+router.post(
+  '/:id/convert',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.convertLeadToClient.bind(leadController)
+);
+
 export const leadRouter = router;
 

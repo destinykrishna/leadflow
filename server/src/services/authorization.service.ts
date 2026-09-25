@@ -67,9 +67,12 @@ export class AuthorizationService implements IDomainService {
   authorizeClientAccess(user: AuthUserContext, client: ClientEntity): void {
     // 1. Cross-brokerage boundary check
     if (user.role !== 'PLATFORM_ADMIN') {
+      const clientBrokerageId = (client.brokerageId as any)?._id
+        ? (client.brokerageId as any)._id.toString()
+        : client.brokerageId?.toString();
       if (
         !user.brokerageId ||
-        user.brokerageId.toString() !== client.brokerageId.toString()
+        user.brokerageId.toString() !== clientBrokerageId
       ) {
         // Return 404 to avoid leaking cross-tenant existence of guessed IDs
         throw new NotFoundError('Client resource not found');
@@ -78,7 +81,11 @@ export class AuthorizationService implements IDomainService {
 
     // 2. Client role ownership check
     if (user.role === 'CLIENT') {
-      const clientUserId = client.userId ? client.userId.toString() : null;
+      const clientUserId = (client.userId as any)?._id
+        ? (client.userId as any)._id.toString()
+        : client.userId
+          ? client.userId.toString()
+          : null;
       if (clientUserId !== user.id) {
         // Return 404 to avoid leaking existence of other clients in same brokerage
         throw new NotFoundError('Client resource not found');

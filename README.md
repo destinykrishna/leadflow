@@ -40,6 +40,13 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Socket.IO Realtime Broadcasting**: Live pipeline stage updates broadcast to verified brokerage rooms (`brokerage:<brokerageId>`) and `platform:admins` post-commit.
 - **Tenant-Isolated WebSocket Security**: Handshake authentication enforces JWT verification, database active-user status, and active-brokerage checks. Clients are strictly excluded from internal brokerage pipeline rooms, and client room manipulation attempts are blocked. Zero sensitive PII exposed in socket event payloads.
 
+### 🔄 Client Conversion & Case Foundation
+- **Server-Side Conversion Eligibility**: Enforces that only qualified leads (`QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, `WON`) can be converted into active cases; raw inquiries (`NEW`, `CONTACTED`) and dead inquiries (`LOST`) are rejected with HTTP 400.
+- **Atomic Concurrency Defense**: Prevents duplicate client creation under concurrent conversion attempts using atomic single-document claims (`Lead.findOneAndUpdate`), partial unique compound indexes (`{ brokerageId: 1, leadId: 1 }` and `{ brokerageId: 1, userId: 1 }`), and tenant unique identity (`{ brokerageId: 1, email: 1 }`).
+- **Client Portal Identity Linkage**: Automatically provisions or links a dedicated `User` account (`role: 'CLIENT'`, `status: 'ACTIVE'`) with bcrypt hashed password. Blocks non-client account contamination.
+- **Preserved Lineage & Advisor Assignment**: Establishes bidirectional references (`client.leadId` and `lead.convertedClientId`) and preserves advisor assignments across conversion.
+- **IDOR-Immune Case Access**: Expat clients access personal cases via `GET /api/clients/me` (derived strictly from token identity) and `GET /api/clients/:id` (returning uniform HTTP 404 on ID mismatch).
+
 ### 📄 Expat Mortgage Document Verification
 - Domain-tailored checklist types including `PAYSLIP` (*Gehaltsabrechnung*), `BANK_STATEMENT`, `ID_DOCUMENT`, and `TAX_RETURN`.
 - Asynchronous verification pipeline architecture prepared for background workers.
@@ -71,7 +78,8 @@ leadflow/
     ├── auth-security.md    # Token lifecycle, RBAC matrix, and IDOR defenses
     ├── database-design.md  # Schema definitions, compound indexes, and query patterns
     ├── lead-ingestion.md   # Webhook specs, HMAC verification, and burst ingestion
-    └── lead-pipeline.md    # Pipeline Kanban state machine, optimistic concurrency, and APIs
+    ├── lead-pipeline.md    # Pipeline Kanban state machine, optimistic concurrency, and APIs
+    └── client-cases.md     # Client conversion, portal authentication, and case access APIs
 ```
 
 ---

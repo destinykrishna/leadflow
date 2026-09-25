@@ -1046,6 +1046,129 @@ COMPLETED (Phase 4, Prompt 2 Finalized & Verified)
 - Updated `docs/lead-pipeline.md`, `AGENTS.md`, and `README.md`.
 - All 216 tests passing across 10 test files. Clean TypeScript typecheck and production build.
 
+## Phase 5, Prompt 1: Client Conversion & Case Foundation
+```
+LeadFlow — Phase 5, Prompt 1: Client Conversion & Case Foundation
+
+Read assignment.md, AGENTS.md, README.md, relevant client/lead/auth/RBAC/domain/repository/service/controller/route/test files, and existing document models only where needed. Do not broadly scan or refactor the repository. Preserve the current layered architecture.
+
+Implement the client conversion and client case foundation.
+
+Requirements:
+
+1. Lead → Client conversion
+   - Allow an authorized BROKERAGE_ADMIN or ADVISOR to convert an eligible lead into a Client.
+   - Prevent duplicate client creation for the same brokerage/person.
+   - Preserve the relationship between the original Lead and Client.
+   - Preserve the assigned advisor where appropriate.
+   - Define and enforce the valid conversion state/rules server-side.
+   - Do not allow CLIENT users to perform conversion.
+
+2. Client portal identity
+   - Use the existing User/authentication model.
+   - Ensure a Client is linked to exactly the appropriate CLIENT user account.
+   - Do not weaken existing password/session/authentication rules.
+   - Preserve brokerage tenant isolation.
+
+3. Client case access
+   - Add the minimal authenticated API for a CLIENT to retrieve their own case/profile information.
+   - A CLIENT must never be able to retrieve another client's case by changing an ID.
+   - Brokerage admins/advisors should only access clients within their brokerage according to the existing role model.
+   - PLATFORM_ADMIN behavior should remain consistent with the existing authorization model.
+
+4. Data integrity
+   - Prevent duplicate Client records under concurrent conversion requests.
+   - Use database constraints/atomic operations where appropriate.
+   - Do not introduce unnecessary infrastructure.
+   - Keep the existing Client and Lead models unless a genuine schema change is required.
+
+5. Validation and errors
+   - Validate lead/client/user identifiers.
+   - Return safe, consistent errors for invalid conversion, nonexistent resources, unauthorized access, and duplicate/concurrent conversion.
+   - Do not expose database internals.
+
+6. Tests
+   Add focused tests for:
+   - successful lead-to-client conversion
+   - invalid conversion attempts
+   - duplicate conversion
+   - concurrent conversion
+   - client user linkage
+   - CLIENT accessing own case
+   - CLIENT attempting another client's case
+   - cross-brokerage access
+   - role authorization
+   - malformed/nonexistent IDs
+
+Focused self-audit:
+- Can two concurrent requests create two Client records?
+- Can a CLIENT access another client's case by guessing/changing an ID?
+- Can one brokerage access another brokerage's clients?
+- Can a CLIENT convert a lead?
+- Can conversion create a Client without a valid user linkage?
+- Is the Lead ↔ Client relationship preserved?
+- Are all client queries tenant/ownership scoped?
+- Are errors safe and consistent?
+
+Fix genuine issues found during the self-audit.
+
+Run relevant tests, full typecheck, and production build.
+
+Update AGENTS.md, README.md, PROMPTS.md, and relevant client/case documentation with the final state and architectural decisions.
+
+Do not implement document uploads/checking, BullMQ, email/tasks, dashboard, or frontend UI in this prompt.
+
+Stop after Client Conversion & Case Foundation and report:
+- files changed
+- data/integrity decisions
+- authorization behavior
+- tests/results
+- typecheck/build results
+- self-audit findings
+- intentional limitations
+```
+
+### Status
+COMPLETED (Phase 5, Prompt 1 Finalized & Verified)
+
+### Decisions & Assumptions
+1. **Server-Side Conversion Eligibility State Machine**:
+   - Leads in `QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, and `WON` are eligible for conversion into active mortgage cases.
+   - Raw leads in `NEW` or `CONTACTED` are rejected with HTTP 400 `ValidationError` as they must be qualified first.
+   - Leads in `LOST` are disqualified and rejected with HTTP 400 `ValidationError`.
+   - Converted leads atomically advance to `WON` (if not already `WON`), triggering realtime Socket.IO pipeline events.
+2. **Three-Tier Zero-Infrastructure Concurrency Defense**:
+   - Tier 1: Single-document atomic update on `Lead` matching `{ _id: leadId, brokerageId, status: { $in: ELIGIBLE_STAGES }, convertedClientId: null }` using `findOneAndUpdate`. Multiple concurrent conversion requests are serialized natively by MongoDB; exactly one succeeds and all losers receive HTTP 409 `ConflictError`.
+   - Tier 2: Partial unique indexes on `Client`: `{ brokerageId: 1, leadId: 1 }` and `{ brokerageId: 1, userId: 1 }`.
+   - Tier 3: Scoped unique compound index on `Client`: `{ brokerageId: 1, email: 1 }`.
+   - Defensive rollback: Automatically rolls back the claimed lead and deletes newly provisioned portal user accounts if client document insertion encounters collisions.
+3. **Client Portal Identity Linkage**:
+   - Conversion automatically provisions a `User` account (`role: 'CLIENT'`, `status: 'ACTIVE'`) with bcrypt hashed password.
+   - If a `CLIENT` user already exists for that email in the brokerage, it is linked without duplicating credentials.
+   - Accounts with non-client roles (e.g. `ADVISOR`) are protected from contamination, throwing HTTP 409 `ConflictError`.
+4. **IDOR-Immune Case Access API**:
+   - `GET /api/clients/me`: Exclusively resolves the client profile linked to the authenticated token (`req.user.id`). Completely eliminates ID parameter tampering.
+   - `GET /api/clients/:id`: Enforces strict tenant boundary and `userId === req.user.id` ownership check via `AuthorizationService.authorizeClientAccess`, returning HTTP 404 (`NotFoundError`) on any ID mismatch to conceal resource existence.
+5. **Bidirectional Lineage & Advisor Preservation**:
+   - `Client.leadId` references the original Lead.
+   - `Lead.convertedClientId` references the created Client.
+   - `Client.assignedTo` preserves `lead.assignedTo` (or optional advisor reassignment).
+
+### Completed Work
+- Updated `server/src/models/lead.model.ts` with `convertedClientId` and partial unique compound index.
+- Updated `server/src/models/client.model.ts` with partial unique compound indexes on `leadId` and `userId`.
+- Created `server/src/validators/client.validators.ts` with `ELIGIBLE_CONVERSION_STAGES`, `convertLeadSchema`, and `clientIdParamSchema`.
+- Updated `server/src/repositories/client.repository.ts` with domain queries `findByEmail`, `findByUserId`, `findByLeadId`, and `findByIdWithDetails`.
+- Created `server/src/services/client.service.ts` implementing `convertLead`, `getMyClientCase`, `getClientById`, and `listClients`.
+- Updated `server/src/services/authorization.service.ts` to safely support both populated and unpopulated `brokerageId` and `userId`.
+- Updated `server/src/controllers/client.controller.ts` with `getMyClientCase` and `convertLeadToClient`.
+- Updated `server/src/controllers/lead.controller.ts` with `convertLeadToClient`.
+- Updated `server/src/routes/client.routes.ts` with `/me` and `/convert` routes placed correctly before `/:id`.
+- Updated `server/src/routes/lead.routes.ts` with `POST /:id/convert`.
+- Created `docs/client-cases.md` detailing the conversion workflow, state eligibility, and IDOR defenses.
+- Created 30 comprehensive integration tests in `server/tests/integration/clients.test.ts` covering conversion, state rules, duplicate prevention, concurrent races, user linkage, case retrieval, anti-IDOR, cross-brokerage isolation, and malformed IDs.
+- Total 246 tests passing across 11 test suites. Full TypeScript typecheck and Vite production build verified.
+
 
 
 
