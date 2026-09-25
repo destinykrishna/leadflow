@@ -11,9 +11,25 @@ export interface ClientAddress {
   postalCode?: string
 }
 
+export interface ClientAdvisorDetails {
+  _id: string
+  name: string
+  email: string
+  phone?: string
+  role?: string
+}
+
+export interface ClientLeadOrigin {
+  _id: string
+  status: string
+  source?: string
+  score?: number
+  createdAt?: string
+}
+
 export interface Client {
   _id: string
-  brokerageId: string
+  brokerageId: string | { _id: string; name?: string; slug?: string }
   userId?: string | null
   firstName: string
   lastName: string
@@ -21,9 +37,10 @@ export interface Client {
   phone?: string
   status: ClientStatus
   type: ClientType
-  assignedTo?: string | null
-  leadId?: string | null
+  assignedTo?: string | ClientAdvisorDetails | null
+  leadId?: string | ClientLeadOrigin | null
   address?: ClientAddress
   createdAt: string
   updatedAt: string
 }
+

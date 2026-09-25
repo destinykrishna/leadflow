@@ -11,6 +11,7 @@ import { PipelinePage } from '@/features/pipeline/PipelinePage'
 import { LeadsPage } from '@/features/leads/LeadsPage'
 import { LeadDetailPage } from '@/features/leads/LeadDetailPage'
 import { ClientsPage } from '@/features/clients/ClientsPage'
+import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
 import { DocumentsPage } from '@/features/documents/DocumentsPage'
 import { TasksPage } from '@/features/tasks/TasksPage'
 import { TemplatesPage } from '@/features/templates/TemplatesPage'
@@ -44,6 +45,7 @@ export function AppRoutes() {
           <Route path="/app/leads" element={<LeadsPage />} />
           <Route path="/app/leads/:id" element={<LeadDetailPage />} />
           <Route path="/app/clients" element={<ClientsPage />} />
+          <Route path="/app/clients/:id" element={<ClientDetailPage />} />
           <Route path="/app/documents" element={<DocumentsPage />} />
           <Route path="/app/tasks" element={<TasksPage />} />
 

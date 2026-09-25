@@ -835,7 +835,7 @@ export function LeadDetailView({
                           {doc.title || doc.type}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
-                          {formatDate(doc.createdAt)} • {(doc.sizeBytes / 1024).toFixed(0)} KB
+                          {formatDate(doc.createdAt)} • {(((doc.sizeBytes ?? doc.fileSize) ?? 0) / 1024).toFixed(0)} KB
                         </span>
                       </div>
                     </div>

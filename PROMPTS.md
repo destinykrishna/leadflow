@@ -2318,6 +2318,68 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `server`, `worker`, `client`.
    - Production bundle: clean Vite build in 576ms.
 
+## Phase 4 — Prompt 1: Clients & Case Workspace
+```
+Phase 4 — Prompt 1: Clients & Case Workspace
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing client APIs/components and current Lead Workspace patterns.
+
+Build the advisor-side Clients experience using real backend data:
+- Add a Clients list with search/filter and useful case summary information.
+- Open a dedicated client case/workspace from the list.
+- Show client identity, profile type, case/lead relationship, advisor and relevant financial information available from the API.
+- Show the client's documents section using existing document APIs, including current processing/status information where available.
+- Provide clear loading, empty, error and not-found states.
+- Preserve tenant isolation, existing role permissions and LeadFlow visual language.
+- Do not invent backend fields or add new backend endpoints.
+- Keep the UI responsive and avoid unnecessary developer-facing information.
+
+Testing:
+- Add focused frontend tests for client list rendering, navigation, API states and important permission/error cases.
+- Run frontend tests, typecheck and build.
+
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Advisor-Side Clients List (`ClientsPage.tsx`)**:
+   - Built a summary KPI strip displaying `Total Cases`, `Active Files`, `Home Buyers`, and `Sellers & Dual`.
+   - Built real-time search filtering across borrower name, email, phone, and residential city.
+   - Added two-level dropdown filters for case status (`Active`, `Inactive`, `Archived`) and borrower profile type (`Buyer`, `Seller`, `Buyer & Seller`, `Other / Special`).
+   - Built a responsive table with borrower avatar initials, legal name, email, phone snippet, portal authentication status indicator (`ShieldCheck`), case status badge, profile type badge, linked lead origin status, city location, assigned advisor name, relative creation time, and direct "Workspace" button.
+   - Built high-fidelity loading skeletons, general error state with retry, and contextual empty states (differentiating 0 total cases from 0 filter matches with a 1-click `Clear Filters` control).
+2. **Dedicated Client Case Workspace (`ClientDetailPage.tsx` & `ClientDetailView.tsx`)**:
+   - Registered `/app/clients/:id` in `AppRoutes` protected for staff roles (`ADVISOR`, `BROKERAGE_ADMIN`).
+   - Built navigation breadcrumbs (`Back to Cases | Pipeline > Clients & Cases > Case Details`).
+   - Integrated client identity with initials avatar, full name, 1-click clipboard copy for Client ID, email, and phone number (`mailto:` and `tel:` links), case status badge, and profile type badge.
+   - Added a 4-metric case KPI highlight strip: `Target Loan Amount`, `Property Value` (with `Down Payment / Equity`), `Monthly Gross Income`, and `Case Documents` (with verified counts).
+   - Dynamically calculated Loan-to-Value (`LTV %`) from originating lead data (e.g. `80.0% LTV`).
+   - Built a 2-column responsive layout:
+     * **Left Column**: Case & Originating Lead Relationship card (Inquiry ID, stage badge, qualification score, intake source, borrower notes, and direct link to `/app/leads/:id`) alongside the full Case Documents Workspace.
+     * **Right Column**: Borrower Identity & Portal Access status, Registered Postal Address, Assigned Mortgage Advisor card (with "You" badge when matching current advisor), and Timeline & Scope metadata.
+3. **Client Documents Section & Status Indicators**:
+   - Integrated `useClientDocuments` querying `GET /api/documents?clientId=:id`.
+   - Displayed document cards with title/filename, document classification badge (`IDENTIFICATION`, `PAYSLIP`, `BANK_STATEMENT`, `TAX_RETURN`, etc.), file size in KB, upload timestamp, and verification timestamp.
+   - Added real-time status badges matching the BullMQ processing pipeline: `VERIFIED` (green checkmark), `PROCESSING (BULLMQ)` (blue animated spinner), `PENDING` (amber clock), and `REJECTED` (rose alert with verification note / rejection reason).
+   - Added interactive status filter tabs: `All`, `Verified`, `Pending`, `Rejected` with live counts.
+   - Added safe document inspection link (`View File`) opening securely in a new tab with `target="_blank" rel="noopener noreferrer"`.
+   - Created `UploadDocumentModal` enabling advisors to upload new verification files directly to the client case using existing `POST /api/documents/upload` endpoint with automatic React Query cache invalidation.
+4. **Resilient States & Tenant Boundary Enforcement**:
+   - Implemented high-fidelity multi-card loading skeletons.
+   - Implemented an anti-IDOR 404 Not Found screen when accessing non-existent or cross-tenant client IDs, explaining strict tenant isolation and providing direct navigation buttons (`Return to Cases`, `View Pipeline`, `Retry Query`).
+   - Implemented `ErrorState` with retry capability.
+   - Verified that `CLIENT` role users are redirected away from advisor workspace routes via `ProtectedRoute`.
+5. **Testing & Verification**:
+   - Created `client/src/tests/client-workspace.test.tsx` (7 tests) covering list rendering, search/filtering, workspace navigation, identity & financial metrics (with LTV), document list & status badges, anti-IDOR 404 state, and RBAC protection.
+   - Client test suite: **57 passed across 9 test files** (`vitest`).
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `client`, `server`, `worker`.
+   - Production bundle: clean Vite build in 498ms.
+
+
 
 
 
