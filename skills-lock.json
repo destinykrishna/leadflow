@@ -7,6 +7,12 @@
       "skillPath": "skills/auth-implementation-patterns/SKILL.md",
       "computedHash": "975c2129bf11efd8c4cc81cf447d40bccd0b621dadcd54a567073c203e268ab7"
     },
+    "backend-development-feature-development": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/backend-development-feature-development/SKILL.md",
+      "computedHash": "073b26ff23590604617562b9f91a35739a942a1c27fd11943aebea1074a40454"
+    },
     "backend-security-coder": {
       "source": "rmyndharis/antigravity-skills",
       "sourceType": "github",
