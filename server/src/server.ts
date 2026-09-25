@@ -3,6 +3,7 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase, registerDatabaseShutdownHook } from './config/database.js';
 import { initSocketServer } from './sockets/index.js';
+import { setupDocumentEventsSubscriber } from './queues/document-events.js';
 import { logger } from './utils/logger.js';
 
 const httpServer = http.createServer(app);
@@ -12,6 +13,7 @@ async function startServer(): Promise<void> {
   try {
     await connectDatabase();
     registerDatabaseShutdownHook();
+    setupDocumentEventsSubscriber();
 
     httpServer.listen(env.PORT, () => {
       logger.info(

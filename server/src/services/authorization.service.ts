@@ -102,14 +102,21 @@ export class AuthorizationService implements IDomainService {
   authorizeDocumentAccess(user: AuthUserContext, doc: DocumentEntity): void {
     // 1. Cross-brokerage boundary check
     if (user.role !== 'PLATFORM_ADMIN') {
-      if (!user.brokerageId || user.brokerageId.toString() !== doc.brokerageId.toString()) {
+      const docBrokerageId = (doc.brokerageId as any)?._id
+        ? (doc.brokerageId as any)._id.toString()
+        : doc.brokerageId?.toString();
+      if (!user.brokerageId || user.brokerageId.toString() !== docBrokerageId) {
         throw new NotFoundError('Document resource not found');
       }
     }
 
     // 2. Client role ownership check
     if (user.role === 'CLIENT') {
-      const uploaderId = doc.uploadedBy ? doc.uploadedBy.toString() : null;
+      const uploaderId = (doc.uploadedBy as any)?._id
+        ? (doc.uploadedBy as any)._id.toString()
+        : doc.uploadedBy
+          ? doc.uploadedBy.toString()
+          : null;
       if (uploaderId !== user.id) {
         throw new NotFoundError('Document resource not found');
       }

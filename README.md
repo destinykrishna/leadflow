@@ -47,9 +47,22 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Preserved Lineage & Advisor Assignment**: Establishes bidirectional references (`client.leadId` and `lead.convertedClientId`) and preserves advisor assignments across conversion.
 - **IDOR-Immune Case Access**: Expat clients access personal cases via `GET /api/clients/me` (derived strictly from token identity) and `GET /api/clients/:id` (returning uniform HTTP 404 on ID mismatch).
 
-### 📄 Expat Mortgage Document Verification
-- Domain-tailored checklist types including `PAYSLIP` (*Gehaltsabrechnung*), `BANK_STATEMENT`, `ID_DOCUMENT`, and `TAX_RETURN`.
-- Asynchronous verification pipeline architecture prepared for background workers.
+### 📁 Document Upload & Storage Foundation (ImageKit Integration)
+- **Decoupled Storage Service**: Storage operations abstracted behind `IStorageService` and `ImageKitStorageService` using `@imagekit/nodejs` v7 with mock-mode support for offline testing.
+- **Server-Controlled Namespacing**: Files organized under deterministic tenant and client folders: `/leadflow/brokerage_<id>/clients/<clientId>/` with strict character sanitization.
+- **Strict Size & MIME Enforcement**: Multer in-memory upload pipeline limits file uploads to 10MB and whitelists valid document formats (`PDF`, `JPEG`, `PNG`, `WEBP`, `TIFF`).
+- **Client Case IDOR Defense**: Expat clients are strictly restricted to uploading and retrieving documents within their own case. Cross-client and cross-tenant attempts return HTTP 403 / HTTP 404 without data leaks.
+- **Compensating Rollback Architecture**: If database record persistence fails after an ImageKit upload, the system automatically triggers a compensation deletion in ImageKit, preventing orphaned storage files.
+- **Zero Credential Exposure**: ImageKit private keys remain strictly server-side; client uploads are proxied through authenticated API endpoints (`POST /api/documents/upload`, `GET /api/documents`, `GET /api/documents/:id`).
+
+### ⚙️ Asynchronous Document Processing (BullMQ & Redis)
+- **Non-Blocking Upload Flow**: Document uploads store the file and persist metadata with status `PENDING`, enqueueing a background verification job to BullMQ rather than blocking HTTP responses.
+- **Persisted Tenant Boundary Validation**: Workers validate the job payload against the database document via `withBrokerageScope`. Any cross-tenant tampering attempt raises security alerts and throws an `UnrecoverableError` without altering external records.
+- **Atomic State Transitions**: Concurrency control uses atomic conditional queries (`{ _id, brokerageId, status: 'PENDING' }` to `PROCESSING`), preventing simultaneous duplicate processing across distributed workers.
+- **Realistic Verification Simulation**: Simulates slow document inspections with configurable delays, modeling both terminal verification rejections (`REJECTED`) and retryable transient timeouts.
+- **Bounded Retries with Backoff**: Configured with 3 attempts and exponential backoff for transient failures. If retries are exhausted, the failure handler automatically marks the document `REJECTED` with an explanatory note, ensuring documents are never left stuck in `PROCESSING`.
+- **Realtime Status Broadcasting**: Socket.IO events (`document:status_changed`) broadcast committed status updates to tenant brokerage rooms (`brokerage:<brokerageId>`), platform admin rooms (`platform:admins`), and private client rooms (`client:<userId>`) with zero credential exposure. Supported across separate worker processes via Redis pub/sub.
+
 
 ---
 
@@ -188,6 +201,10 @@ Comprehensive design specifications and architectural guidelines are available i
 - [Authentication & Security](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/auth-security.md)
 - [Database Schema & Indexes](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/database-design.md)
 - [Lead Ingestion & Webhooks](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/lead-ingestion.md)
+- [Lead Pipeline & Concurrency](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/lead-pipeline.md)
+- [Client Cases & Conversion](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/client-cases.md)
+- [Document Storage & ImageKit](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/document-storage.md)
+- [Document Processing & BullMQ](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/document-processing.md)
 
 *Note: Chronological execution logs and internal development tracking are maintained separately in `PROMPTS.md` and `AGENTS.md`.*
 

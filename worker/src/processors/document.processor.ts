@@ -1,4 +1,7 @@
 /**
- * Document Verification Processor Placeholder
+ * Document Verification Processor
  */
-export {};
+export {
+  processDocumentJob,
+  type DocumentProcessingResult,
+} from '../../../server/src/queues/document.worker.js';

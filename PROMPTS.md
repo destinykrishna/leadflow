@@ -1169,6 +1169,170 @@ COMPLETED (Phase 5, Prompt 1 Finalized & Verified)
 - Created 30 comprehensive integration tests in `server/tests/integration/clients.test.ts` covering conversion, state rules, duplicate prevention, concurrent races, user linkage, case retrieval, anti-IDOR, cross-brokerage isolation, and malformed IDs.
 - Total 246 tests passing across 11 test suites. Full TypeScript typecheck and Vite production build verified.
 
+---
+
+## Phase 5, Prompt 2: Document Upload & Storage Foundation
+
+### Summary
+Built the document upload and storage foundation for LeadFlow, integrating ImageKit for media storage while strictly preserving multi-tenant isolation, anti-IDOR protections, and robust error recovery.
+
+### Architectural Decisions
+1. **Decoupled Object Storage Layer**:
+   - Encapsulated storage operations behind `IStorageService` and implemented `ImageKitStorageService` using the official `@imagekit/nodejs` (v7) SDK.
+   - Controllers never touch the ImageKit SDK; all interactions flow through `documentService`.
+   - Files are stored under server-controlled namespaces: `/leadflow/brokerage_${brokerageId}/clients/${clientId}/` with sanitized file names to eliminate directory traversal risks.
+   - Integrated offline mock mode for testing environments, returning deterministic URLs and identifiers without external network dependencies.
+2. **Multipart Upload Pipeline & Validation**:
+   - Leveraged Multer with memory storage buffer (`handleFileUpload` middleware) with strict size limits (10MB ceiling) and MIME type whitelisting (`application/pdf`, `image/jpeg`, `image/png`, `image/webp`, `image/tiff`).
+   - Mapped Multer limits to standard `ValidationError` (HTTP 400).
+   - Validated document metadata via Zod `uploadDocumentMetadataSchema`.
+3. **Strict Case Ownership & Tenant Isolation**:
+   - `CLIENT` users can upload and list documents exclusively within their own case profile (resolved via `Client.findOne({ brokerageId, userId })`). Providing an ID of another client's case immediately returns HTTP 403 `ForbiddenError`.
+   - Querying documents (`GET /api/documents` and `GET /api/documents/:id`) enforces strict tenant and client case filtering. Requests for cross-brokerage or non-owned documents return HTTP 404 `NotFoundError` (zero resource existence leakage).
+   - Advisors and Brokerage Admins are restricted to documents within their own brokerage.
+4. **Defensive Compensation Rollback**:
+   - Solved the dual-write consistency problem: ImageKit upload is executed first. If MongoDB `DocumentModel.create` fails, the service catches the error, triggers an immediate compensation deletion via `storageService.deleteFile(uploadResult.fileId)`, and re-throws the error. This guarantees zero orphaned storage files in ImageKit.
+5. **Zero Credential Exposure**:
+   - `IMAGEKIT_PRIVATE_KEY` and other sensitive configuration remain strictly server-side. Uploads are proxied through the server; clients never receive private credentials or direct upload signatures.
+
+### Completed Work
+- Added ImageKit configuration to `server/src/config/env.ts` and `server/.env.example`.
+- Created `server/src/services/storage.service.ts` with `IStorageService` and `ImageKitStorageService`.
+- Created `server/src/validators/document.validators.ts` with Zod schemas for upload metadata, query filters, and route parameters.
+- Created `server/src/middleware/upload.middleware.ts` for secure Multer multipart memory buffer handling.
+- Enhanced `server/src/repositories/document.repository.ts` with `findByClientId`, `findByLeadId`, and `findByIdWithDetails`.
+- Created `server/src/services/document.service.ts` orchestrating secure upload, validation, case ownership, ImageKit storage, and compensation rollback.
+- Updated `server/src/services/authorization.service.ts` to defend against populated subdocument ID mismatches.
+- Updated `server/src/controllers/document.controller.ts` with `uploadDocument`, `listDocuments`, and `getDocumentById`.
+- Updated `server/src/routes/document.routes.ts` mounting `POST /upload`, `GET /`, and `GET /:id`.
+- Created `docs/document-storage.md` covering architecture, security, and compensation boundaries.
+- Replaced test stub in `server/tests/integration/documents.test.ts` with 25 comprehensive integration tests covering successful uploads, client ownership, anti-IDOR checks, cross-brokerage access, role guards, invalid MIME types, oversized files, storage provider failure, database compensation rollback, and zero credential leakage.
+- Verified all 271 server tests pass, full TypeScript typecheck passes across all workspaces (`server`, `worker`, `client`), and Vite production build succeeds.
+
+---
+
+## Phase 6, Prompt 1: BullMQ Document Processing Foundation
+
+### Prompt
+```
+LeadFlow — Phase 6, Prompt 1: BullMQ Document Processing Foundation
+
+Read assignment.md, AGENTS.md, README.md, relevant Document/BullMQ/Redis/config/service/repository/test files, and the existing Phase 5 document-storage implementation. Inspect only relevant code. Preserve the current layered architecture and existing ImageKit storage boundary.
+
+Implement the BullMQ background document-processing foundation.
+
+Requirements:
+
+1. Queue infrastructure
+   - Add the minimal BullMQ + Redis infrastructure required for document processing.
+   - Create a clear queue/worker abstraction following the existing architecture.
+   - Keep Redis/BullMQ configuration in the existing environment/config system.
+   - Do not introduce unnecessary queues or infrastructure.
+
+2. Document processing lifecycle
+   - When an uploaded Document is ready for processing, enqueue a background job rather than processing synchronously in the HTTP request.
+   - Preserve the existing lifecycle:
+     PENDING → PROCESSING → VERIFIED / REJECTED
+   - The worker should simulate a realistic slow document check.
+   - The implementation must support processing failures.
+   - Do not implement real OCR/AI document verification.
+
+3. Job payload & tenant safety
+   - Job payloads must contain enough information to safely identify the Document, Client, and brokerage context.
+   - Never trust tenant information from an arbitrary job payload without validating it against the persisted document.
+   - A worker must never process a document belonging to another brokerage because of a malformed/tampered job payload.
+   - Reuse existing repository/scoping patterns where appropriate.
+
+4. Idempotency & concurrency
+   - Prevent duplicate processing from corrupting document state.
+   - Handle duplicate jobs safely.
+   - Ensure concurrent workers cannot incorrectly process the same document simultaneously.
+   - Use atomic database state transitions/version checks where appropriate.
+   - A job that has already been completed should not perform the processing again unnecessarily.
+
+5. Retry & failure behavior
+   - Configure bounded retries with appropriate backoff for transient failures.
+   - Distinguish retryable processing failures from terminal rejection where appropriate.
+   - Ensure exhausted jobs leave the Document in a consistent state.
+   - Do not create infinite retry loops.
+   - Do not expose internal Redis/BullMQ errors to API clients.
+
+6. Worker lifecycle
+   - Implement graceful worker startup/shutdown.
+   - Handle worker errors without crashing the entire application unnecessarily.
+   - Make the worker safe to run independently from the API process.
+   - Keep the design compatible with multiple worker instances.
+
+7. Realtime status
+   - When document processing changes persisted status, emit the appropriate realtime event using the existing Socket.IO infrastructure.
+   - Events must be emitted only after the database state change succeeds.
+   - Respect existing tenant/client room isolation.
+   - Do not expose sensitive document contents or storage credentials.
+
+8. Tests
+   Add focused tests for:
+   - job enqueueing
+   - successful processing
+   - slow processing
+   - processing failure
+   - retry/backoff behavior
+   - exhausted retries
+   - duplicate job submission
+   - concurrent processing attempts
+   - nonexistent document
+   - cross-brokerage/tampered job context
+   - correct status transitions
+   - realtime event emitted after committed status change
+   - worker startup/shutdown behavior where practical
+
+Focused self-audit:
+- What happens if the worker crashes halfway through processing?
+- What happens if the same job is delivered twice?
+- Can two workers process the same document concurrently?
+- Can a malformed job process another brokerage's document?
+- What happens when all retries are exhausted?
+- Can a failed job leave a document permanently stuck in PROCESSING?
+- Are realtime events emitted only after committed state?
+- Is tenant context validated from persisted data?
+- Can multiple worker instances safely run?
+- Are Redis/BullMQ failures isolated from the API?
+```
+
+### Architectural Decisions
+1. **Queue Abstraction & Resilience**:
+   - Implemented `document-processing` BullMQ queue with Redis configuration managed in `server/src/config/env.ts` (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_URL`, `DOCUMENT_PROCESSING_CONCURRENCY`, `DOCUMENT_PROCESSING_DELAY_MS`).
+   - Isolated queue errors from API clients: if Redis is temporarily unreachable during `uploadDocument`, the document is stored in MongoDB as `PENDING`, a 201 response is returned, and no internal Redis exceptions are leaked.
+2. **Tenant Safety & Anti-Tampering Defenses**:
+   - Workers never trust incoming payload `brokerageId`; they validate it against the persisted document using `withBrokerageScope(payload.brokerageId, { _id: payload.documentId })`.
+   - If a cross-brokerage document ID is supplied, the worker logs a critical security alert and throws an `UnrecoverableError`, ensuring foreign documents are never modified.
+3. **Atomic Concurrency & Idempotent State Machine**:
+   - Transitions from `PENDING` to `PROCESSING` are claimed atomically via MongoDB `findOneAndUpdate({ _id, brokerageId, status: 'PENDING' }, { $set: { status: 'PROCESSING' }, $inc: { __v: 1 } })`.
+   - Competing concurrent workers or duplicate jobs see that the document was already claimed or reached terminal states (`VERIFIED` / `REJECTED`) and safely exit without duplicate work.
+4. **Retry Strategy & Permanent Rejection Guarantee**:
+   - Transient failures trigger bounded BullMQ retries with exponential backoff (3 attempts).
+   - Domain-level rejection (compliance failures or unreadable scans) marks the document `REJECTED` and completes cleanly without queue retry.
+   - Exhausted retries trigger `handleExhaustedJobFailure`, transitioning the document from `PROCESSING` to `REJECTED` with diagnostic notes. Documents are **never** left permanently stuck in `PROCESSING`.
+5. **Realtime Status Synchronization Across Multi-Process Topologies**:
+   - Document status transitions emit `document:status_changed` strictly after database persistence succeeds.
+   - Events are delivered to tenant brokerage rooms (`brokerage:<brokerageId>`), platform admin rooms (`platform:admins`), and private client user rooms (`client:<userId>`).
+   - Cross-process event relay is supported via Redis pub/sub (`leadflow:events:document_status`), enabling standalone worker processes (`npm run dev:worker`) to broadcast live updates to clients connected to the API server.
+
+### Completed Work
+- Added Redis and BullMQ configuration to `server/src/config/env.ts`, `server/.env.example`, and `.env.example`.
+- Created `server/src/queues/redis.connection.ts` managing BullMQ and ioredis connection options with clean connection lifecycle hooks.
+- Created `server/src/queues/document-events.ts` managing `document:status_changed` realtime event emission and cross-process Redis pub/sub relay.
+- Created `server/src/queues/document.queue.ts` defining queue abstraction, deterministic deduplication (`jobId: doc-verify-${documentId}`), and `enqueueDocumentProcessing`.
+- Created `server/src/queues/document.worker.ts` implementing `processDocumentJob`, tenant safety validation, atomic concurrency lock, slow check simulation, transient failure retries, and exhausted retry cleanup.
+- Created `server/src/queues/index.ts` re-exporting queue, worker, events, and connection helpers.
+- Updated `server/src/services/document.service.ts` to enqueue background verification jobs upon document upload with failure isolation.
+- Updated `server/src/server.ts` to initialize Redis document event subscription during API server startup.
+- Updated `worker/src/processors/document.processor.ts` and `worker/src/worker.ts` with standalone worker process lifecycle and graceful shutdown hooks (`SIGINT`/`SIGTERM`).
+- Created `docs/document-processing.md` detailing the background processing architecture, state transitions, tenant isolation, and failure recovery.
+- Created 12 comprehensive integration tests in `server/tests/integration/document-processing.test.ts` covering upload enqueueing, linear state progression, slow simulation, domain rejection, retries, exhausted retry cleanup, deduplication, concurrency race conditions, tenant tampering defense, nonexistent documents, realtime room isolation, and worker startup/shutdown.
+- Total 283 tests passing across 13 test files. Full TypeScript typecheck and Vite production build verified.
+
+
+
 
 
 

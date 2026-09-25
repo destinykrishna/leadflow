@@ -23,6 +23,16 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECRET: z.string().default('leadflow-secure-cookie-secret-key-development'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  IMAGEKIT_PUBLIC_KEY: z.string().default('public_mock_imagekit_key'),
+  IMAGEKIT_PRIVATE_KEY: z.string().default('private_mock_imagekit_key'),
+  IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/leadflow_test'),
+  REDIS_HOST: z.string().default('127.0.0.1'),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().int().nonnegative().default(0),
+  REDIS_URL: z.string().optional(),
+  DOCUMENT_PROCESSING_CONCURRENCY: z.coerce.number().int().positive().default(5),
+  DOCUMENT_PROCESSING_DELAY_MS: z.coerce.number().int().nonnegative().default(2000),
 });
 
 const parsed = envSchema.safeParse(process.env);
