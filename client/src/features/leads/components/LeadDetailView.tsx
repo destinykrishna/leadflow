@@ -10,12 +10,15 @@ import {
   CheckSquare,
   ArrowRight,
   ExternalLink,
-  ShieldAlert,
+  SearchX,
   Copy,
   Check,
   Clock,
   Layers,
   Sparkles,
+  Percent,
+  RefreshCw,
+  XCircle,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -45,6 +48,16 @@ export interface LeadDetailViewProps {
   onClose?: () => void
   showFullPageLink?: boolean
 }
+
+// Ordered linear stages for the progression tracker
+const LINEAR_STAGES: LeadStatus[] = [
+  'NEW',
+  'CONTACTED',
+  'QUALIFIED',
+  'PROPOSAL',
+  'NEGOTIATION',
+  'WON',
+]
 
 export function LeadDetailView({
   leadId,
@@ -82,6 +95,7 @@ export function LeadDetailView({
   const [isConvertModalOpen, setIsConvertModalOpen] = React.useState(false)
   const [concurrencyNotice, setConcurrencyNotice] = React.useState<string | null>(null)
   const [copiedEmail, setCopiedEmail] = React.useState(false)
+  const [copiedId, setCopiedId] = React.useState(false)
 
   // 404 detection
   const is404 =
@@ -94,6 +108,12 @@ export function LeadDetailView({
     navigator.clipboard.writeText(email)
     setCopiedEmail(true)
     setTimeout(() => setCopiedEmail(false), 2000)
+  }
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id)
+    setCopiedId(true)
+    setTimeout(() => setCopiedId(false), 2000)
   }
 
   // Stage action handler
@@ -110,7 +130,9 @@ export function LeadDetailView({
       refetchLead()
       refetchTasks()
     } catch (err: unknown) {
-      const errObj = err as { response?: { status?: number; data?: { error?: { code?: string; message?: string } } } }
+      const errObj = err as {
+        response?: { status?: number; data?: { error?: { code?: string; message?: string } } }
+      }
       if (errObj.response?.status === 409 || errObj.response?.data?.error?.code === 'CONFLICT') {
         setConcurrencyNotice(
           'Concurrency conflict: This lead was modified by another session or automated trigger. The latest data has been loaded.',
@@ -124,55 +146,76 @@ export function LeadDetailView({
     }
   }
 
-  // 1. Loading State
+  // 1. Loading Skeleton State
   if (isLeadLoading && !lead) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-4 w-32" />
+      <div className="space-y-6 p-2 sm:p-4">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
           </div>
-          <Skeleton className="h-9 w-28" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-lg" />
+            <Skeleton className="h-8 w-32 rounded-lg" />
+          </div>
         </div>
+
+        {/* Financial KPI Strip Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+        </div>
+
+        {/* 2-Column Content Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Skeleton className="h-44 w-full rounded-xl" />
             <Skeleton className="h-44 w-full rounded-xl" />
-            <Skeleton className="h-44 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
           </div>
           <div className="space-y-6">
             <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
           </div>
         </div>
       </div>
     )
   }
 
-  // 2. 404 State
+  // 2. 404 Not Found State
   if (is404) {
     return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center p-6 text-center">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-          <ShieldAlert className="h-7 w-7" />
+      <div className="flex min-h-[420px] flex-col items-center justify-center p-6 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-8 ring-rose-50/50">
+          <SearchX className="h-7 w-7" />
         </div>
-        <h2 className="text-lg font-bold text-slate-900">Lead Inquiry Not Found</h2>
+        <h2 className="text-base font-bold text-slate-900 sm:text-lg">Lead Inquiry Not Found</h2>
         <p className="mt-1.5 max-w-md text-xs text-muted-foreground leading-relaxed">
           The requested lead ID <span className="font-mono font-medium text-slate-800">{leadId}</span> does
-          not exist, was deleted, or belongs to another brokerage under tenant isolation rules.
+          not exist, was deleted, or belongs to another brokerage under strict tenant isolation rules.
         </p>
-        <div className="mt-6 flex items-center gap-3">
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
           {onClose ? (
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" size="sm" onClick={onClose}>
               Close View
             </Button>
           ) : (
-            <Button variant="outline" onClick={() => navigate('/app/pipeline')}>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/pipeline')}>
               Return to Pipeline
             </Button>
           )}
-          <Button variant="primary" onClick={() => refetchLead()}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/app/leads')}>
+            View All Leads
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => refetchLead()}>
             Retry Query
           </Button>
         </div>
@@ -183,7 +226,7 @@ export function LeadDetailView({
   // 3. General Error State
   if (isLeadError && !lead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <ErrorState
           title="Lead Information Unavailable"
           message={
@@ -206,6 +249,13 @@ export function LeadDetailView({
   const employmentStatus = (lead.customFields?.employmentStatus as string) || null
   const residenceStatus = (lead.customFields?.residenceStatus as string) || null
 
+  // Computed Loan-to-Value (LTV) %
+  const hasLtv = loanAmount > 0 && propertyValue > 0
+  const ltvPercent = hasLtv ? ((loanAmount / propertyValue) * 100).toFixed(1) : null
+
+  // Borrower initials for avatar
+  const borrowerInitials = `${lead.firstName?.[0] || ''}${lead.lastName?.[0] || ''}`.toUpperCase() || 'BW'
+
   // "Already Known" detection from backend customFields
   const isAlreadyKnown = Boolean(
     lead.customFields?.alreadyKnown ||
@@ -227,53 +277,86 @@ export function LeadDetailView({
   const validTransitions = VALID_STAGE_TRANSITIONS[lead.status] || []
   const stageDef = STAGE_DEFINITIONS[lead.status]
 
+  // Split transitions into forward progress vs terminal exit (LOST)
+  const forwardTransitions = validTransitions.filter((s) => s !== 'LOST')
+  const hasLostTransition = validTransitions.includes('LOST')
+
   // Advisor display
   const assignedAdvisor =
     typeof lead.assignedTo === 'object' && lead.assignedTo !== null
       ? lead.assignedTo
       : null
 
+  // Current linear index for progression tracker
+  const currentStageIndex = LINEAR_STAGES.indexOf(lead.status)
+
   return (
     <div className="space-y-6 pb-8">
-      {/* Workspace Top Action Bar */}
+      {/* 1. Workspace Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              {lead.firstName} {lead.lastName}
-            </h1>
-            <Badge variant={stageDef?.badgeVariant || 'neutral'} size="md">
-              {stageDef?.label || lead.status}
-            </Badge>
-
-            {isConverted && (
-              <Badge variant="success" size="md" className="gap-1">
-                <Check className="h-3 w-3" />
-                Client Case
-              </Badge>
-            )}
-
-            {isAlreadyKnown && (
-              <Badge variant="warning" size="md" className="gap-1">
-                <Sparkles className="h-3 w-3" />
-                Already Known
-              </Badge>
-            )}
+        <div className="flex items-start gap-3.5 min-w-0">
+          {/* Borrower Avatar Circle */}
+          <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/30 text-primary font-bold text-sm sm:text-base border border-primary/20 shadow-2xs">
+            {borrowerInitials}
           </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-2">
-            <span>Inquiry ID: <span className="font-mono text-slate-700">{lead._id}</span></span>
-            <span>•</span>
-            <span>Registered {formatDate(lead.createdAt)}</span>
-          </p>
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
+                {lead.firstName} {lead.lastName}
+              </h1>
+              <Badge variant={stageDef?.badgeVariant || 'neutral'} size="md">
+                {stageDef?.label || lead.status}
+              </Badge>
+
+              {isConverted && (
+                <Badge variant="success" size="md" className="gap-1">
+                  <Check className="h-3 w-3" />
+                  Client Case
+                </Badge>
+              )}
+
+              {isAlreadyKnown && (
+                <Badge variant="warning" size="md" className="gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Already Known
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span>Inquiry ID:</span>
+                <span className="font-mono text-slate-700">{lead._id}</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyId(lead._id)}
+                  className="rounded p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  title="Copy Inquiry ID"
+                >
+                  {copiedId ? (
+                    <Check className="h-3 w-3 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </button>
+              </div>
+              <span>•</span>
+              <span>Registered {formatDate(lead.createdAt)}</span>
+              <span>•</span>
+              <span className="hidden sm:inline">Updated {formatRelativeTime(lead.updatedAt)}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Header Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {showFullPageLink && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate(`/app/leads/${lead._id}`)}
-              className="gap-1.5 text-xs"
+              className="gap-1.5 text-xs h-8"
             >
               Open Full Page
               <ExternalLink className="h-3.5 w-3.5" />
@@ -286,7 +369,7 @@ export function LeadDetailView({
               size="sm"
               disabled={!isEligibleForConversion}
               onClick={() => setIsConvertModalOpen(true)}
-              className="gap-1.5 text-xs shadow-xs"
+              className="gap-1.5 text-xs h-8 shadow-xs"
               title={
                 !isEligibleForConversion
                   ? 'Leads must reach Qualified, Proposal, or Negotiation stage before conversion'
@@ -303,7 +386,7 @@ export function LeadDetailView({
               variant="outline"
               size="sm"
               onClick={() => navigate(`/app/clients/${existingClientId}`)}
-              className="gap-1.5 text-xs text-primary hover:bg-primary/10"
+              className="gap-1.5 text-xs h-8 text-primary hover:bg-primary/10 border-primary/30"
             >
               View Client Case
               <ExternalLink className="h-3.5 w-3.5" />
@@ -312,24 +395,39 @@ export function LeadDetailView({
         </div>
       </div>
 
-      {/* Concurrency Notice Alert */}
+      {/* 2. Concurrency Conflict Notice */}
       {concurrencyNotice && (
-        <div className="flex items-start justify-between rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          <div className="flex items-start gap-2">
+        <div className="flex items-start justify-between rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-2xs">
+          <div className="flex items-start gap-2.5">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-            <span>{concurrencyNotice}</span>
+            <div>
+              <span className="font-semibold block">Concurrency Notice</span>
+              <p className="mt-0.5 text-amber-800 leading-relaxed">{concurrencyNotice}</p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setConcurrencyNotice(null)}
-            className="text-amber-700 hover:text-amber-900 text-xs font-semibold ml-2"
-          >
-            Dismiss
-          </button>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetchLead()}
+              className="h-6 px-2 text-[11px] text-amber-800 hover:text-amber-950 hover:bg-amber-100"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Reload
+            </Button>
+            <button
+              type="button"
+              onClick={() => setConcurrencyNotice(null)}
+              className="rounded p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 transition-colors"
+              title="Dismiss notice"
+            >
+              <span className="text-xs font-semibold">Dismiss</span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* "Already Known" Person Detection Banner */}
+      {/* 3. "Already Known" Person Detection Banner */}
       {isAlreadyKnown && (
         <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/90 to-amber-100/50 p-4 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -353,7 +451,7 @@ export function LeadDetailView({
                 variant="outline"
                 size="sm"
                 onClick={() => navigate(`/app/clients/${existingClientId}`)}
-                className="shrink-0 gap-1.5 border-amber-300 bg-white text-amber-950 hover:bg-amber-50 text-xs"
+                className="shrink-0 gap-1.5 border-amber-300 bg-white text-amber-950 hover:bg-amber-50 text-xs self-start sm:self-auto"
               >
                 View Existing Client Case
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -363,7 +461,117 @@ export function LeadDetailView({
         </div>
       )}
 
-      {/* Main Workspace Layout (2 columns on desktop) */}
+      {/* 4. Financial KPI Highlights Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Target Loan Amount */}
+        <Card className="border border-border/80 bg-white p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span className="font-medium">Target Loan Amount</span>
+            <DollarSign className="h-4 w-4 text-primary" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold text-slate-900">
+            {loanAmount > 0 ? formatCurrency(loanAmount) : 'Pending Assessment'}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {loanAmount > 0 ? 'Requested principal borrowing' : 'Awaiting borrower intake'}
+          </div>
+        </Card>
+
+        {/* Estimated Property Value & LTV % */}
+        <Card className="border border-border/80 bg-white p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span className="font-medium">Estimated Property Value</span>
+            {hasLtv && (
+              <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold bg-primary/10 text-primary">
+                <Percent className="h-2.5 w-2.5" />
+                {ltvPercent}% LTV
+              </span>
+            )}
+          </div>
+          <div className="text-lg sm:text-xl font-bold text-slate-900">
+            {propertyValue > 0 ? formatCurrency(propertyValue) : 'Not Specified'}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {hasLtv ? `${ltvPercent}% Loan-to-Value Ratio` : 'Property valuation baseline'}
+          </div>
+        </Card>
+
+        {/* Monthly Gross Income */}
+        <Card className="border border-border/80 bg-white p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
+            <span className="font-medium">Monthly Gross Income</span>
+            <Briefcase className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold text-slate-900">
+            {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Not Declared'}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Base Monthly Earnings
+          </div>
+        </Card>
+      </div>
+
+      {/* 5. Linear Stage Progression Tracker */}
+      <Card className="border border-border/80 p-4 shadow-2xs bg-slate-50/50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Pipeline Stage Progression
+            </span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Stage {currentStageIndex >= 0 ? currentStageIndex + 1 : '-'}/6: {stageDef?.label || lead.status}
+          </span>
+        </div>
+
+        {lead.status === 'LOST' ? (
+          <div className="flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
+            <XCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <div>
+              <span className="font-semibold">Terminal State: Closed Lost</span>
+              <p className="text-[11px] text-rose-700 mt-0.5">
+                This lead has been archived as lost. No forward stage progressions are available.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1">
+            {LINEAR_STAGES.map((stageKey, idx) => {
+              const def = STAGE_DEFINITIONS[stageKey]
+              const isCurrent = lead.status === stageKey
+              const isPast = currentStageIndex > idx
+
+              return (
+                <div
+                  key={stageKey}
+                  className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                    isCurrent
+                      ? 'border-primary bg-primary/10 text-primary font-semibold shadow-2xs ring-1 ring-primary/30'
+                      : isPast
+                      ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
+                      : 'border-border/60 bg-white text-muted-foreground opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-1 text-[11px] mb-0.5">
+                    {isPast ? (
+                      <Check className="h-3 w-3 text-emerald-600" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    )}
+                    <span className="font-bold">{idx + 1}</span>
+                  </div>
+                  <span className="text-[11px] truncate max-w-full">
+                    {def?.label.replace(' Inquiry', '')}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* 6. Main Workspace Layout (2 columns on desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 spans): Borrower Profile & Financial Details */}
         <div className="lg:col-span-2 space-y-6">
@@ -461,41 +669,32 @@ export function LeadDetailView({
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-                <span className="text-muted-foreground block mb-1">Target Loan Amount</span>
-                <span className="text-base font-bold text-slate-900">
-                  {loanAmount > 0 ? formatCurrency(loanAmount) : 'Pending Assessment'}
-                </span>
-              </div>
-
-              <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-                <span className="text-muted-foreground block mb-1">Estimated Property Value</span>
-                <span className="text-base font-bold text-slate-900">
-                  {propertyValue > 0 ? formatCurrency(propertyValue) : 'Not Specified'}
+                <span className="text-muted-foreground block mb-1">Employment Status</span>
+                <span className="font-semibold text-slate-900 text-xs">
+                  {employmentStatus || 'Permanent Contract'}
                 </span>
               </div>
 
               <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-                <span className="text-muted-foreground block mb-1">Monthly Gross Income</span>
-                <span className="text-base font-bold text-slate-900">
-                  {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Not Declared'}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
-              <div>
-                <span className="text-muted-foreground block mb-0.5">Employment Status</span>
-                <span className="font-semibold text-slate-800">
-                  {employmentStatus || 'Permanent Contract (Standard)'}
+                <span className="text-muted-foreground block mb-1">Expat Residence Status</span>
+                <span className="font-semibold text-slate-900 text-xs">
+                  {residenceStatus || 'EU Blue Card'}
                 </span>
               </div>
 
-              <div>
-                <span className="text-muted-foreground block mb-0.5">Expat Residence Status</span>
-                <span className="font-semibold text-slate-800">
-                  {residenceStatus || 'EU Blue Card / Permanent Residence'}
+              <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+                <span className="text-muted-foreground block mb-1">LTV Assessment</span>
+                <span className="font-semibold text-slate-900 text-xs">
+                  {hasLtv ? `${ltvPercent}% Loan-to-Value` : 'Pending Appraisal'}
+                </span>
+              </div>
+
+              <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+                <span className="text-muted-foreground block mb-1">Financing Objective</span>
+                <span className="font-semibold text-slate-900 text-xs">
+                  Residential Real Estate Mortgage
                 </span>
               </div>
             </div>
@@ -690,7 +889,7 @@ export function LeadDetailView({
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                <span className="text-muted-foreground">Current Stage:</span>
+                <span className="text-muted-foreground font-medium">Current Stage:</span>
                 <Badge variant={stageDef?.badgeVariant || 'neutral'} size="md">
                   {stageDef?.label || lead.status}
                 </Badge>
@@ -700,46 +899,115 @@ export function LeadDetailView({
                 {stageDef?.description || 'Active qualification step.'}
               </p>
 
-              {/* State Machine Transition Buttons */}
-              <div className="pt-2 border-t border-border/60 space-y-2">
+              {/* State Machine Transition Actions */}
+              <div className="pt-2 border-t border-border/60 space-y-2.5">
                 <span className="block text-[11px] font-semibold text-slate-700">
                   Allowed Next Transitions
                 </span>
 
                 {validTransitions.length === 0 ? (
                   <div className="rounded-lg bg-slate-100/60 p-2.5 text-center text-[11px] text-muted-foreground">
-                    Terminal Stage — No outgoing transitions permitted.
+                    Terminal Stage: No outgoing transitions permitted.
                   </div>
                 ) : (
-                  validTransitions.map((nextStage) => {
-                    const nextDef = STAGE_DEFINITIONS[nextStage]
-                    const isLostAction = nextStage === 'LOST'
+                  <>
+                    {/* Primary Forward Transitions */}
+                    {forwardTransitions.map((nextStage) => {
+                      const nextDef = STAGE_DEFINITIONS[nextStage]
 
-                    return (
-                      <Button
-                        key={nextStage}
-                        type="button"
-                        variant={isLostAction ? 'outline' : 'primary'}
-                        size="sm"
-                        disabled={updateStageMutation.isPending}
-                        onClick={() => handleStageTransition(nextStage)}
-                        className={`w-full justify-between text-xs h-8 ${
-                          isLostAction ? 'hover:border-rose-300 hover:text-rose-700' : ''
-                        }`}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          {isLostAction ? 'Mark as Lost' : `Advance to ${nextDef?.label || nextStage}`}
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    )
-                  })
+                      return (
+                        <Button
+                          key={nextStage}
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          disabled={updateStageMutation.isPending}
+                          onClick={() => handleStageTransition(nextStage)}
+                          className="w-full justify-between text-xs h-8.5 shadow-xs"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            Advance to {nextDef?.label || nextStage}
+                          </span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )
+                    })}
+
+                    {/* Secondary Drop-off / Lost Transition */}
+                    {hasLostTransition && (
+                      <div className="pt-1.5 border-t border-dashed border-border/60">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={updateStageMutation.isPending}
+                          onClick={() => handleStageTransition('LOST')}
+                          className="w-full justify-between text-xs h-8 text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <XCircle className="h-3.5 w-3.5" />
+                            Mark as Lost
+                          </span>
+                          <ArrowRight className="h-3 w-3 opacity-60" />
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           </Card>
 
-          {/* Lead Score & Qualification Card */}
+          {/* Client Conversion Eligibility Highlight Card */}
+          {isStaffRole && !isConverted && (
+            <Card
+              className={`border p-4 shadow-2xs transition-all ${
+                isEligibleForConversion
+                  ? 'border-primary/30 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent'
+                  : 'border-border/60 bg-slate-50/50'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2
+                  className={`h-4 w-4 mt-0.5 shrink-0 ${
+                    isEligibleForConversion ? 'text-primary' : 'text-slate-400'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900">Client Case Conversion</span>
+                    {isEligibleForConversion ? (
+                      <span className="rounded px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                        Ready
+                      </span>
+                    ) : (
+                      <span className="rounded px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[10px]">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    {isEligibleForConversion
+                      ? 'This lead has reached an eligible qualification stage and can be converted into an official client case with portal access.'
+                      : 'Lead must advance to Qualified, Proposal, or Negotiation stage before portal account creation.'}
+                  </p>
+                  {isEligibleForConversion && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsConvertModalOpen(true)}
+                      className="mt-3 w-full text-xs h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Begin Client Onboarding
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Lead Score & Quality Card */}
           <Card className="border border-border/80 p-5 shadow-2xs">
             <div className="flex items-center gap-2 pb-3 mb-3 border-b border-border/60">
               <Sparkles className="h-4 w-4 text-amber-500" />
@@ -750,7 +1018,7 @@ export function LeadDetailView({
 
             <div className="space-y-3 text-xs">
               <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground">Calculated Score</span>
+                <span className="text-muted-foreground font-medium">Calculated Score</span>
                 <span
                   className={`text-xl font-bold ${
                     lead.score >= 70

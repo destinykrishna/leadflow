@@ -15,8 +15,8 @@ export function LeadDetailPage() {
   return (
     <div className="space-y-4">
       {/* Navigation Breadcrumbs & Back Navigation */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Button
             variant="ghost"
             size="sm"
@@ -51,7 +51,7 @@ export function LeadDetailPage() {
 
           <ChevronRight className="h-3 w-3 text-slate-400" />
 
-          <span className="font-medium text-slate-900 truncate max-w-[200px]">
+          <span className="font-semibold text-slate-900 truncate max-w-[180px] sm:max-w-xs">
             Lead Details
           </span>
         </div>

@@ -2270,6 +2270,55 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `server`, `worker`, `client`.
    - Production bundle: clean Vite build in 1.02s.
 
+---
+
+## Phase 3 — Prompt 2: Lead Workspace Polish
+```
+Phase 3 — Prompt 2: Lead Workspace Polish
+
+Read AGENTS.md, README.md and inspect the current Lead Workspace.
+
+Polish only the existing Lead Workspace:
+- Improve borrower/loan/stage information hierarchy.
+- Refine stage actions and client-conversion UX.
+- Improve loading, error, 404 and 409 states.
+- Fix responsive/mobile layout issues.
+- Keep INR formatting and existing LeadFlow visual language.
+- Do not add new backend functionality or invent data.
+
+Add focused frontend tests for the changed behavior.
+Run frontend tests, typecheck and build.
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Borrower & Loan Information Hierarchy**:
+   - Upgraded borrower header with initials avatar badge, 1-click clipboard copy for Inquiry ID and email address, and status badges.
+   - Built a 3-card financial KPI highlight strip (`Target Loan Amount`, `Estimated Property Value`, `Monthly Gross Income`).
+   - Added dynamic Loan-to-Value (`LTV %`) computation (e.g. `81.8% LTV`) when both loan amount and property value are present.
+   - Built an interactive 6-stage linear pipeline progression stepper (`NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON`) indicating completed, active, and upcoming stages, with a distinct red alert banner for terminal `LOST` stage.
+2. **Refined Stage Actions & Client Conversion UX**:
+   - Separated primary linear progression (`Advance to [Stage]`) from secondary drop-off (`Mark as Lost`) with clear visual distinction.
+   - Added client conversion eligibility status card with prompt onboarding call-to-action for qualified leads.
+   - Upgraded `ConvertLeadModal` with a visual client profile type selector (`BUYER`, `SELLER`, `BOTH`, `OTHER`), visual feedback on temporary password copy, and direct navigation to the client case upon completion.
+3. **Resilient Loading, Error, 404, and 409 States**:
+   - Modern multi-card shimmer skeleton mirroring header, financial KPI strip, borrower contact card, and stage actions.
+   - Polished 404 Not Found screen with `SearchX` icon, inquiry ID snippet, explanation of tenant isolation, and direct navigation buttons (`Return to Pipeline`, `View All Leads`, `Retry Query`).
+   - Improved 409 Concurrency Conflict banner with clear title, explanation that remote updates were applied, and direct `Reload` and `Dismiss` controls.
+4. **Responsive & Mobile Polish**:
+   - Sized slide-over drawer responsively (`w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl`) with touch-friendly paddings (`px-4 sm:px-6`).
+   - Wrapped action buttons and financial cards responsively (`grid-cols-1 sm:grid-cols-3`) to prevent text truncation on narrow viewports.
+5. **Testing & Verification**:
+   - Created `client/src/tests/lead-workspace-polish.test.tsx` (6 tests) covering LTV calculation, progression tracker, stage action separation, 409 conflict alert controls, 404 navigation buttons, and conversion modal client type selection.
+   - Client test suite: **50 passed across 8 test files** (`vitest`).
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `server`, `worker`, `client`.
+   - Production bundle: clean Vite build in 576ms.
+
+
 
 
 
