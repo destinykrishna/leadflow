@@ -1,120 +1,182 @@
 # LeadFlow
 
-LeadFlow is an intelligent, multi-tenant lead management and brokerage operations platform designed for modern real estate brokerages.
+> High-performance, multi-tenant lead management and brokerage operations platform for modern real estate and mortgage firms.
+
+LeadFlow is built to streamline lead ingestion, client conversion, and document workflows for brokerage operations—specifically tailored to high-trust financial domains such as expat mortgage and financing advisory.
 
 ---
 
-## Current Status: Phase 2 — Authentication & Authorization
-- **Phase 1, Prompt 1**: Foundation & Scaffolding established.
-  - Database connection lifecycle management and configuration.
-  - Multi-tenant brokerage isolation query helpers and contracts.
-  - Centralized application and operational error classes.
-  - Zod validation infrastructure and common schemas.
-  - Vitest test infrastructure with in-memory MongoDB (`mongodb-memory-server`).
-- **Phase 1, Prompt 2**: Core Database Models implemented.
-  - Implemented 8 core Mongoose models: `Brokerage`, `User`, `Lead`, `Client`, `Document`, `Task`, `EmailTemplate`, and `PipelineTrigger`.
-  - Enforced strict brokerage tenant isolation with compound indexes (`{ brokerageId: 1, ... }`).
-  - Added duplicate detection for leads and clients with cross-brokerage tolerance.
-- **Phase 1, Prompt 3**: Domain Alignment & Final Audit.
-  - Aligned User/RBAC roles with assignment requirements: `PLATFORM_ADMIN`, `BROKERAGE_ADMIN`, `ADVISOR`, and `CLIENT`.
-  - Treated `PLATFORM_ADMIN` as a system-level role with optional `brokerageId` and global email uniqueness.
-  - Enforced strict `brokerageId` requirement and scoped uniqueness for `BROKERAGE_ADMIN`, `ADVISOR`, and `CLIENT`.
-  - Added `Client.userId` to link client portal user accounts with client profiles.
-  - Added `PAYSLIP` to `Document` types for German mortgage expat workflows.
-  - Added test seed fixture (`server/tests/fixtures/seed.fixture.ts`).
-- **Phase 2, Prompt 1**: Authentication Foundation implemented.
-  - Password hashing and verification via `bcryptjs` with salt round guarantees.
-  - Dual JWT + refresh session strategy: short-lived access tokens (15m) and long-lived refresh tokens (7d).
-  - Stateful session tracking via `Session` model with SHA-256 hashed storage (`tokenHash`) and TTL index auto-eviction.
-  - RFC 6819 refresh token rotation and breach reuse detection with immediate session family invalidation.
-  - Secure HTTP-only cookies (`httpOnly: true`, `sameSite: 'lax'`, `secure: env.isProduction`) with body fallback for API clients.
-  - Login flow supporting all 4 roles (`PLATFORM_ADMIN`, `BROKERAGE_ADMIN`, `ADVISOR`, `CLIENT`), verifying active user and brokerage status.
-  - Authentication middleware (`authenticate`) establishing strongly-typed `req.user` context with tenant discrimination (`brokerageId: null` for platform admins vs string for brokerage users).
-  - Rate limiting on auth routes via `express-rate-limit` with test environment bypass.
-- **Phase 2, Prompt 2**: Authorization, RBAC & Tenant Isolation implemented.
-  - Reusable RBAC guards: `requireRoles` (HTTP 403 `FORBIDDEN` on role mismatch), `requireSameBrokerage` (HTTP 403 `BROKERAGE_ISOLATION_VIOLATION` on URL param mismatch), and `requireActiveUser` (HTTP 401 on suspended accounts).
-  - Generic `ScopedRepository<T, TDoc>` automatically scoping database queries to `{ brokerageId: user.brokerageId }` based on trusted server context.
-  - Anti-IDOR defense: Cross-brokerage guessed MongoDB IDs return HTTP 404 (`NotFoundError`) rather than 403, completely preventing cross-tenant existence enumeration.
-  - Client-level ownership isolation via `AuthorizationService`: `CLIENT` accounts are strictly restricted to their own profile (`client.userId === req.user.id`) and uploaded documents (`doc.uploadedBy === req.user.id`), blocking horizontal access across expat cases in the same brokerage.
-  - `PLATFORM_ADMIN` cross-brokerage access permitted on platform endpoints (`/api/brokerages`) and resource inspections without tenant restriction.
-- **Phase 3, Prompt 1**: Lead Ingestion Foundation implemented.
-  - External lead webhook endpoints (`POST /api/leads/webhook/:brokerageId` and `/api/leads/ingest/:brokerageId`).
-  - Webhook authentication supporting both shared secret (`x-webhook-secret` / Bearer token) and HMAC SHA-256 signatures (`x-signature-sha256`) with timing attack mitigation (`crypto.timingSafeEqual`).
-  - Normalization layer accepting standard JSON lead payloads and external form providers (Typeform `form_response`), automatically extracting names, email, phone, UTM tags, and custom fields.
-  - Strict tenant scoping: client-supplied `brokerageId` in body payloads is completely stripped/ignored; tenant identity is bound strictly to the authenticated route brokerage.
-  - Deterministic duplicate detection on `{ brokerageId: 1, email: 1 }` with idempotent repeated delivery handling (HTTP 200 with `isDuplicate: true`), returning existing lead without creating duplicate documents.
-  - Concurrent race condition resilience: catches MongoDB code 11000 duplicate key conflicts to resolve the existing record safely.
-  - 150 unit & integration tests passing with zero failures. Phase 3 Prompt 1 complete.
-- **Phase 3, Prompt 2**: Lead Ingestion Reliability & Closeout implemented.
-  - Anti-enumeration defense in `verifyWebhookAuth`: Unauthenticated callers probing webhook URLs receive uniform HTTP 401 `UnauthorizedError` without DB execution, preventing brokerage ID existence and status discovery.
-  - Person "already known" detection: Detects when incoming leads belong to existing `Client` records within the brokerage (`isAlreadyKnown: true`, `knownAs: 'CLIENT'`), attaching `existingClientId` and inheriting existing advisor assignments.
-  - Concurrency & burst reliability: Verified parallel duplicate deliveries and multi-tenant burst ingestion (20 concurrent requests across brokerages) with zero duplicate records and absolute tenant isolation.
-  - Privacy observability: Masked PII (`maskEmail`) in structured ingestion logs without exposing secrets or sensitive custom fields.
-  - Tenant-aware ingestion rate limiting (`brokerageIngestionLimiter`): 1,000 req/min per verified brokerage placed after webhook authentication, eliminating noisy-neighbor IP throttling and accommodating 500 req/min webhook bursts.
-  - 164 unit & integration tests passing with zero failures. Lead Ingestion completed.
+## Key Features
+
+### 🏢 Strict Multi-Tenant Brokerage Isolation
+- **Domain-First Multi-Tenancy**: Data model structured around `Brokerage` entities (shared database, shared collection with indexed tenant discrimination).
+- **Automated Query Scoping**: Centralized `ScopedRepository` pattern binds all reads and writes to `{ brokerageId }` from verified server context.
+- **Anti-IDOR Defense**: Guessed resource IDs from neighboring tenants resolve to `null` and return HTTP 404 (`NotFoundError`), completely preventing cross-tenant existence enumeration.
+- **Client Case Isolation**: Portal clients can only view and manage their own profile and uploaded documents, preventing lateral access across expat cases within the same brokerage.
+
+### 🔐 Robust Authentication & Role-Based Access Control (RBAC)
+- **4 Distinct User Roles**:
+  - `PLATFORM_ADMIN`: System-level administrator managing brokerages and global platform health.
+  - `BROKERAGE_ADMIN`: Manages brokerage settings, advisors, and team configurations.
+  - `ADVISOR`: Manages pipeline leads, clients, document verification, and tasks.
+  - `CLIENT`: Self-service expat client portal for uploading checklist documents and tracking case status.
+- **Dual JWT + Session Rotation**: Short-lived access tokens (15m) paired with long-lived refresh tokens (7d).
+- **RFC 6819 Breach Detection**: Refresh token rotation with family lineages; reuse attempts immediately revoke all active sessions in the family.
+- **Hashed Session Storage**: Refresh tokens are SHA-256 hashed before persistence with MongoDB TTL auto-expiry.
+- **Secure Cookie Delivery**: SameSite Lax, HTTP-only, secure cookie support with header/body fallbacks for API clients.
+
+### ⚡ High-Throughput Webhook Lead Ingestion
+- **Multi-Source Normalization**: Ingests leads from standard REST webhooks and external form providers (Typeform `form_response`), automatically extracting contact info, UTM campaign parameters, and custom fields.
+- **Dual Webhook Authentication**: Authenticates external payloads via shared webhook secret (`x-webhook-secret` or Bearer token) or HMAC SHA-256 signatures (`x-signature-sha256`) with constant-time verification.
+- **Anti-Enumeration Guard**: Unauthenticated probes fail immediately with uniform HTTP 401 responses, disclosing zero information about brokerage existence or account standing.
+- **Deterministic Deduplication**: Enforces scoped unique identity on `{ brokerageId: 1, email: 1 }`. Duplicate submissions return HTTP 200 idempotently without creating duplicate records.
+- **"Already Known" Person Detection**: Matches incoming leads against existing `Client` profiles in the brokerage, linking client IDs and preserving advisor assignments.
+- **Tenant-Aware Ingestion Rate Limiting**: 1,000 requests/minute per verified brokerage placed after authentication. Protects brokerages from noisy neighbors sharing external webhook IPs (e.g. Typeform or Zapier egress).
+
+### 📄 Expat Mortgage Document Verification
+- Domain-tailored checklist types including `PAYSLIP` (*Gehaltsabrechnung*), `BANK_STATEMENT`, `ID_DOCUMENT`, and `TAX_RETURN`.
+- Asynchronous verification pipeline architecture prepared for background workers.
 
 ---
 
-## Monorepo Structure
+## Monorepo Architecture
 
 ```
 leadflow/
-├── client/                 # React 19 + Vite frontend
-├── server/                 # Express 5 + Mongoose 9 backend API
+├── client/                 # React 19 + Vite frontend application
+├── server/                 # Express 5 + Mongoose 9 REST API
 │   ├── src/
-│   │   ├── config/         # Environment (env.ts) and database connection (database.ts)
-│   │   ├── models/         # Domain models scaffolding
-│   │   ├── repositories/   # Base repository & withBrokerageScope query helper
-│   │   ├── services/       # Domain services scaffolding
-│   │   ├── validators/     # Zod validation schemas and helpers
-│   │   ├── utils/          # Pino logger and AppError / BrokerageIsolationError classes
-│   │   └── types/          # Domain TypeScript types & IBrokerageScoped interface
-│   └── tests/
-│       ├── helpers/        # MongoMemoryServer database test setup
-│       ├── unit/           # Unit tests (database, domain infrastructure)
-│       ├── integration/    # Integration test suites
-│       └── setup.ts        # Vitest global test lifecycle hooks
-├── worker/                 # BullMQ + Redis background worker
+│   │   ├── config/         # Environment parsing (Zod) and DB lifecycle
+│   │   ├── controllers/    # HTTP route controllers
+│   │   ├── middleware/     # Auth, RBAC, webhook verification, error handling
+│   │   ├── models/         # Mongoose schemas with compound tenant indexes
+│   │   ├── repositories/   # Lean scoped data access layer
+│   │   ├── routes/         # Express API routes with tenant-aware rate limiting
+│   │   ├── services/       # Domain business logic orchestration
+│   │   ├── utils/          # Logger, custom error hierarchy, password helpers
+│   │   └── validators/     # Zod runtime validation schemas
+│   └── tests/              # Vitest test suite with in-memory MongoDB
+├── worker/                 # BullMQ + Redis background worker service
 ├── packages/
-│   └── shared/             # Shared contracts, constants, and schemas
-├── docs/                   # Architectural & database design specifications
-│   ├── architecture.md     # System architecture and multi-tenant isolation
-│   └── database-design.md  # Database standards, indexing, and test strategy
-├── AGENTS.md               # Persistent source of agent instructions and verified architecture
-├── PROMPTS.md              # Chronological prompt tracking and execution log
-└── package.json            # Root workspace scripts
+│   └── shared/             # Shared TypeScript types, constants, and schemas
+└── docs/                   # System and architecture design specifications
+    ├── architecture.md     # Multi-tenancy, service boundaries, and system topology
+    ├── auth-security.md    # Token lifecycle, RBAC matrix, and IDOR defenses
+    ├── database-design.md  # Schema definitions, compound indexes, and query patterns
+    └── lead-ingestion.md   # Webhook specs, HMAC verification, and burst ingestion
 ```
 
 ---
 
-## Technology Stack
+## Tech Stack
 
-- **Runtime**: Node.js >= 20.19.0
-- **Language**: TypeScript 7 (ES Modules / NodeNext)
-- **Backend API**: Express 5.2.1, Mongoose 9.10.2, Zod 4.6.5, Pino 10.3.1
-- **Testing**: Vitest 5.0.1, mongodb-memory-server 11.3.0
-- **Background Worker**: BullMQ 6.3.8, ioredis 6.0.0
-- **Frontend**: React 19, Vite 8, TanStack Query 5, Tailwind CSS
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend API** | Node.js (>=20.19), Express 5.2, Mongoose 9.10, Zod 4.6, Pino 10.3 |
+| **Frontend** | React 19, Vite 8, TanStack Query 5, Tailwind CSS |
+| **Background Jobs** | BullMQ 6.3, ioredis 6.0 |
+| **Database** | MongoDB 8+ (tested with `mongodb-memory-server`) |
+| **Testing** | Vitest 5.0, Supertest 7.3 |
+| **Language & Module** | TypeScript 7, NodeNext ES Modules (`"type": "module"`) |
 
 ---
 
-## Developer Commands
+## Quickstart
+
+### Prerequisites
+- **Node.js**: `>= 20.19.0`
+- **npm**: `>= 10.0.0`
+- **MongoDB**: Local or hosted MongoDB instance (tests run automatically in-memory)
+
+### 1. Installation
+Clone the repository and install workspace dependencies:
 
 ```bash
-# Typecheck across server, worker, and client
-npm run typecheck
+git clone https://github.com/destinykrishna/leadflow.git
+cd leadflow
+npm install
+```
 
-# Run test suite
-npm run test
+### 2. Environment Configuration
+Copy the example environment configuration:
 
-# Run tests with coverage
+```bash
+cp .env.example .env
+cp server/.env.example server/.env
+```
+
+Review and update the variables in `.env` as needed:
+```env
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/leadflow
+JWT_SECRET=your-secure-jwt-secret-min32chars!
+JWT_REFRESH_SECRET=your-secure-refresh-jwt-secret-min32chars!
+COOKIE_SECRET=your-secure-cookie-secret
+CORS_ORIGIN=http://localhost:5173
+```
+
+### 3. Running the Test Suite
+The project includes a comprehensive automated test suite testing multi-tenancy, authentication, RBAC, and high-volume burst lead ingestion:
+
+```bash
+# Run all unit and integration tests
+npm test
+
+# Run tests with code coverage
 npm run test:coverage
+```
 
-# Build client bundle
-npm run build
+### 4. Running the Development Server
+```bash
+# Start backend server
+npm --prefix server run dev
+
+# Start frontend application
+npm --prefix client run dev
 ```
 
 ---
 
-## Multi-Tenant Isolation
-Multi-tenancy uses the **Brokerage** domain model. All tenant-scoped entities enforce `brokerageId` with compound indexing and query scoping via `withBrokerageScope`. Any cross-tenant access violation triggers an explicit `BrokerageIsolationError` (HTTP 403).
+## Webhook Ingestion Example
+
+External leads can be sent directly to a brokerage's dedicated webhook URL:
+
+```bash
+curl -X POST https://api.yourdomain.com/api/leads/webhook/<BROKERAGE_ID> \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-secret: <BROKERAGE_WEBHOOK_SECRET>" \
+  -d '{
+    "firstName": "Anna",
+    "lastName": "Schmidt",
+    "email": "anna.schmidt@example.de",
+    "phone": "+49 170 1234567",
+    "loanAmount": 450000,
+    "propertyValue": 550000,
+    "source": "TYPEFORM",
+    "campaign": "expat_mortgage_2026"
+  }'
+```
+
+### Responses
+- **`201 Created`**: New lead successfully created and assigned to the initial `NEW` pipeline stage.
+- **`200 OK` (Duplicate/Idempotent)**: Returns existing lead without creating duplicates (`"isDuplicate": true`).
+- **`401 Unauthorized`**: Missing or invalid credentials (anti-enumeration protected).
+- **`429 Too Many Requests`**: Verified brokerage exceeded 1,000 requests/minute.
+
+---
+
+## Documentation
+
+Comprehensive design specifications and architectural guidelines are available in [`docs/`](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs):
+- [Architecture & Isolation](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/architecture.md)
+- [Authentication & Security](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/auth-security.md)
+- [Database Schema & Indexes](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/database-design.md)
+- [Lead Ingestion & Webhooks](file:///c:/Users/Krishna/Desktop/3d-website/leadflow/docs/lead-ingestion.md)
+
+*Note: Chronological execution logs and internal development tracking are maintained separately in `PROMPTS.md` and `AGENTS.md`.*
+
+---
+
+## License
+
+MIT © LeadFlow Contributors
