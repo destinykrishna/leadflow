@@ -1,11 +1,27 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
 import { pino } from 'pino';
-import { startDocumentWorker, closeDocumentWorker } from '../../server/src/queues/document.worker.js';
+import {
+  connectDatabase,
+  disconnectDatabase,
+  isDatabaseConnected,
+  onDatabaseConnected,
+  onDatabaseDisconnected,
+} from '../../server/src/config/database.js';
+import {
+  startDocumentWorker,
+  closeDocumentWorker,
+  pauseDocumentWorker,
+  resumeDocumentWorker,
+} from '../../server/src/queues/document.worker.js';
 import { closeDocumentQueue } from '../../server/src/queues/document.queue.js';
-import { startEmailWorker, closeEmailWorker } from '../../server/src/queues/email.worker.js';
+import {
+  startEmailWorker,
+  closeEmailWorker,
+  pauseEmailWorker,
+  resumeEmailWorker,
+} from '../../server/src/queues/email.worker.js';
 import { closeEmailQueue } from '../../server/src/queues/email.queue.js';
 import { closeRedisConnections } from '../../server/src/queues/redis.connection.js';
 import { documentRecoveryService } from '../../server/src/queues/document-recovery.service.js';
@@ -26,9 +42,31 @@ async function startWorkerProcess(): Promise<void> {
   try {
     logger.info('Starting LeadFlow Background Worker process...');
 
-    await mongoose.connect(MONGODB_URI);
-    logger.info('Worker MongoDB connected successfully');
+    // 1. Connect using shared database connection manager so all models share the connected instance
+    await connectDatabase(MONGODB_URI);
 
+    if (!isDatabaseConnected()) {
+      throw new Error('Worker MongoDB connection failed: database readyState is not connected');
+    }
+    logger.info('Worker MongoDB connected and verified successfully');
+
+    // 2. Register lifecycle event handlers for connection loss and recovery
+    onDatabaseDisconnected(() => {
+      logger.warn('MongoDB connection lost in worker process: pausing BullMQ workers');
+      void pauseDocumentWorker();
+      void pauseEmailWorker();
+    });
+
+    onDatabaseConnected(() => {
+      logger.info('MongoDB connected/reconnected in worker process: resuming BullMQ workers and catching up reconciliation');
+      resumeDocumentWorker();
+      resumeEmailWorker();
+      void documentRecoveryService.reconcileAll().catch((err) => {
+        logger.warn({ err }, 'Catch-up reconciliation after DB reconnection failed');
+      });
+    });
+
+    // 3. Start workers and periodic reconciliation only after DB is verified ready
     startDocumentWorker();
     startEmailWorker();
     documentRecoveryService.startPeriodicReconciliation();
@@ -43,7 +81,7 @@ async function startWorkerProcess(): Promise<void> {
         await closeEmailWorker();
         await closeEmailQueue();
         await closeRedisConnections();
-        await mongoose.disconnect();
+        await disconnectDatabase();
         logger.info('Worker shutdown completed cleanly');
         process.exit(0);
       } catch (err) {

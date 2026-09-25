@@ -231,13 +231,13 @@ describe('Phase 2 — Dashboard & Pipeline Foundation', () => {
 
       await waitFor(() => {
         // Verify stage column headings
-        expect(screen.getByText('New Inquiry')).toBeInTheDocument()
-        expect(screen.getByText('Contacted')).toBeInTheDocument()
-        expect(screen.getByText('Qualified')).toBeInTheDocument()
-        expect(screen.getByText('Proposal')).toBeInTheDocument()
-        expect(screen.getByText('Negotiation')).toBeInTheDocument()
-        expect(screen.getByText('Won / Converted')).toBeInTheDocument()
-        expect(screen.getByText('Lost')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'New Inquiry' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Contacted' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Qualified' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Proposal' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Negotiation' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Won / Converted' })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 2, name: 'Lost' })).toBeInTheDocument()
 
         // Verify lead cards inside columns
         expect(screen.getByText('Maximilian Weber')).toBeInTheDocument()

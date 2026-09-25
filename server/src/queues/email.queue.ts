@@ -1,9 +1,12 @@
 import { Queue, type JobsOptions, type Job } from 'bullmq';
+import { env } from '../config/env.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import { logger } from '../utils/logger.js';
 import { maskEmail } from '../utils/mask.js';
 
-export const EMAIL_DELIVERY_QUEUE_NAME = 'email-delivery';
+export const EMAIL_DELIVERY_QUEUE_NAME = env.isTest
+  ? 'email-delivery-test'
+  : 'email-delivery';
 export const EMAIL_SEND_JOB_NAME = 'send-email';
 
 export interface EmailJobPayload {

@@ -1,6 +1,7 @@
 import { Worker, type Job, UnrecoverableError, type WorkerOptions } from 'bullmq';
 import { Types } from 'mongoose';
 import { env } from '../config/env.js';
+import { isDatabaseConnected } from '../config/database.js';
 import { Document as DocumentModel, type DocumentStatus } from '../models/document.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
@@ -39,6 +40,15 @@ export async function processDocumentJob(
     },
     'Processing document verification job'
   );
+
+  // 0. Ensure database connection is ready before attempting operations
+  if (!isDatabaseConnected()) {
+    logger.warn(
+      { jobId: job.id, documentId: payload.documentId },
+      'Database is not connected; failing job as transient error for BullMQ retry'
+    );
+    throw new Error('Database is disconnected; cannot process document verification');
+  }
 
   // 1. Validate payload identifier formats
   if (!payload.documentId || !Types.ObjectId.isValid(payload.documentId)) {
@@ -289,6 +299,24 @@ async function handleExhaustedJobFailure(
     return;
   }
 
+  // Do not mark document as REJECTED if failure was caused by database unavailability
+  if (
+    !isDatabaseConnected() ||
+    err.message.includes('buffering timed out') ||
+    err.message.includes('Database is disconnected') ||
+    err.name === 'MongoNetworkError' ||
+    err.name === 'MongoServerSelectionError'
+  ) {
+    logger.warn(
+      {
+        documentId: job.data.documentId,
+        err: err.message,
+      },
+      'Skipping document rejection on job failure: failure caused by database unavailability'
+    );
+    return;
+  }
+
   const maxAttempts = job.opts.attempts ?? 3;
   const isExhausted = job.attemptsMade >= maxAttempts || err.name === 'UnrecoverableError';
 
@@ -413,6 +441,26 @@ export function startDocumentWorker(
   });
 
   return documentWorkerInstance;
+}
+
+/**
+ * Pauses the Document Processing Worker from taking new jobs (e.g. during DB outage).
+ */
+export async function pauseDocumentWorker(): Promise<void> {
+  if (documentWorkerInstance && !documentWorkerInstance.isPaused()) {
+    logger.warn('Pausing document worker due to database disconnection');
+    await documentWorkerInstance.pause(true);
+  }
+}
+
+/**
+ * Resumes the Document Processing Worker once the database is available.
+ */
+export function resumeDocumentWorker(): void {
+  if (documentWorkerInstance && documentWorkerInstance.isPaused()) {
+    logger.info('Resuming document worker as database is reconnected');
+    documentWorkerInstance.resume();
+  }
 }
 
 /**

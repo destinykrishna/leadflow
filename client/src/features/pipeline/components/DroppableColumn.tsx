@@ -66,6 +66,7 @@ export function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
+      id={`stage-column-${stage}`}
       className={`flex h-full w-72 shrink-0 flex-col rounded-xl border p-2.5 transition-all duration-150 ${columnStyle}`}
     >
       {/* Column Header */}

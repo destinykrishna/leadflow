@@ -6,6 +6,9 @@ import { ORDERED_STAGES, STAGE_DEFINITIONS, type Lead, type LeadStatus } from '@
 export interface DashboardMetrics {
   totalLeads: number
   activePipelineCount: number
+  activePipelineValue: number
+  wonPipelineValue: number
+  avgLoanAmount: number
   qualifiedLeadsCount: number
   wonCasesCount: number
   activeClientsCount: number
@@ -17,6 +20,7 @@ export interface DashboardMetrics {
     count: number
     percentage: number
     totalVolume: number
+    avgVolume: number
     badgeVariant: 'neutral' | 'default' | 'success' | 'warning' | 'danger'
   }>
   recentLeads: Lead[]
@@ -69,24 +73,47 @@ export function useDashboardData() {
   const resolvedCount = wonCasesCount + (counts.LOST || 0)
   const conversionRate = resolvedCount > 0 ? Math.round((wonCasesCount / resolvedCount) * 100) : 0
 
-  // Calculate total pipeline value and stage breakdowns
+  // Calculate total pipeline value, active value, won value, and average deal size
   let totalPipelineValue = 0
+  let activePipelineValue = 0
+  let wonPipelineValue = 0
+  let leadsWithLoanCount = 0
   const allLeads: Lead[] = []
 
+  const activeStagesSet = new Set<LeadStatus>([
+    'NEW',
+    'CONTACTED',
+    'QUALIFIED',
+    'PROPOSAL',
+    'NEGOTIATION',
+  ])
+
   if (pipelineData?.pipeline) {
-    Object.values(pipelineData.pipeline).forEach((stageLeads) => {
+    Object.entries(pipelineData.pipeline).forEach(([stg, stageLeads]) => {
       stageLeads.forEach((lead) => {
         allLeads.push(lead)
         const loan = Number(lead.customFields?.loanAmount) || 0
         totalPipelineValue += loan
+        if (loan > 0) {
+          leadsWithLoanCount++
+        }
+        if (activeStagesSet.has(stg as LeadStatus)) {
+          activePipelineValue += loan
+        }
+        if (stg === 'WON') {
+          wonPipelineValue += loan
+        }
       })
     })
   }
 
+  const avgLoanAmount =
+    leadsWithLoanCount > 0 ? Math.round(totalPipelineValue / leadsWithLoanCount) : 0
+
   // Sort leads by newest first for recent activity
-  const recentLeads = [...allLeads].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  ).slice(0, 7)
+  const recentLeads = [...allLeads]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 7)
 
   // Stage breakdown
   const stageBreakdown = ORDERED_STAGES.map((stage) => {
@@ -97,6 +124,7 @@ export function useDashboardData() {
       (sum, lead) => sum + (Number(lead.customFields?.loanAmount) || 0),
       0,
     )
+    const avgVolume = count > 0 ? Math.round(totalVolume / count) : 0
 
     return {
       stage,
@@ -104,6 +132,7 @@ export function useDashboardData() {
       count,
       percentage,
       totalVolume,
+      avgVolume,
       badgeVariant: STAGE_DEFINITIONS[stage].badgeVariant,
     }
   })
@@ -111,6 +140,9 @@ export function useDashboardData() {
   const metrics: DashboardMetrics = {
     totalLeads,
     activePipelineCount,
+    activePipelineValue,
+    wonPipelineValue,
+    avgLoanAmount,
     qualifiedLeadsCount,
     wonCasesCount,
     activeClientsCount,

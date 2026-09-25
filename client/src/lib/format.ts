@@ -1,13 +1,14 @@
 /**
- * Currency formatting utility (German mortgage standard in EUR)
+ * Currency formatting utility (Indian Rupee INR - ₹)
+ * Formats using the Indian numbering system (e.g. ₹1,90,000)
  */
 export function formatCurrency(amount?: number | null): string {
   if (amount === undefined || amount === null || isNaN(amount)) {
-    return '€0'
+    return '₹0'
   }
-  return new Intl.NumberFormat('de-DE', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount)
 }

@@ -49,13 +49,13 @@ describe('UI Primitives', () => {
       render(
         <Input
           label="Loan Amount"
-          error="Loan amount must be at least €50,000"
+          error="Loan amount must be at least ₹50,000"
         />,
       )
 
       const input = screen.getByLabelText('Loan Amount')
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByText('Loan amount must be at least €50,000')).toBeInTheDocument()
+      expect(screen.getByText('Loan amount must be at least ₹50,000')).toBeInTheDocument()
     })
   })
 

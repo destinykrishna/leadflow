@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { Lead } from '../models/lead.model.js';
 import { TriggerExecution } from '../models/trigger-execution.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
+import { isDatabaseConnected } from '../config/database.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import { EMAIL_DELIVERY_QUEUE_NAME, type EmailJobPayload } from './email.queue.js';
 import { emailService } from '../services/email.service.js';
@@ -39,6 +40,15 @@ export async function processEmailJob(
     },
     'Processing email delivery job'
   );
+
+  // 0. Ensure database connection is ready before attempting operations
+  if (!isDatabaseConnected()) {
+    logger.warn(
+      { jobId: job.id, leadId: payload.leadId },
+      'Database is not connected; failing email job as transient error for BullMQ retry'
+    );
+    throw new Error('Database is disconnected; cannot process email delivery');
+  }
 
   // 1. Validate payload identifier formats
   if (!payload.brokerageId || !Types.ObjectId.isValid(payload.brokerageId)) {
@@ -145,8 +155,14 @@ export async function processEmailJob(
   } catch (error) {
     const isUnrecoverable = error instanceof UnrecoverableError;
     const isExhausted = job.attemptsMade + 1 >= (job.opts.attempts || 3);
+    const isDbUnavailable =
+      !isDatabaseConnected() ||
+      (error as Error)?.message?.includes('buffering timed out') ||
+      (error as Error)?.message?.includes('Database is disconnected') ||
+      (error as Error)?.name === 'MongoNetworkError' ||
+      (error as Error)?.name === 'MongoServerSelectionError';
 
-    if (isUnrecoverable || isExhausted) {
+    if (!isDbUnavailable && (isUnrecoverable || isExhausted)) {
       await TriggerExecution.findOneAndUpdate(
         withBrokerageScope(payload.brokerageId, {
           idempotencyKey: payload.idempotencyKey,
@@ -248,6 +264,26 @@ export function startEmailWorker(): Worker<EmailJobPayload, EmailProcessingResul
   emailWorkerInstance = createEmailWorker();
   logger.info('Email delivery worker started and actively listening for jobs');
   return emailWorkerInstance;
+}
+
+/**
+ * Pauses the email worker from taking new jobs (e.g. during DB outage).
+ */
+export async function pauseEmailWorker(): Promise<void> {
+  if (emailWorkerInstance && !emailWorkerInstance.isPaused()) {
+    logger.warn('Pausing email worker due to database disconnection');
+    await emailWorkerInstance.pause(true);
+  }
+}
+
+/**
+ * Resumes the email worker once the database is available.
+ */
+export function resumeEmailWorker(): void {
+  if (emailWorkerInstance && emailWorkerInstance.isPaused()) {
+    logger.info('Resuming email worker as database is reconnected');
+    emailWorkerInstance.resume();
+  }
 }
 
 /**

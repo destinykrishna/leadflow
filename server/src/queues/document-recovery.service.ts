@@ -1,6 +1,7 @@
 import { Document as DocumentModel } from '../models/document.model.js';
 import { getDocumentQueue, enqueueDocumentProcessing } from './document.queue.js';
 import { env } from '../config/env.js';
+import { isDatabaseConnected } from '../config/database.js';
 import { logger } from '../utils/logger.js';
 
 export interface ReconciliationOptions {
@@ -35,6 +36,11 @@ export class DocumentRecoveryService {
         : env.isTest
           ? 0
           : env.PENDING_DOCUMENT_RECOVERY_THRESHOLD_MS;
+
+    if (!isDatabaseConnected()) {
+      logger.warn('Skipping pending document reconciliation: database is not connected');
+      return 0;
+    }
 
     const cutoff = new Date(Date.now() - olderThanMs);
     const batchSize = options?.batchSize ?? 100;
@@ -117,6 +123,11 @@ export class DocumentRecoveryService {
         : env.isTest
           ? 100
           : env.STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS;
+
+    if (!isDatabaseConnected()) {
+      logger.warn('Skipping stalled document reconciliation: database is not connected');
+      return 0;
+    }
 
     const cutoff = new Date(Date.now() - olderThanMs);
     const batchSize = options?.batchSize ?? 50;
@@ -209,6 +220,15 @@ export class DocumentRecoveryService {
   async reconcileAll(
     options?: ReconciliationOptions
   ): Promise<ReconciliationSummary> {
+    if (!isDatabaseConnected()) {
+      logger.warn('Skipping document reconciliation sweep: database is not connected');
+      return {
+        recoveredPending: 0,
+        recoveredStalled: 0,
+        timestamp: new Date().toISOString(),
+      };
+    }
+
     const recoveredPending = await this.reconcilePendingDocuments(options);
     const recoveredStalled = await this.reconcileStalledDocuments(options);
 
@@ -232,6 +252,10 @@ export class DocumentRecoveryService {
 
     periodicTimer = setInterval(async () => {
       try {
+        if (!isDatabaseConnected()) {
+          logger.debug('Periodic document reconciliation skipped: database is disconnected');
+          return;
+        }
         await this.reconcileAll();
       } catch (err) {
         logger.error({ err }, 'Error during periodic document reconciliation');

@@ -306,7 +306,9 @@ describe('Phase 2 — Prompt 2: Interactive Kanban & Realtime Pipeline', () => {
 
       // Check all 7 column headings are present
       ORDERED_STAGES.forEach((stage) => {
-        expect(screen.getByText(STAGE_DEFINITIONS[stage].label)).toBeInTheDocument()
+        expect(
+          screen.getByRole('heading', { level: 2, name: STAGE_DEFINITIONS[stage].label }),
+        ).toBeInTheDocument()
       })
     })
 

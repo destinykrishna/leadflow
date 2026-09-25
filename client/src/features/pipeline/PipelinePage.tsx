@@ -32,6 +32,7 @@ import { usePipelineSocket } from './hooks/usePipelineSocket'
 import { PipelineHeader } from './components/PipelineHeader'
 import { DroppableColumn } from './components/DroppableColumn'
 import { LeadCard } from './components/LeadCard'
+import { LeadDetailDrawer } from '@/features/leads/components/LeadDetailDrawer'
 
 export interface FeedbackNotice {
   type: 'info' | 'error' | 'warning' | 'success'
@@ -40,7 +41,11 @@ export interface FeedbackNotice {
 
 export function PipelinePage() {
   const [search, setSearch] = React.useState('')
+  const [sourceFilter, setSourceFilter] = React.useState('')
+  const [minLoanFilter, setMinLoanFilter] = React.useState(0)
+  const [sortBy, setSortBy] = React.useState('default')
   const [activeLead, setActiveLead] = React.useState<Lead | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(null)
   const [feedback, setFeedback] = React.useState<FeedbackNotice | null>(null)
 
   const queryClient = useQueryClient()
@@ -68,23 +73,28 @@ export function PipelinePage() {
     }
   }, [feedback])
 
-  // Calculate total volume across all leads
-  const totalVolume = React.useMemo(() => {
-    if (!data?.pipeline) return 0
-    let sum = 0
-    Object.values(data.pipeline).forEach((stageLeads) => {
-      stageLeads.forEach((lead) => {
-        sum += Number(lead.customFields?.loanAmount) || 0
-      })
-    })
-    return sum
-  }, [data])
+  const isFiltered = Boolean(
+    search.trim() || sourceFilter || minLoanFilter > 0 || sortBy !== 'default',
+  )
 
-  // Filter leads based on search query
+  const handleClearFilters = React.useCallback(() => {
+    setSearch('')
+    setSourceFilter('')
+    setMinLoanFilter(0)
+    setSortBy('default')
+  }, [])
+
+  const handleJumpToStage = React.useCallback((stage: LeadStatus) => {
+    const el = document.getElementById(`stage-column-${stage}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+  }, [])
+
+  // Filter and sort leads across all 7 stages
   const filteredPipeline = React.useMemo(() => {
     if (!data?.pipeline) return null
     const q = search.trim().toLowerCase()
-    if (!q) return data.pipeline
 
     const result: Record<LeadStatus, Lead[]> = {
       NEW: [],
@@ -97,18 +107,82 @@ export function PipelinePage() {
     }
 
     ORDERED_STAGES.forEach((stage) => {
-      result[stage] = (data.pipeline[stage] || []).filter(
-        (lead: Lead) =>
-          lead.firstName.toLowerCase().includes(q) ||
-          lead.lastName.toLowerCase().includes(q) ||
-          lead.email.toLowerCase().includes(q) ||
-          (lead.phone && lead.phone.includes(q)) ||
-          (lead.source && lead.source.toLowerCase().includes(q)),
-      )
+      let list = (data.pipeline[stage] || []).filter((lead: Lead) => {
+        // Search filter
+        if (q) {
+          const matchesSearch =
+            lead.firstName.toLowerCase().includes(q) ||
+            lead.lastName.toLowerCase().includes(q) ||
+            lead.email.toLowerCase().includes(q) ||
+            (lead.phone && lead.phone.includes(q)) ||
+            (lead.source && lead.source.toLowerCase().includes(q))
+          if (!matchesSearch) return false
+        }
+
+        // Source filter
+        if (sourceFilter && lead.source !== sourceFilter) {
+          return false
+        }
+
+        // Min loan volume filter
+        if (minLoanFilter > 0) {
+          const loan = Number(lead.customFields?.loanAmount) || 0
+          if (loan < minLoanFilter) return false
+        }
+
+        return true
+      })
+
+      // Sorting
+      if (sortBy === 'loan-desc') {
+        list = [...list].sort(
+          (a, b) =>
+            (Number(b.customFields?.loanAmount) || 0) - (Number(a.customFields?.loanAmount) || 0),
+        )
+      } else if (sortBy === 'score-desc') {
+        list = [...list].sort((a, b) => b.score - a.score)
+      } else if (sortBy === 'oldest') {
+        list = [...list].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )
+      }
+
+      result[stage] = list
     })
 
     return result
-  }, [data, search])
+  }, [data, search, sourceFilter, minLoanFilter, sortBy])
+
+  // Calculate total volume across filtered leads
+  const totalVolume = React.useMemo(() => {
+    if (!filteredPipeline) return 0
+    let sum = 0
+    Object.values(filteredPipeline).forEach((stageLeads) => {
+      stageLeads.forEach((lead) => {
+        sum += Number(lead.customFields?.loanAmount) || 0
+      })
+    })
+    return sum
+  }, [filteredPipeline])
+
+  // Calculate current stage counts for quick-jump strip
+  const stageCounts = React.useMemo(() => {
+    const counts: Record<LeadStatus, number> = {
+      NEW: 0,
+      CONTACTED: 0,
+      QUALIFIED: 0,
+      PROPOSAL: 0,
+      NEGOTIATION: 0,
+      WON: 0,
+      LOST: 0,
+    }
+    if (filteredPipeline) {
+      ORDERED_STAGES.forEach((stage) => {
+        counts[stage] = filteredPipeline[stage]?.length ?? 0
+      })
+    }
+    return counts
+  }, [filteredPipeline])
 
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -265,6 +339,16 @@ export function PipelinePage() {
           totalVolume={totalVolume}
           search={search}
           onSearchChange={setSearch}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
+          minLoanFilter={minLoanFilter}
+          onMinLoanFilterChange={setMinLoanFilter}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          onClearFilters={handleClearFilters}
+          isFiltered={isFiltered}
+          stageCounts={stageCounts}
+          onJumpToStage={handleJumpToStage}
           onRefresh={refetch}
           isLoading={isLoading}
         />
@@ -337,6 +421,7 @@ export function PipelinePage() {
                 stage={stage}
                 leads={filteredPipeline?.[stage] || []}
                 activeLead={activeLead}
+                onLeadClick={(lead) => setSelectedLeadId(lead._id)}
               />
             ))}
           </div>
@@ -350,6 +435,13 @@ export function PipelinePage() {
             </div>
           ) : null}
         </DragOverlay>
+
+        {/* Slide-over Dedicated Lead Workspace Drawer */}
+        <LeadDetailDrawer
+          leadId={selectedLeadId}
+          isOpen={Boolean(selectedLeadId)}
+          onClose={() => setSelectedLeadId(null)}
+        />
       </div>
     </DndContext>
   )

@@ -9,6 +9,7 @@ import { NotFoundPage } from '@/features/misc/NotFoundPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { PipelinePage } from '@/features/pipeline/PipelinePage'
 import { LeadsPage } from '@/features/leads/LeadsPage'
+import { LeadDetailPage } from '@/features/leads/LeadDetailPage'
 import { ClientsPage } from '@/features/clients/ClientsPage'
 import { DocumentsPage } from '@/features/documents/DocumentsPage'
 import { TasksPage } from '@/features/tasks/TasksPage'
@@ -41,6 +42,7 @@ export function AppRoutes() {
           <Route path="/app/dashboard" element={<DashboardPage />} />
           <Route path="/app/pipeline" element={<PipelinePage />} />
           <Route path="/app/leads" element={<LeadsPage />} />
+          <Route path="/app/leads/:id" element={<LeadDetailPage />} />
           <Route path="/app/clients" element={<ClientsPage />} />
           <Route path="/app/documents" element={<DocumentsPage />} />
           <Route path="/app/tasks" element={<TasksPage />} />

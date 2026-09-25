@@ -1,8 +1,11 @@
 import { Queue, type JobsOptions, type Job } from 'bullmq';
+import { env } from '../config/env.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import { logger } from '../utils/logger.js';
 
-export const DOCUMENT_PROCESSING_QUEUE_NAME = 'document-processing';
+export const DOCUMENT_PROCESSING_QUEUE_NAME = env.isTest
+  ? 'document-processing-test'
+  : 'document-processing';
 export const DOCUMENT_VERIFY_JOB_NAME = 'verify-document';
 
 export interface DocumentJobPayload {

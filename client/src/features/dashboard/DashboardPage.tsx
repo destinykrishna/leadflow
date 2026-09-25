@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { formatCurrency } from '@/lib/format'
 import { useDashboardData } from './api/dashboard.api'
 import { KpiCard } from './components/KpiCard'
 import { PipelineDistributionCard } from './components/PipelineDistributionCard'
@@ -130,6 +131,7 @@ export function DashboardPage() {
             <KpiCard
               title="Active Pipeline"
               value={metrics.activePipelineCount}
+              secondaryValue={metrics.activePipelineValue > 0 ? formatCurrency(metrics.activePipelineValue) : undefined}
               subtitle="In advisory workflow"
               icon={TrendingUp}
             />
@@ -144,6 +146,7 @@ export function DashboardPage() {
             <KpiCard
               title="Won Cases"
               value={metrics.wonCasesCount}
+              secondaryValue={metrics.wonPipelineValue > 0 ? formatCurrency(metrics.wonPipelineValue) : undefined}
               subtitle="Approved & converted"
               icon={Award}
               badgeText={`${metrics.conversionRate}% rate`}

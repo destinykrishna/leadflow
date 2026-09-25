@@ -28,6 +28,16 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
             <span className="text-xs font-semibold text-slate-900 group-hover:text-primary transition-colors truncate">
               {lead.firstName} {lead.lastName}
             </span>
+            {lead.convertedClientId && (
+              <Badge variant="success" size="sm" className="text-[9px] py-0 px-1 shrink-0 font-medium">
+                Case
+              </Badge>
+            )}
+            {(lead.customFields?.alreadyKnown || lead.customFields?.isAlreadyKnown) && (
+              <Badge variant="warning" size="sm" className="text-[9px] py-0 px-1 shrink-0 font-medium">
+                Known
+              </Badge>
+            )}
           </div>
 
           {lead.source && (

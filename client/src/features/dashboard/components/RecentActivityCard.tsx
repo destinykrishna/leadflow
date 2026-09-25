@@ -59,18 +59,25 @@ export function RecentActivityCard({ recentLeads }: RecentActivityCardProps) {
                       <User className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col truncate">
-                      <span className="text-xs font-semibold text-slate-900 group-hover:text-primary transition-colors truncate">
-                        {lead.firstName} {lead.lastName}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-slate-900 group-hover:text-primary transition-colors truncate">
+                          {lead.firstName} {lead.lastName}
+                        </span>
+                        {lead.source && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-600 uppercase">
+                            {lead.source.toLowerCase()}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-muted-foreground truncate">
                         {lead.email}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     {loanAmount > 0 && (
-                      <span className="hidden sm:inline-block text-xs font-semibold text-slate-800">
+                      <span className="hidden sm:inline-block text-xs font-bold text-slate-800">
                         {formatCurrency(loanAmount)}
                       </span>
                     )}

@@ -16,6 +16,41 @@ const stateMap: Record<number, DatabaseConnectionState> = {
   3: 'disconnecting',
 };
 
+export { mongoose };
+
+type ConnectionCallback = () => void | Promise<void>;
+
+const connectCallbacks: Set<ConnectionCallback> = new Set();
+const disconnectCallbacks: Set<ConnectionCallback> = new Set();
+
+/**
+ * Registers a callback invoked when the database connects or reconnects.
+ * If already connected, the callback is invoked immediately.
+ */
+export function onDatabaseConnected(callback: ConnectionCallback): () => void {
+  connectCallbacks.add(callback);
+  if (isDatabaseConnected()) {
+    try {
+      void callback();
+    } catch (err) {
+      logger.error({ err }, 'Error in onDatabaseConnected callback');
+    }
+  }
+  return () => {
+    connectCallbacks.delete(callback);
+  };
+}
+
+/**
+ * Registers a callback invoked when the database disconnects or errors.
+ */
+export function onDatabaseDisconnected(callback: ConnectionCallback): () => void {
+  disconnectCallbacks.add(callback);
+  return () => {
+    disconnectCallbacks.delete(callback);
+  };
+}
+
 let listenersRegistered = false;
 
 /**
@@ -26,18 +61,46 @@ function registerConnectionListeners(): void {
 
   mongoose.connection.on('connected', () => {
     logger.info({ host: mongoose.connection.host, name: mongoose.connection.name }, 'MongoDB connected');
+    for (const cb of connectCallbacks) {
+      try {
+        void cb();
+      } catch (err) {
+        logger.error({ err }, 'Error in database connected callback');
+      }
+    }
   });
 
   mongoose.connection.on('error', (err: Error) => {
     logger.error({ err }, 'MongoDB connection error');
+    for (const cb of disconnectCallbacks) {
+      try {
+        void cb();
+      } catch (cbErr) {
+        logger.error({ err: cbErr }, 'Error in database error callback');
+      }
+    }
   });
 
   mongoose.connection.on('disconnected', () => {
     logger.warn('MongoDB disconnected');
+    for (const cb of disconnectCallbacks) {
+      try {
+        void cb();
+      } catch (err) {
+        logger.error({ err }, 'Error in database disconnected callback');
+      }
+    }
   });
 
   mongoose.connection.on('reconnected', () => {
     logger.info('MongoDB reconnected');
+    for (const cb of connectCallbacks) {
+      try {
+        void cb();
+      } catch (err) {
+        logger.error({ err }, 'Error in database reconnected callback');
+      }
+    }
   });
 
   listenersRegistered = true;
@@ -55,6 +118,28 @@ export async function connectDatabase(
 
   if (mongoose.connection.readyState === 1) {
     logger.debug('MongoDB already connected');
+    return mongoose;
+  }
+
+  if (mongoose.connection.readyState === 2) {
+    logger.debug('MongoDB connection already in progress, awaiting ready state');
+    await new Promise<void>((resolve, reject) => {
+      if (mongoose.connection.readyState === 1) return resolve();
+      const onConnected = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (err: Error) => {
+        cleanup();
+        reject(err);
+      };
+      const cleanup = () => {
+        mongoose.connection.off('connected', onConnected);
+        mongoose.connection.off('error', onError);
+      };
+      mongoose.connection.once('connected', onConnected);
+      mongoose.connection.once('error', onError);
+    });
     return mongoose;
   }
 
