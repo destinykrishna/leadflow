@@ -2379,6 +2379,82 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `client`, `server`, `worker`.
    - Production bundle: clean Vite build in 498ms.
 
+## Phase 4, Prompt 2: Document Upload & Processing UX
+```
+LeadFlow — Phase 4 (Frontend), Prompt 2: Document Upload & Processing UX
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing client workspace and document APIs/components.
+
+Refine the existing advisor document workflow:
+- Polish document list/card presentation and status hierarchy.
+- Make upload UX production-ready: file selection, document type, validation, progress/loading, success and failure states.
+- Clearly distinguish PENDING, PROCESSING, VERIFIED and REJECTED states using existing backend data.
+- Handle upload/API failures without losing the current case context.
+- Add appropriate refresh/cache invalidation so newly uploaded documents and status changes appear without stale UI.
+- Keep file viewing safe and preserve existing tenant/RBAC boundaries.
+- Do not add backend endpoints or invent document-processing data.
+- Preserve the existing LeadFlow visual language and responsive behavior.
+
+Testing:
+- Add focused frontend tests for upload validation, loading/success/failure states, status rendering and cache refresh.
+- Run frontend tests, typecheck and build.
+
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Production-Ready Upload UX (`UploadDocumentModal.tsx`)**:
+   - **File Selection**: Added drag-and-drop file attachment zone with active drag hover effects (`border-primary bg-primary/5 ring-4 ring-primary/10`) alongside standard file picker input.
+   - **Client-Side Validation**: Enforced strict 10MB size ceiling (`MAX_FILE_SIZE_BYTES`) with formatted size error messages and whitelisted MIME types (`PDF`, `JPEG`, `PNG`, `WEBP`, `TIFF`) rejecting unsupported extensions (e.g. `.exe`, `.zip`) with actionable guidance.
+   - **File Attachment Preview Card**: Formatted KB/MB file size badge, file format icon (Image vs Document), and 1-click remove button (`X`).
+   - **Document Type Selector**: Exhaustive classification options covering all 8 backend enum values (`IDENTIFICATION`, `PAYSLIP`, `BANK_STATEMENT`, `INCOME_PROOF`, `CONTRACT`, `TAX_RETURN`, `PROPERTY_DETAILS`, `OTHER`) with localized German banking terminology descriptions (e.g. `Gehaltsabrechnung`, `Kontoauszug`, `Aufenthaltstitel`).
+   - **Form Fields**: Document title field defaulting to selected file name without extension, optional verification notes textarea, and upload submit button with loading spinner.
+   - **Progress & Loading State**: Animated progress bar indicating background BullMQ queue dispatching while disabling backdrop dismissal.
+   - **Context Preservation**: Error alerts display specific API failure details while strictly preserving the selected file, user-entered title, and notes so advisors can retry without form loss.
+   - **Success Screen**: Green checkmark modal confirmation banner with "Document Uploaded & Queued" message, brokerage tenant isolation verification badge, and 1-click "Done" dismissal.
+
+2. **Polished Document Presentation & 4-State Hierarchy (`ClientDetailView.tsx`)**:
+   - **4 Distinct Status States**:
+     * `VERIFIED`: Emerald checkmark icon, green badge, formatted verification date (`Verified {formatDate}`).
+     * `PROCESSING (BULLMQ)`: Animated blue spinning refresh icon, default blue badge.
+     * `PENDING`: Amber clock icon, warning amber badge.
+     * `REJECTED`: Rose alert triangle icon, danger rose badge, and a prominent inspection callout banner (`Inspection Rejection Issue:`) displaying `verificationNotes` or `failureReason`.
+   - **Filter Tabs**: Separate filter tabs (`All`, `Verified`, `Processing`, `Pending`, `Rejected`) with live counters matching active document states.
+   - **Safe File Viewing & Security**: Document inspection uses safe new-window execution (`window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')`).
+   - **Link Sharing**: 1-click clipboard copy for document vault links (`handleCopyDocLink`) with transient "Copied" checkmark feedback.
+   - **Manual Refresh**: Built-in refresh button with spinning state allowing advisors to immediately re-poll case documents.
+
+3. **Brokerage-Wide Document Verification Center (`DocumentsPage.tsx`)**:
+   - Upgraded `/app/documents` from a basic placeholder to a full-featured verification center.
+   - **5-Metric Status KPI Strip**: Displays `Total Files`, `Verified`, `Processing (BullMQ)`, `Pending`, and `Rejected` cards with live counts.
+   - **Multi-Dimensional Filtering**: Search input across document title, category, or file key, combined with category dropdown filter and status tabs.
+   - **Case Linkage**: Directly displays linked client case with a clickable link to `/app/clients/:clientId`.
+   - **Real-Time Synchronization**: Listens to BullMQ worker broadcasts via `useDocumentSocket()`.
+
+4. **Real-time Cache Invalidation (`useDocumentSocket.ts`)**:
+   - Implemented `useDocumentSocket` hook subscribing to backend Socket.IO `document:status_changed` events.
+   - Automatically invalidates `DOCUMENTS_QUERY_KEY`, `CLIENT_DOCUMENTS_KEY(clientId)`, and `LEAD_DOCUMENTS_KEY(leadId)`.
+   - Ensures document state changes produced by background workers appear instantly without full-page reloads.
+
+5. **Testing & Verification**:
+   - Created `client/src/tests/document-processing-ux.test.tsx` (10 tests) covering:
+     * File size limit rejection (> 10MB).
+     * Unsupported extension rejection.
+     * Valid file acceptance and title auto-population.
+     * Context preservation upon upload failure.
+     * Success modal rendering and callback invocation.
+     * Rendering of all 4 states (`VERIFIED`, `PROCESSING`, `PENDING`, `REJECTED`) with rejection callout banner.
+     * Status filter tab navigation.
+     * Clipboard link copying.
+     * Real-time Socket.IO cache invalidation on `document:status_changed`.
+     * `DocumentsPage` KPI metrics and search filtering.
+   - Client test suite: **67 passed across 10 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
+   - Production bundle: clean Vite build in 524ms.
+
 
 
 

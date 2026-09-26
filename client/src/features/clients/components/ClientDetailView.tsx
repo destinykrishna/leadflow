@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Clock,
   RefreshCw,
-  XCircle,
   ExternalLink,
   Copy,
   Check,
@@ -24,6 +23,7 @@ import {
   UserCheck,
   ArrowRight,
   Info,
+  AlertTriangle,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -35,6 +35,7 @@ import { formatCurrency, formatRelativeTime, formatDate } from '@/lib/format'
 import { useAuth } from '@/hooks/useAuth'
 import { useClient, useClientDocuments } from '../api/clients.api'
 import { useLead } from '@/features/leads/api/leads.api'
+import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
 import { UploadDocumentModal } from './UploadDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
 import type { DocumentItem } from '@/types/document.types'
@@ -115,10 +116,18 @@ export function ClientDetailView({
   }, [client?.leadId])
 
   // 4. Fetch Originating Lead Inquiry for Financial Overview
+  // 4. Fetch Originating Lead Inquiry for Financial Overview
   const {
     data: lead,
     isLoading: isLeadLoading,
   } = useLead(leadId)
+
+  // 5. Realtime Socket subscription for document processing updates
+  useDocumentSocket({
+    clientId: client?._id,
+    leadId,
+    enabled: Boolean(client?._id),
+  })
 
   // Local UI states
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false)
@@ -126,6 +135,7 @@ export function ClientDetailView({
   const [copiedEmail, setCopiedEmail] = React.useState(false)
   const [copiedPhone, setCopiedPhone] = React.useState(false)
   const [copiedId, setCopiedId] = React.useState(false)
+  const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
 
   // 404 detection (IDOR protection or non-existent record)
   const is404 =
@@ -150,6 +160,12 @@ export function ClientDetailView({
     navigator.clipboard.writeText(id)
     setCopiedId(true)
     setTimeout(() => setCopiedId(false), 2000)
+  }
+
+  const handleCopyDocLink = (docId: string, url: string) => {
+    navigator.clipboard.writeText(url)
+    setCopiedDocId(docId)
+    setTimeout(() => setCopiedDocId(null), 2000)
   }
 
   // Financial figures extracted safely from originating lead inquiry
@@ -195,9 +211,10 @@ export function ClientDetailView({
     return documents.filter((doc) => doc.status === selectedDocFilter)
   }, [documents, selectedDocFilter])
 
-  // Document verification counts
+  // Document verification counts (all 4 states clearly distinguished)
   const verifiedDocCount = documents.filter((d) => d.status === 'VERIFIED').length
-  const pendingDocCount = documents.filter((d) => d.status === 'PENDING' || d.status === 'PROCESSING').length
+  const processingDocCount = documents.filter((d) => d.status === 'PROCESSING').length
+  const pendingDocCount = documents.filter((d) => d.status === 'PENDING').length
   const rejectedDocCount = documents.filter((d) => d.status === 'REJECTED').length
 
   // 1. Loading Skeleton State
@@ -591,28 +608,41 @@ export function ClientDetailView({
                 <Badge variant="neutral" size="sm">
                   {documents.length}
                 </Badge>
+
+                {/* Manual Cache Refresh Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refetchDocs()}
+                  disabled={isDocsLoading}
+                  className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900 ml-1"
+                  title="Refresh case documents"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isDocsLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
               </div>
 
-              {/* Document Status Filter Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto">
-                {['ALL', 'VERIFIED', 'PENDING', 'REJECTED'].map((filterTab) => (
+              {/* Document Status Filter Tabs (4 Distinct Processing States) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { key: 'ALL', label: `All (${documents.length})` },
+                  { key: 'VERIFIED', label: `Verified (${verifiedDocCount})` },
+                  { key: 'PROCESSING', label: `Processing (${processingDocCount})` },
+                  { key: 'PENDING', label: `Pending (${pendingDocCount})` },
+                  { key: 'REJECTED', label: `Rejected (${rejectedDocCount})` },
+                ].map((tab) => (
                   <button
-                    key={filterTab}
+                    key={tab.key}
                     type="button"
-                    onClick={() => setSelectedDocFilter(filterTab)}
-                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                      selectedDocFilter === filterTab
+                    onClick={() => setSelectedDocFilter(tab.key)}
+                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors shrink-0 ${
+                      selectedDocFilter === tab.key
                         ? 'bg-slate-900 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {filterTab === 'ALL'
-                      ? 'All'
-                      : filterTab === 'VERIFIED'
-                      ? `Verified (${verifiedDocCount})`
-                      : filterTab === 'PENDING'
-                      ? `Pending (${pendingDocCount})`
-                      : `Rejected (${rejectedDocCount})`}
+                    {tab.label}
                   </button>
                 ))}
               </div>
@@ -620,7 +650,7 @@ export function ClientDetailView({
 
             {/* Documents List */}
             <div className="mt-4">
-              {isDocsLoading ? (
+              {isDocsLoading && documents.length === 0 ? (
                 <div className="space-y-3">
                   <Skeleton className="h-16 w-full rounded-lg" />
                   <Skeleton className="h-16 w-full rounded-lg" />
@@ -639,15 +669,26 @@ export function ClientDetailView({
                       : `No documents currently match the ${selectedDocFilter.toLowerCase()} filter.`
                   }
                   action={
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setIsUploadModalOpen(true)}
-                      className="gap-1.5 text-xs"
-                    >
-                      <Upload className="h-3.5 w-3.5" />
-                      Upload First Document
-                    </Button>
+                    selectedDocFilter === 'ALL' ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsUploadModalOpen(true)}
+                        className="gap-1.5 text-xs"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload First Document
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDocFilter('ALL')}
+                        className="text-xs"
+                      >
+                        Show All Documents
+                      </Button>
+                    )
                   }
                   className="py-8"
                 />
@@ -656,33 +697,37 @@ export function ClientDetailView({
                   {filteredDocuments.map((doc: DocumentItem) => {
                     const isVerified = doc.status === 'VERIFIED'
                     const isProcessing = doc.status === 'PROCESSING'
+                    const isPending = doc.status === 'PENDING'
                     const isRejected = doc.status === 'REJECTED'
 
                     const fileSizeKB =
                       doc.fileSize ? (doc.fileSize / 1024).toFixed(0) :
                       doc.sizeBytes ? (doc.sizeBytes / 1024).toFixed(0) : null
 
+                    const isLinkCopied = copiedDocId === doc._id
+
                     return (
                       <div
                         key={doc._id}
-                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 p-2 rounded-lg transition-colors group"
+                        className="py-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:bg-slate-50/50 p-2.5 rounded-lg transition-colors group"
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* Status Icon */}
                           <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg mt-0.5 ${
                               isVerified
-                                ? 'bg-emerald-50 text-emerald-600'
+                                ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                                 : isRejected
-                                ? 'bg-rose-50 text-rose-600'
+                                ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
                                 : isProcessing
-                                ? 'bg-blue-50 text-blue-600'
-                                : 'bg-amber-50 text-amber-600'
+                                ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200'
+                                : 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
                             }`}
                           >
                             {isVerified ? (
                               <CheckCircle2 className="h-5 w-5" />
                             ) : isRejected ? (
-                              <XCircle className="h-5 w-5" />
+                              <AlertTriangle className="h-5 w-5" />
                             ) : isProcessing ? (
                               <RefreshCw className="h-5 w-5 animate-spin" />
                             ) : (
@@ -690,9 +735,9 @@ export function ClientDetailView({
                             )}
                           </div>
 
-                          <div className="space-y-0.5">
+                          <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold text-xs text-slate-900 group-hover:text-primary transition-colors">
+                              <span className="font-semibold text-xs text-slate-900 group-hover:text-primary transition-colors truncate">
                                 {doc.title || doc.type}
                               </span>
                               <Badge variant="neutral" size="sm" className="text-[10px]">
@@ -711,7 +756,11 @@ export function ClientDetailView({
                                 size="sm"
                                 className="text-[10px]"
                               >
-                                {isProcessing ? 'PROCESSING (BULLMQ)' : doc.status}
+                                {isProcessing
+                                  ? 'PROCESSING (BULLMQ)'
+                                  : isPending
+                                  ? 'PENDING'
+                                  : doc.status}
                               </Badge>
                             </div>
 
@@ -722,24 +771,55 @@ export function ClientDetailView({
                               {doc.verifiedAt && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-emerald-600 font-medium">
+                                  <span className="text-emerald-700 font-medium">
                                     Verified {formatDate(doc.verifiedAt)}
                                   </span>
                                 </>
                               )}
                             </div>
 
-                            {/* Verification Notes / Rejection Reason */}
-                            {(doc.verificationNotes || doc.failureReason) && (
-                              <p className={`text-[11px] mt-1 ${isRejected ? 'text-rose-600 font-medium' : 'text-slate-600'}`}>
-                                Note: {doc.verificationNotes || doc.failureReason}
+                            {/* Prominent Rejection Reason Callout */}
+                            {isRejected && (doc.verificationNotes || doc.failureReason) && (
+                              <div className="mt-2 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
+                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                                <div>
+                                  <span className="font-semibold block">Inspection Rejection Issue:</span>
+                                  <span className="leading-relaxed">{doc.verificationNotes || doc.failureReason}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Informational Notes for non-rejected items */}
+                            {!isRejected && doc.verificationNotes && (
+                              <p className="text-[11px] text-slate-600 mt-1 italic">
+                                Note: {doc.verificationNotes}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        {/* Document View Action */}
-                        <div className="flex items-center gap-2 self-end sm:self-center">
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyDocLink(doc._id, doc.fileUrl)}
+                            className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
+                            title="Copy secure file link"
+                          >
+                            {isLinkCopied ? (
+                              <>
+                                <Check className="h-3 w-3 text-emerald-600" />
+                                <span className="text-[11px] text-emerald-600">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" />
+                                <span className="text-[11px]">Copy Link</span>
+                              </>
+                            )}
+                          </Button>
+
                           <Button
                             variant="outline"
                             size="sm"
