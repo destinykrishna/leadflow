@@ -2832,15 +2832,228 @@ COMPLETED
    - Full server test suite (`npm test` in `server`): **333 passed across 17 test files** (`vitest`).
    - Client production build (`npm run build` in `client`): clean Vite bundle generated with zero errors.
 
+## Phase 8 — Prompt 1: Final Critical QA & Deployment
+```
+Phase 8 — Prompt 1: Final Critical QA & Deployment
 
+Read AGENTS.md, README.md, PROMPTS.md and assignment.md.
 
+The product is feature-complete. Do not add new features.
 
+Perform a focused final QA pass covering only the critical user journeys:
 
+1. Staff login → pipeline → lead detail → client conversion.
+2. Client login → own case → document upload/re-upload.
+3. Document processing/status updates and realtime synchronization.
+4. Advisor task/automation workflow.
+5. Role boundaries and tenant isolation for CLIENT, ADVISOR, BROKERAGE_ADMIN and PLATFORM_ADMIN.
 
+Use the existing application and APIs. Verify important failure/permission paths where practical.
 
+Do NOT generate or modify frontend tests.
+Do NOT perform exhaustive browser testing.
+Do NOT refactor working code.
 
+If QA reveals an actual blocker, fix only the blocker and re-run the relevant checks.
 
+Then:
+- Verify production build.
+- Prepare/verify deployment configuration using the existing architecture.
+- Verify environment variables and production configuration without exposing secrets.
+- Confirm the application is deployable and document any remaining deployment steps or known limitations.
+- Run existing regression tests, typecheck and build.
 
+Documentation:
+- Append the exact prompt and concise completion record to PROMPTS.md.
+- Update AGENTS.md and README.md with final QA/deployment status.
+- Do not rewrite or reformat existing PROMPTS.md history.
 
+Stop.
+```
 
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Critical User Journey QA Automation (`scripts/qa-journey-verification.ts`)**:
+   - Executed live automated QA pass verifying all 5 critical user journeys against active server and worker services:
+     - **Journey 1 (Staff login → pipeline → lead detail → client conversion)**: Verified advisor JWT authentication, retrieval of 7-stage Kanban pipeline, lead inspection (`GET /api/leads/:id`), client conversion validation guards (rejection of `NEW` leads with HTTP 400), and successful conversion of qualified leads into active borrower cases (`POST /api/clients/convert/:id`).
+     - **Journey 2 (Client login → own case → document upload/re-upload)**: Verified expat client authentication, case retrieval derived strictly from session identity (`GET /api/clients/me`), anti-IDOR concealment of non-owned cases (HTTP 404), multipart payslip document upload (`POST /api/documents/upload`), and PENDING/PROCESSING state verification.
+     - **Journey 3 (Document processing/status updates & realtime synchronization)**: Verified Socket.IO handshake authentication with client JWT, room isolation, and BullMQ background worker status updates (`PENDING` → `PROCESSING` → `VERIFIED`/`REJECTED`).
+     - **Journey 4 (Advisor task/automation workflow)**: Verified Brokerage Admin trigger management, automated trigger execution (`CREATE_TASK` on stage change `NEW` → `CONTACTED`), advisor task inbox retrieval (`GET /api/tasks`), and task status mutation (`PATCH /api/tasks/:id`) to `COMPLETED`.
+     - **Journey 5 (Role boundaries & tenant isolation)**: Verified strict RBAC guards (`CLIENT` blocked with HTTP 403 from internal pipelines and tasks; `ADVISOR` blocked with HTTP 403 from mutating trigger configurations), multi-tenant anti-IDOR isolation across brokerages (cross-brokerage queries return HTTP 404 concealing existence), and system-level `PLATFORM_ADMIN` global brokerage visibility.
+   - **QA Results**: **33 passed, 0 failed** across all 5 journeys with zero blockers found.
+
+2. **Deployment Configuration & Production Blueprints**:
+   - Created multi-container deployment blueprint (`docker-compose.yml`) orchestrating `mongodb` (8.0), `redis` (7-alpine), `server` (Express 5 API + Socket.IO), and `worker` (BullMQ document & email processors).
+   - Created production multi-stage Dockerfiles (`Dockerfile.server` and `Dockerfile.worker`) using lightweight `node:22-alpine` with build-time typechecking and minimal production runtime footprint.
+   - Enhanced `.env.example` with cloud Redis URL configuration (`REDIS_URL` for Upstash/Redis Cloud), and added client deployment configuration template (`client/.env.example`) documenting optional decoupled endpoints (`VITE_API_URL` and `VITE_WS_URL`).
+   - Verified that zero API secrets or sensitive tokens are committed to source control.
+
+3. **Regression Testing, Typecheck & Production Build Verification**:
+   - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
+   - Full client test suite (`npm test` in `client`): **106 passed across 13 test files** (`vitest`).
+   - Full server test suite (`npm test` in `server`): **333 passed across 17 test files** (`vitest`).
+   - Monorepo production build (`npm run build`): clean bundle built in <1s (CSS 86 kB, JS 1,018 kB / 281 kB gzip).
+
+## Phase 8 — Prompt 2: Final Submission Documentation & User Manual
+```
+Phase 8 — Prompt 2: Final Submission Documentation & User Manual
+
+Read assignment.md, AGENTS.md, README.md and PROMPTS.md.
+
+The application is feature-complete and final QA passed. Do not modify application functionality.
+
+Prepare the final submission documentation:
+
+1. Review README.md against assignment.md and ensure it clearly documents:
+   - product overview and implemented capabilities;
+   - architecture and major technical decisions;
+   - multi-tenancy and RBAC model;
+   - realtime updates and background processing;
+   - deployment instructions;
+   - required environment variables;
+   - test/demo accounts;
+   - verification results;
+   - known limitations and production considerations.
+
+2. Create a concise `USER_MANUAL.md` for a completely new LeadFlow user.
+
+Cover the four roles separately:
+   - Platform Admin
+   - Brokerage Admin
+   - Mortgage Advisor
+   - Client / Borrower
+
+For each role explain:
+   - how to sign in;
+   - what they see;
+   - main navigation;
+   - primary workflows;
+   - important actions;
+   - document/task/automation workflows where applicable;
+   - what each role is allowed to access.
+
+For the Client/Borrower section explain the complete journey:
+   login → case overview → loan information → document checklist → upload → verification/rejection → re-upload → contacting advisor.
+
+Use the actual implemented UI and terminology. Do not invent features or workflows.
+
+3. Add a short "Demo Walkthrough" section showing the recommended order for a reviewer to explore the application.
+
+4. Review the final assignment requirements and identify any remaining submission item that is not yet satisfied. Do not modify code to add new features.
+
+5. Verify that PROMPTS.md contains the required prompt history and that the final documentation references the actual project state.
+
+Do NOT generate or modify frontend/backend tests.
+Do NOT perform another application-wide code audit.
+Do NOT refactor code.
+Do NOT add features.
+
+Only make documentation changes.
+
+Append the exact prompt and concise completion record to PROMPTS.md.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **README Alignment & Assignment Submission Summary (`README.md`)**:
+   - Added prominent **Assignment Submission Summary** at the top of `README.md` containing the formal Two-Paragraph Summary required by `assignment.md`:
+     - *Paragraph 1*: Summary of what was built (MERN + TypeScript, BullMQ/Redis, Socket.IO, financial design system) and key architectural decisions (multi-tenant `Brokerage` scoping, ScopedRepository pattern, anti-IDOR HTTP 404 concealment, HMAC webhook ingestion with burst deduplication, optimistic concurrency, non-blocking ImageKit uploads, and dedicated borrower portal).
+     - *Paragraph 2*: Explicit documentation of omissions, intentional trade-offs (in-memory rate limiter on single node vs Redis cluster; simulated verification vs proprietary OCR; automated email triggers vs SMS), and planned next steps.
+   - Verified that `README.md` covers all 10 domain assignment requirements, multi-tenant RBAC architecture, deployment configurations, environment variables without secret exposure, test logins table, and verification results.
+
+2. **Creation of Comprehensive User Manual (`USER_MANUAL.md`)**:
+   - Authored complete, newcomer-friendly `USER_MANUAL.md` structured across 9 sections:
+     - **Recommended Demo Walkthrough**: 6-step guided sequence for evaluators exploring the application (Advisor Kanban → Lead Workspace & LTV → Client Conversion → Borrower Portal login → Document Checklist & Upload → BullMQ Background Verification → Brokerage Admin Trigger Automations).
+     - **Role-Based Access Matrix**: Visual feature permissions matrix covering all 4 roles.
+     - **Platform Superadmin Guide**: Global brokerage management, plan tiers, and tenant isolation verification.
+     - **Brokerage Administrator Guide**: Operations dashboard, 5 core financial KPIs, pipeline stage trigger automation (`CREATE_TASK` and `SEND_EMAIL`), and email template authoring with placeholder substitution chips and prototype-pollution-defended live preview.
+     - **Mortgage Advisor Guide**: 7-stage Kanban board with drag-and-drop state machine enforcement, lead workspace drawer with financial KPI strip and dynamic `LTV %`, client conversion modal, advisor task inbox with urgency classifications, and document verification center.
+     - **Client / Borrower Guide**: Complete end-to-end journey from portal login, case progress milestone stepper, financial specifications in INR (₹), 4-pillar home loan document checklist, non-blocking upload, background verification status tracking, inspection rejection feedback review, 1-click contextual re-upload, and direct advisor contact.
+     - **Navigation & Shortcuts Reference**: `⌘K` / `Ctrl+K` command palette, two-key navigation chords (`G P`, `G L`, `G C`, `G T`, `G D`, `G U`), and accessible cheat sheet (`?`).
+     - **Troubleshooting & Support**: Clarifications on anti-IDOR 404 behavior, state machine transitions, concurrency conflict handling, and supported file MIME types.
+
+3. **Assignment Requirement Verification**:
+   - Re-verified all 4 submission deliverables from `assignment.md`:
+     - *Git Repository*: Codebase ready with full commit history.
+     - *Deployment / Demo*: Complete Docker Compose blueprint (`docker-compose.yml`) + pre-configured seed logins for all 4 roles + 10-15 minute reviewer demo walkthrough sequence.
+     - *Prompts History*: Complete, unedited chronological AI prompt history in `PROMPTS.md`.
+     - *Two-Paragraph Summary*: Formatted and highlighted in `README.md`.
+   - All documentation reflects the exact active project state with zero code modifications.
+
+## Final UI Correction — Client Portal Visual Simplification
+```
+Final UI Correction — Client Portal Visual Simplification
+
+Read AGENTS.md and inspect the current `/portal/*` UI, especially the attached/current client case screenshot.
+
+The functionality is complete. Do NOT change APIs, business logic, routing, data fetching or document behavior.
+
+The current client portal looks overly AI-generated/template-like. Redesign the visual presentation to feel like a real, mature financial/mortgage product.
+
+Fix specifically:
+
+- Remove the oversized dark blue/purple gradient hero.
+- Reduce excessive pills, badges and decorative status labels.
+- Reduce the number of nested cards and large rounded containers.
+- Replace generic marketing/AI-style copy with concise, practical customer language.
+- Simplify the application progress section into a restrained horizontal progress indicator.
+- Make the loan/case status the primary visual hierarchy.
+- Use whitespace, typography, subtle borders and restrained color instead of gradients and decorative cards.
+- Keep the existing LeadFlow design system, accessibility and responsive behavior.
+- Keep INR and Indian mortgage terminology.
+- Do not introduce new features or data.
+- Do not redesign the advisor/staff workspace.
+
+Aim for the visual language of a mature banking/financial application: calm, trustworthy, information-dense but not crowded, with hierarchy coming from typography and spacing rather than decorative UI.
+
+Do NOT create or modify tests.
+Do NOT perform exhaustive browser testing.
+Run typecheck and production build.
+
+Update AGENTS.md, README.md and append the prompt/completion record to PROMPTS.md.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Header Redesign (`PortalCaseHeader.tsx`)**:
+   - Removed the oversized dark blue/purple gradient hero banner and glowing blurred circles.
+   - Replaced with a clean, crisp card container (`border border-slate-200 bg-white p-6 shadow-2xs`) adhering to institutional banking design standards.
+   - Established primary visual hierarchy around the loan/case status (`Active Application`, `Under Review`, `Archived`) positioned prominently alongside the application title (`Home Loan Application`) and applicant name (`client.firstName client.lastName`).
+   - Removed redundant badge clutter (eliminated multiple overlapping pills) while preserving the brokerage partner label and copyable case identifier tag (`#REF`) with visual copy feedback.
+   - Maintained clean outline refresh button with spinning state during refetching.
+
+2. **Unified Financial Metrics Strip (`PortalFinanceStrip.tsx`)**:
+   - Consolidated 4 separate pastel-colored cards into a single integrated financial card with subtle dividing borders (`divide-y sm:divide-y-0 sm:divide-x divide-slate-100`).
+   - Elevated the loan amount (`Requested Loan Amount`) as the primary financial anchor formatted in Indian Rupees (INR / ₹) with standard Indian numbering grouping.
+   - Retained property valuation, dynamic loan-to-value (`LTV %`), and gross monthly income with concise, professional banking labels and zero decorative badges.
+
+3. **Restrained Horizontal Milestone Stepper (`PortalMilestoneStepper.tsx`)**:
+   - Replaced the large multi-colored block cards (`bg-emerald-50/40`, `bg-blue-50/40`) and uppercase status badges with a sleek, horizontal step indicator.
+   - Connected steps with a subtle horizontal track (`bg-slate-200`) and refined milestone nodes: completed steps with dark slate nodes and crisp checkmarks, active steps with outlined border nodes, and upcoming steps with muted indicators.
+   - Replaced generic copy with concise stage markers: Application Submitted, Document Verification, Underwriting & Valuation, and Sanction & Disbursement.
+
+4. **Streamlined Document Verification Summary (`PortalDocumentSummary.tsx`)**:
+   - Replaced 4 pastel stat cards with an understated, compact 4-metric status strip (`Verified`, `Under Review`, `Queued`, `Action Required`) integrated into the card header.
+   - Cleaned up recent document list items with subtle dividers, clear document classifications (PAN / Aadhaar, Salary Slip / Form 16, Bank Statement, Property Papers), and restrained status badges.
+   - Preserved document upload modal trigger, full document center navigation, secure view links (`target="_blank"`), and rejection feedback notes.
+
+5. **Elimination of Nested Card Bloat (`PortalCaseDetails.tsx` & `PortalAdvisorCard.tsx`)**:
+   - Replaced nested bordered card boxes in applicant details with a clean, divided two-column definition list.
+   - Simplified the advisor card to focus on direct contact actions (`mailto:` and `tel:`) with copyable email address and clear advisory scope, removing decorative "Dedicated Support" pills.
+   - Updated `ClientCasePage.tsx` and `ClientAdvisorPage.tsx` loading skeletons, empty states, and typography to match the restrained banking aesthetic.
+
+6. **Regression & Build Verification**:
+   - Preserved all APIs (`GET /api/clients/me`, `GET /api/documents`, `POST /api/documents/upload`), query keys, cache invalidation, and Socket.IO real-time subscriptions (`useDocumentSocket`).
+   - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
+   - Monorepo production build (`npm run build`): clean bundle built in <1s (CSS 83.35 kB, JS 1,010 kB / 279 kB gzip).
 

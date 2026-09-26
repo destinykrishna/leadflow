@@ -1,6 +1,5 @@
 import * as React from 'react'
-import { Copy, Check, Building2, ShieldCheck, RefreshCw } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
+import { Copy, Check, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import type { Client, ClientStatus, ClientType } from '@/types/client.types'
 
@@ -12,18 +11,27 @@ export interface PortalCaseHeaderProps {
 
 const STATUS_CONFIG: Record<
   ClientStatus,
-  { label: string; variant: 'success' | 'neutral' | 'danger' }
+  { label: string; badgeClass: string }
 > = {
-  ACTIVE: { label: 'Active Mortgage Case', variant: 'success' },
-  INACTIVE: { label: 'Case Under Review', variant: 'neutral' },
-  ARCHIVED: { label: 'Archived File', variant: 'neutral' },
+  ACTIVE: {
+    label: 'Active Application',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  },
+  INACTIVE: {
+    label: 'Under Review',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+  },
+  ARCHIVED: {
+    label: 'Archived',
+    badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+  },
 }
 
 const TYPE_LABELS: Record<ClientType, string> = {
-  BUYER: 'Home Buyer / Borrower',
+  BUYER: 'Home Purchase Loan',
   SELLER: 'Property Vendor',
   BOTH: 'Buyer & Seller',
-  OTHER: 'Specialized Financing',
+  OTHER: 'Specialized Mortgage',
 }
 
 export function PortalCaseHeader({
@@ -41,82 +49,75 @@ export function PortalCaseHeader({
 
   const brokerageName =
     typeof client.brokerageId === 'object' && client.brokerageId !== null
-      ? client.brokerageId.name || 'LeadFlow Partner Brokerage'
-      : 'LeadFlow Partner Brokerage'
+      ? client.brokerageId.name || 'LeadFlow Brokerage Partner'
+      : 'LeadFlow Brokerage Partner'
 
   const statusConfig = STATUS_CONFIG[client.status] || STATUS_CONFIG.ACTIVE
-  const typeLabel = TYPE_LABELS[client.type] || 'Home Loan Application'
+  const typeLabel = TYPE_LABELS[client.type] || 'Home Purchase Loan'
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 md:p-8 text-white shadow-sm">
-      {/* Decorative background glows */}
-      <div className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-12 -left-12 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
-
-      <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-2.5 max-w-2xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-xs">
-              <Building2 className="h-3.5 w-3.5 text-blue-400" />
-              {brokerageName}
-            </span>
-
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Verified Client Portal
-            </span>
-          </div>
-
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Welcome back, {client.firstName}
-          </h1>
-
-          <p className="text-sm text-slate-300 leading-relaxed">
-            Track your home loan journey, review verification documents, and stay in direct touch with your assigned mortgage specialist.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Badge variant={statusConfig.variant} size="sm">
-              {statusConfig.label}
-            </Badge>
-
-            <span className="rounded-md bg-white/10 px-2.5 py-0.5 text-xs font-medium text-slate-200">
-              {typeLabel}
-            </span>
-
-            {/* Case Reference Token with Copy */}
+    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-2xs">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          {/* Metadata Row: Brokerage + Case Reference */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">{brokerageName}</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500">Reference:</span>
             <button
               type="button"
               onClick={handleCopyId}
-              title="Copy full case ID"
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-0.5 font-mono text-xs text-slate-300 transition-colors hover:bg-white/15 hover:text-white"
+              title="Copy full case identifier"
+              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
-              <span>Case #{client._id.slice(-6).toUpperCase()}</span>
+              <span>#{client._id.slice(-6).toUpperCase()}</span>
               {copiedId ? (
-                <Check className="h-3 w-3 text-emerald-400" />
+                <Check className="h-3 w-3 text-emerald-600" />
               ) : (
                 <Copy className="h-3 w-3 text-slate-400" />
               )}
             </button>
           </div>
+
+          {/* Primary Hierarchy: Loan Title & Applicant Name */}
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+              Home Loan Application
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Primary Applicant:{' '}
+              <span className="font-semibold text-slate-900">
+                {client.firstName} {client.lastName}
+              </span>
+              <span className="mx-2 text-slate-300">•</span>
+              <span className="text-slate-500">{typeLabel}</span>
+            </p>
+          </div>
         </div>
 
-        {onRefresh && (
-          <div className="flex shrink-0 items-center gap-2">
+        {/* Case Status & Actions */}
+        <div className="flex items-center gap-3 self-start sm:self-center">
+          <span
+            className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${statusConfig.badgeClass}`}
+          >
+            {statusConfig.label}
+          </span>
+
+          {onRefresh && (
             <Button
               variant="outline"
               size="sm"
               onClick={onRefresh}
               disabled={isRefetching}
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 mr-1.5 ${isRefetching ? 'animate-spin' : ''}`}
+                className={`h-3.5 w-3.5 mr-1.5 text-slate-500 ${isRefetching ? 'animate-spin' : ''}`}
               />
-              {isRefetching ? 'Updating...' : 'Refresh Status'}
+              {isRefetching ? 'Updating...' : 'Refresh'}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

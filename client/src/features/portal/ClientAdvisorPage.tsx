@@ -1,10 +1,8 @@
 import * as React from 'react'
 import {
-  UserCheck,
   Mail,
   Phone,
   Building2,
-  ShieldCheck,
   Check,
   Copy,
   HelpCircle,
@@ -31,8 +29,8 @@ export function ClientAdvisorPage() {
 
   const brokerageName =
     typeof client?.brokerageId === 'object' && client.brokerageId !== null
-      ? client.brokerageId.name || 'LeadFlow Partner Brokerage'
-      : 'LeadFlow Partner Brokerage'
+      ? client.brokerageId.name || 'LeadFlow Brokerage Partner'
+      : 'LeadFlow Brokerage Partner'
 
   const handleCopyEmail = (email: string) => {
     navigator.clipboard.writeText(email)
@@ -42,9 +40,9 @@ export function ClientAdvisorPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <Skeleton className="h-28 w-full rounded-2xl" />
-        <Skeleton className="h-64 rounded-xl" />
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <Skeleton className="h-16 w-full rounded-lg" />
+        <Skeleton className="h-64 rounded-lg" />
       </div>
     )
   }
@@ -67,35 +65,29 @@ export function ClientAdvisorPage() {
   return (
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
       {/* Header Banner */}
-      <div className="border-b border-border/80 pb-5">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-            Mortgage Specialist & Advisory Desk
-          </h1>
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-            <UserCheck className="h-3.5 w-3.5" />
-            Direct Support
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Connect directly with your licensed advisor for rate negotiations, bank coordination, and valuation updates.
+      <div className="border-b border-slate-200 pb-4">
+        <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+          Mortgage Advisory Desk
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Direct advisory contact for bank negotiations, document verification, and sanction tracking
         </p>
       </div>
 
       {/* Advisor Profile Card */}
       {advisor ? (
-        <Card className="p-6 border-slate-200/80 bg-white shadow-2xs space-y-6">
+        <Card className="p-6 border-slate-200 bg-white rounded-lg shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
-              <Avatar name={advisor.name} size="lg" className="h-16 w-16 text-lg font-bold" />
-              <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900">
+              <Avatar name={advisor.name} size="lg" className="h-14 w-14 text-base font-semibold" />
+              <div className="space-y-0.5">
+                <h2 className="text-base font-bold text-slate-900">
                   {advisor.name}
                 </h2>
-                <p className="text-xs font-medium text-primary">
-                  Senior Mortgage Specialist & Loan Underwriting Advisor
+                <p className="text-xs text-slate-600">
+                  Senior Mortgage Specialist
                 </p>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <Building2 className="h-3.5 w-3.5 text-slate-400" />
                   <span>{brokerageName}</span>
                 </div>
@@ -105,7 +97,7 @@ export function ClientAdvisorPage() {
             <div className="flex flex-wrap gap-2.5">
               {advisor.email && (
                 <a href={`mailto:${advisor.email}`}>
-                  <Button size="sm" className="h-9 gap-1.5 text-xs">
+                  <Button size="sm" className="h-8 gap-1.5 text-xs bg-primary text-white hover:bg-primary/90">
                     <Mail className="h-3.5 w-3.5" />
                     Send Email
                   </Button>
@@ -113,7 +105,7 @@ export function ClientAdvisorPage() {
               )}
               {advisor.phone && (
                 <a href={`tel:${advisor.phone}`}>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50">
                     <Phone className="h-3.5 w-3.5" />
                     Call Advisor
                   </Button>
@@ -122,8 +114,8 @@ export function ClientAdvisorPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50/50 p-2.5 text-xs">
               <div className="flex items-center gap-2.5 min-w-0">
                 <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                 <div className="min-w-0">
@@ -145,7 +137,7 @@ export function ClientAdvisorPage() {
               </button>
             </div>
 
-            <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs">
+            <div className="flex items-center rounded-md border border-slate-200 bg-slate-50/50 p-2.5 text-xs">
               <Phone className="h-4 w-4 text-slate-400 shrink-0 mr-2.5" />
               <div>
                 <span className="block text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
@@ -158,37 +150,36 @@ export function ClientAdvisorPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900 space-y-1">
-            <h4 className="font-semibold flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-blue-600" />
-              What your advisor manages on your behalf:
-            </h4>
-            <ul className="list-disc list-inside space-y-1 text-blue-800 text-[11px] pt-1">
-              <li>Comparing top bank interest rates (SBI, HDFC, ICICI, Axis, Bank of Baroda).</li>
-              <li>Pre-screening your CIBIL score and debt-to-income eligibility ratios.</li>
-              <li>Arranging the property physical inspection and legal title clearance.</li>
-              <li>Expediting bank sanction letter issuance and final disbursement schedules.</li>
+          <div className="rounded-md border border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-700 space-y-1.5">
+            <p className="font-semibold text-slate-900">
+              Advisory Scope & Responsibilities:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-slate-600 text-xs">
+              <li>Lender comparison and interest rate negotiation across major Indian banks.</li>
+              <li>Income assessment, debt-to-income calculation, and credit bureau review.</li>
+              <li>Coordination of property valuation, title search, and legal vetting.</li>
+              <li>Expediting formal sanction letter issuance and disbursement schedules.</li>
             </ul>
           </div>
         </Card>
       ) : (
-        <Card className="p-8 text-center border-slate-200/80 bg-white">
-          <Building2 className="mx-auto h-10 w-10 text-slate-400" />
-          <h2 className="mt-3 text-base font-bold text-slate-900">
+        <Card className="p-8 text-center border-slate-200 bg-white rounded-lg">
+          <Building2 className="mx-auto h-8 w-8 text-slate-400" />
+          <h2 className="mt-3 text-base font-semibold text-slate-900">
             Advisory Desk — {brokerageName}
           </h2>
           <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
-            Your mortgage file is undergoing initial KYC intake. Our senior advisor desk will be in direct contact once your file is allocated.
+            Your mortgage application is in the queue for advisor assignment. A licensed advisor will be linked to your file shortly.
           </p>
         </Card>
       )}
 
-      {/* Advisory FAQ / Journey steps */}
-      <Card className="p-6 border-slate-200/80 bg-white shadow-2xs space-y-4">
+      {/* Advisory FAQ */}
+      <Card className="p-6 border-slate-200 bg-white rounded-lg shadow-2xs space-y-4">
         <div className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-bold text-slate-900">
-            Frequently Asked Questions by Home Loan Applicants
+          <HelpCircle className="h-4 w-4 text-slate-400" />
+          <h3 className="text-sm font-semibold text-slate-900">
+            Frequently Asked Questions
           </h3>
         </div>
 
@@ -198,7 +189,7 @@ export function ClientAdvisorPage() {
               How long does document verification and bank sanction take?
             </h4>
             <p className="text-slate-600 leading-relaxed">
-              Automated document verification takes just minutes upon upload. Once all KYC and income proofs are verified, bank in-principle sanction typically takes 3 to 5 business days.
+              Automated document verification completes within minutes of upload. Once KYC and income proofs are confirmed, in-principle bank sanction typically takes 3 to 5 business days.
             </p>
           </div>
 
@@ -207,16 +198,16 @@ export function ClientAdvisorPage() {
               Can I upload photos of my documents or do I need scanned PDFs?
             </h4>
             <p className="text-slate-600 leading-relaxed">
-              Clear photos (JPEG/PNG) and scanned PDFs are accepted (up to 10MB per file). Ensure all 4 corners of the document are visible with zero blurriness or glare.
+              Clear photos (JPEG/PNG) and scanned PDFs are accepted (up to 10MB per file). Ensure all four corners are visible and text is sharp and unblurred.
             </p>
           </div>
 
           <div className="pt-3 space-y-1">
             <h4 className="font-semibold text-slate-900">
-              What happens if my document is marked &quot;Needs Attention&quot;?
+              What should I do if a document is marked &quot;Needs Attention&quot;?
             </h4>
             <p className="text-slate-600 leading-relaxed">
-              Our automated system or your advisor will leave a specific note explaining what was missing (e.g. missing employer stamp or incomplete bank statement duration). Simply click &quot;Re-upload&quot; with the corrected file.
+              Review the specific note provided on the document row (such as missing pages or blurriness). Then click &quot;Re-upload&quot; to submit a corrected file.
             </p>
           </div>
         </div>

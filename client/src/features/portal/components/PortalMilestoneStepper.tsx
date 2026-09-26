@@ -1,4 +1,4 @@
-import { CheckCircle2, ShieldCheck, FileCheck2, Landmark } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import type { DocumentItem } from '@/types/document.types'
 
@@ -15,115 +15,102 @@ export function PortalMilestoneStepper({ documents }: PortalMilestoneStepperProp
   const steps = [
     {
       id: 1,
-      name: 'Application Initiated',
-      desc: 'Profile & requirements registered',
-      icon: CheckCircle2,
-      status: 'completed' as const,
+      name: 'Application Submitted',
+      detail: 'Registration complete',
+      state: 'completed' as const,
     },
     {
       id: 2,
       name: 'Document Verification',
-      desc: hasDocs
-        ? `${verifiedCount} of ${totalDocs} documents verified`
-        : 'Upload KYC & income documents',
-      icon: FileCheck2,
-      status: allVerified
+      detail: allVerified
+        ? 'All files verified'
+        : hasDocs
+        ? `${verifiedCount} of ${totalDocs} verified`
+        : 'Upload KYC & income proof',
+      state: allVerified
         ? ('completed' as const)
         : hasDocs
-        ? ('in_progress' as const)
+        ? ('active' as const)
         : ('action_needed' as const),
     },
     {
       id: 3,
       name: 'Underwriting & Valuation',
-      desc: 'Bank review & property legal checks',
-      icon: ShieldCheck,
-      status: allVerified ? ('in_progress' as const) : ('upcoming' as const),
+      detail: allVerified ? 'Bank review in progress' : 'Pending documents',
+      state: allVerified ? ('active' as const) : ('upcoming' as const),
     },
     {
       id: 4,
       name: 'Sanction & Disbursement',
-      desc: 'Offer letter issuance & loan sanction',
-      icon: Landmark,
-      status: 'upcoming' as const,
+      detail: 'Final approval & sanction',
+      state: 'upcoming' as const,
     },
   ]
 
   return (
-    <Card className="p-5 border-slate-200/80 bg-white shadow-2xs">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold text-slate-900">
-          Application Progress Journey
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Step-by-step milestones toward your home loan sanction and property registration
-        </p>
+    <Card className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">
+            Application Progress
+          </h2>
+          <p className="text-xs text-slate-500">
+            Key milestones from document intake to final loan sanction
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative">
-        {steps.map((step) => {
-          const isCompleted = step.status === 'completed'
-          const isInProgress = step.status === 'in_progress'
-          const isActionNeeded = step.status === 'action_needed'
+      <div className="relative">
+        {/* Horizontal connector line (desktop) */}
+        <div
+          aria-hidden="true"
+          className="hidden md:block absolute top-3.5 left-10 right-10 h-[2px] bg-slate-200"
+        />
 
-          return (
-            <div
-              key={step.id}
-              className={`relative flex flex-col p-3.5 rounded-xl border transition-all ${
-                isCompleted
-                  ? 'border-emerald-200 bg-emerald-50/40 text-emerald-950'
-                  : isInProgress
-                  ? 'border-blue-300 bg-blue-50/40 text-blue-950 ring-1 ring-blue-500/20'
-                  : isActionNeeded
-                  ? 'border-amber-200 bg-amber-50/40 text-amber-950'
-                  : 'border-slate-200 bg-slate-50/60 text-slate-600'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-2">
+          {steps.map((step) => {
+            const isCompleted = step.state === 'completed'
+            const isActive = step.state === 'active' || step.state === 'action_needed'
+
+            return (
+              <div
+                key={step.id}
+                className="relative flex items-start gap-3 md:flex-col md:items-start"
+              >
+                {/* Step indicator node */}
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-white z-10 transition-colors ${
                     isCompleted
-                      ? 'bg-emerald-600 text-white'
-                      : isInProgress
-                      ? 'bg-blue-600 text-white'
-                      : isActionNeeded
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-slate-900 text-white'
+                      : isActive
+                      ? 'border-2 border-slate-900 bg-white text-slate-900'
+                      : 'border border-slate-300 bg-white text-slate-400'
                   }`}
                 >
-                  {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : step.id}
-                </span>
+                  {isCompleted ? (
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  ) : (
+                    <span>{step.id}</span>
+                  )}
+                </div>
 
-                <span
-                  className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isCompleted
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : isInProgress
-                      ? 'bg-blue-100 text-blue-800'
-                      : isActionNeeded
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {isCompleted
-                    ? 'Completed'
-                    : isInProgress
-                    ? 'In Progress'
-                    : isActionNeeded
-                    ? 'Action Required'
-                    : 'Upcoming'}
-                </span>
+                {/* Step info */}
+                <div className="min-w-0 md:mt-2">
+                  <p
+                    className={`text-xs font-semibold ${
+                      isCompleted || isActive ? 'text-slate-900' : 'text-slate-500'
+                    }`}
+                  >
+                    {step.name}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    {step.detail}
+                  </p>
+                </div>
               </div>
-
-              <h3 className="text-xs font-bold text-slate-900 mb-1">
-                {step.name}
-              </h3>
-              <p className="text-[11px] text-slate-500 leading-snug">
-                {step.desc}
-              </p>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </Card>
   )

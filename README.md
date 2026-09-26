@@ -6,6 +6,22 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 
 ---
 
+## 📋 Assignment Submission Summary
+
+### Executive Summary (Assignment Requirement 4)
+**What Was Built & Key Decisions**: LeadFlow is a complete, multi-tenant mortgage brokerage operating system built on the MERN stack (MongoDB 8, Express 5, React 19, Node 22 TypeScript ESM) with BullMQ/Redis background workers, Socket.IO real-time synchronization, and a financial SaaS design system following `design-taste-frontend`. The core architecture solves multi-tenant brokerage isolation using a domain-first `Brokerage` model, automated `ScopedRepository` query filtering, and anti-IDOR HTTP 404 concealment that completely conceals resource existence across tenants. Key technical decisions include: (1) dual webhook lead ingestion with HMAC SHA-256 and shared-secret verification, tenant-aware rate limiting (1,000 req/min per verified brokerage), and deterministic deduplication that gracefully absorbs high-volume bursts; (2) zero-infrastructure optimistic concurrency control matching MongoDB `__v` versions and stage status to prevent lost updates without external distributed locks; (3) non-blocking document uploads via Multer and ImageKit, delegating asynchronous inspection to BullMQ workers with automatic reconciliation sweeper recovery for crash resilience; (4) a 7-stage linear qualification Kanban board with optimistic drag-and-drop updates and live WebSocket synchronization; and (5) a dedicated, isolated self-service borrower portal where expat applicants track case progress, view dynamic Loan-to-Value (LTV %) calculations in Indian Rupees (INR ₹), and upload checklist documents with real-time feedback.
+
+**Omissions, Trade-offs & Next Steps**: To prioritize software reliability, rock-solid tenant isolation, and core domain invariants over superficial feature breadth, we intentionally made specific trade-offs: (1) In-memory rate limiting was chosen for the current single-instance deployment (benchmark: 2,000+ req/s per node); in horizontally scaled multi-container clusters, swapping the storage adapter to `rate-limit-redis` will coordinate quotas across nodes. (2) Document verification simulation models slow inspections and transient network failures rather than integrating proprietary OCR APIs (e.g. AWS Textract); adding computer-vision OCR for automated salary extraction from Indian Form 16 / salary slips is the natural next step. (3) Direct third-party SMS/WhatsApp borrower messaging was deferred in favor of automated pipeline email triggers and tasks; adding omnichannel messaging would further improve advisor contact velocity.
+
+### Submission Artifacts Checklist
+- [x] **GitHub Repository**: Complete codebase with full chronological commit history.
+- [x] **Test / Demo Logins**: Pre-configured credentials for all 4 roles (`PLATFORM_ADMIN`, `BROKERAGE_ADMIN`, `ADVISOR`, `CLIENT`) seeded and documented below.
+- [x] **Chronological Prompts**: Complete, unedited prompt history maintained in [`PROMPTS.md`](PROMPTS.md).
+- [x] **Two-Paragraph Summary**: Provided above and detailed in the architectural specifications.
+- [x] **User Manual**: Step-by-step role guides and reviewer walkthrough in [`USER_MANUAL.md`](USER_MANUAL.md).
+
+---
+
 ## Key Features
 
 ### 🏢 Strict Multi-Tenant Brokerage Isolation
@@ -69,7 +85,7 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Advisor-Side Clients & Case Workspace**: Dedicated mortgage case management (`/app/clients` and `/app/clients/:id`) providing staff with comprehensive borrower tracking. Features a 4-card summary KPI strip (`Total Cases`, `Active Files`, `Home Buyers`, `Sellers & Dual`), real-time search filtering (borrower name, email, phone, city), two-level dropdown filters (status and profile type: `BUYER`, `SELLER`, `BOTH`, `OTHER`), and a rich cases table with borrower avatar initials, case origin badge, and advisor assignments. The dedicated workspace (`/app/clients/:id`) features navigation breadcrumbs, 1-click clipboard copy for IDs and contacts (`mailto:` and `tel:` links), a 4-card financing KPI strip (`Target Loan Amount`, `Property Value`, dynamic `LTV %`, `Monthly Gross Income`), originating lead relationship card with direct navigation to the inquiry workspace (`/app/leads/:id`), assigned advisor card with "You" indicators, registered address card, portal identity confirmation, and an asynchronous documents workspace displaying BullMQ verification badges (`VERIFIED`, `PROCESSING (BULLMQ)`, `PENDING`, `REJECTED`) with an integrated document upload modal and anti-IDOR 404 tenant boundary defense.
 - **Advisor Tasks Workspace & Frontend Zod Validation**: Comprehensive task workspace (`/app/tasks`) featuring a 5-metric KPI strip (`Total Tasks`, `Overdue`, `Due Today`, `In Progress`, `Completed`) with interactive quick-filtering, search across task title/description/borrower/advisor, multi-dimensional dropdown filters (status, due date timeline, priority, assignment scope), and an automated pipeline trigger banner explaining task generation. Clearly distinguishes overdue (rose badge + alert triangle), due today (amber badge + clock), and upcoming (slate badge + calendar). Implemented `TaskItemRow` with 1-click checkbox completion, status dropdown selector, assigned advisor avatars (with "You" tags), and direct navigation buttons to associated Lead workspaces (`/app/leads/:id`) and Client Case profiles (`/app/clients/:id`). Created `TaskDetailModal` supporting comprehensive detail viewing and quick action status buttons with mutation states (`useUpdateTaskStatus`). Handled loading skeletons, error states with retry, and contextual empty states with filter resets. Standardized on reusable frontend Zod validation (`client/src/lib/validation.ts`) for mutation payloads, filters, and safe API response verification, keeping backend Zod authoritative without treating frontend validation as a security boundary.
 - **Advisor-Facing Automation & Email Workspace**: Fully connected stage automation rules (`PipelineTrigger`) and standardized email templates (`EmailTemplate`) workspaces at `/app/triggers` and `/app/templates`. Features unified tab navigation (`TriggerNavigationTabs`), 5-metric KPI strips (`Total Rules`, `Active`, `Task Triggers`, `Email Dispatches`, `Email Templates`), real-time search, and multi-dimensional filters. Makes trigger/template relationships understandable by surfacing plain-language workflow summaries (`fromStage` → `toStage`, task configuration with priority/due timeline, or email dispatch with linked template name and recipient) without exposing underlying BullMQ queue or schema implementation details. Engineered `EmailPreviewModal` rendering realistic Indian mortgage borrower context (Rahul Sharma, ₹75 Lakh Home Loan, Advisor Priya Patel, Apex Home Finance) with toggleable rendered view and raw placeholder display, and prototype pollution defenses matching backend `template.ts`. Created `CreateTriggerModal` and `TemplateEditorModal` with interactive placeholder insertion chips. Strictly preserves RBAC: advisors can inspect all automation rules, templates, and live previews in read-only mode, while mutation actions (trigger status toggle, create, edit, delete) are reserved for Brokerage Admins.
-- **Dedicated Client-Facing Portal & Document Center**: Complete, self-service borrower portal area (`/portal/*`) strictly restricted to the `CLIENT` role. Provides home loan applicants with a calm, transparent, and mobile-responsive dashboard (`/portal/case`) showing their personalized case profile, application status, Indian financial overview (`Target Loan Amount`, `Property Valuation`, dynamic `LTV %`, `Monthly Gross Income` formatted in INR ₹), a 4-milestone application progress journey, and an assigned mortgage advisor card with direct email (`mailto:`) and phone (`tel:`) communication. Features an upgraded `Document Verification Center` (`/portal/documents`) displaying an interactive 5-status metric filter strip (`Total Files`, `Verified & Approved`, `Under Review`, `Queued`, `Needs Action`), instant title/type search filtering, an Indian Home Loan Document Checklist covering the 4 core pillars (PAN & Aadhaar KYC, 3-Month Salary Slips, 6-Month Bank Statement, and Sale Agreement) with 1-click upload shortcuts, prominent rejection banners displaying `verificationNotes` or `failureReason` with actionable resubmission guidance, and an integrated upload/re-upload modal (`UploadDocumentModal`) pre-populating classification and title for seamless replacement of rejected documents. Real-time status changes and verification completions synchronize instantly through TanStack Query and Socket.IO without page reloads. Includes a dedicated advisor consultation page (`/portal/advisor`) and an Indian home loan FAQ guide. Enforces strict route-level protection (`ProtectedRoute allowedRoles={['CLIENT']}`) preventing clients from accessing advisor or platform admin workspaces and vice versa.
+- **Dedicated Client-Facing Portal & Document Center**: Complete, self-service borrower portal area (`/portal/*`) strictly restricted to the `CLIENT` role. Features a simplified, mature financial/mortgage visual language (free of oversized gradient heroes, decorative badge clutter, and AI clichés) that mirrors high-trust institutional banking. Provides home loan applicants with a calm, transparent, and mobile-responsive dashboard (`/portal/case`) showing their personalized case profile, loan/case status as primary visual hierarchy, clean financial overview (`Requested Loan Amount`, `Property Valuation`, dynamic `LTV %`, `Assessed Monthly Income` formatted in INR ₹), a restrained horizontal milestone progress indicator, and an assigned mortgage advisor card with direct email (`mailto:`) and phone (`tel:`) communication. Features an upgraded `Document Verification Center` (`/portal/documents`) displaying an interactive 5-status metric filter strip (`Total Files`, `Verified & Approved`, `Under Review`, `Queued`, `Needs Action`), instant title/type search filtering, an Indian Home Loan Document Checklist covering the 4 core pillars (PAN & Aadhaar KYC, 3-Month Salary Slips, 6-Month Bank Statement, and Sale Agreement) with 1-click upload shortcuts, prominent rejection banners displaying `verificationNotes` or `failureReason` with actionable resubmission guidance, and an integrated upload/re-upload modal (`UploadDocumentModal`) pre-populating classification and title for seamless replacement of rejected documents. Real-time status changes and verification completions synchronize instantly through TanStack Query and Socket.IO without page reloads. Includes a dedicated advisor consultation page (`/portal/advisor`) and an Indian home loan FAQ guide. Enforces strict route-level protection (`ProtectedRoute allowedRoles={['CLIENT']}`) preventing clients from accessing advisor or platform admin workspaces and vice versa.
 - **Production-Ready Document Upload & Processing UX**: Comprehensive document workflow across client cases, portal submissions, and central verification center (`/app/documents`). Features drag-and-drop file attachment with active hover states, client-side validation enforcing 10MB limits and whitelisted MIME types (`PDF`, `JPEG`, `PNG`, `WEBP`, `TIFF`), document classification selector covering all 8 backend enum values with Indian mortgage labels (`Identity Proof (PAN / Aadhaar / Passport)`, `Salary Slip / Form 16`, `Bank Account Statement`, `Income Proof / ITR`, `Agreement to Sale`, `Property Documents & Layout`), editable title defaulting to original filename, notes input, and an active progress strip. Handles upload failures gracefully by preserving user input and context without form wiping. Clearly separates the 4 verification processing states (`VERIFIED` with green checkmark, `PROCESSING (BULLMQ)` with spinning loader, `PENDING` with clock, and `REJECTED` with red alert) and prominently renders inspection rejection reasons (`verificationNotes` or `failureReason`). Integrated with real-time Socket.IO subscriptions (`document:status_changed`) for instantaneous UI updates without page reloads, manual cache refresh controls, 1-click secure link copying, and safe file inspection (`target="_blank" rel="noopener noreferrer"`).
 - **Consistent INR (₹) Currency Presentation**: Standardized all currency displays, volume aggregations, filters, and KPI cards across the frontend to Indian Rupee (INR / ₹) with standard Indian numbering grouping (`₹1,90,000`, `₹19,00,000`, `₹45,00,000`).
 - **Cmd/Ctrl+K Command Palette**: Fast, keyboard-accessible command palette (`⌘K` / `Ctrl+K`) for rapid page navigation, workspace URL copying, sidebar toggling, and role-scoped commands.
@@ -218,9 +234,77 @@ npm run test:coverage
 # Start backend server
 npm --prefix server run dev
 
+# Start background worker
+npm --prefix worker run dev
+
 # Start frontend application
 npm --prefix client run dev
+
+# Or start all concurrently from root:
+npm run dev
 ```
+
+---
+
+## 🚀 Production Deployment & Containers
+
+LeadFlow is fully configured for single-host or distributed cloud deployment:
+
+### Multi-Container Orchestration (`docker-compose`)
+A complete, isolated production environment can be launched with Docker Compose:
+
+```bash
+# Build and run MongoDB, Redis, API Server, and Background Worker
+docker compose up -d --build
+```
+
+The stack provisions:
+- `mongodb` (MongoDB 8.0 on port 27017 with persistent volume `mongo-data`)
+- `redis` (Redis 7-alpine on port 6379 with persistent volume `redis-data`)
+- `server` (Express 5 REST API + Socket.IO on port 5000 via `Dockerfile.server`)
+- `worker` (BullMQ asynchronous document & email processor via `Dockerfile.worker`)
+
+### Production Build & Static Hosting
+The React 19 frontend builds into high-efficiency static assets:
+
+```bash
+# Build frontend production bundle
+npm run build
+```
+- Static assets output to `client/dist/` (gzipped: HTML 0.4 kB, CSS 13.4 kB, JS 281 kB).
+- Can be deployed directly to Vercel, Netlify, Cloudflare Pages, or AWS S3 + CloudFront.
+- Supports decoupled deployments via `VITE_API_URL` and `VITE_WS_URL` in `client/.env`.
+
+---
+
+## 🔑 Demo & Test Credentials
+
+The database seed (`npm run seed`) provisions pre-configured test users for all 4 roles:
+
+| Role | Email | Brokerage Slug | Default Password | Scope |
+| :--- | :--- | :--- | :--- | :--- |
+| **Brokerage Admin** | `klaus.mueller@berlin-mortgages.de` | `berlin-expat-mortgages` | `Password123!` | Brokerage settings, triggers, templates, advisors |
+| **Mortgage Advisor** | `elena.schmidt@berlin-mortgages.de` | `berlin-expat-mortgages` | `Password123!` | Pipeline, leads, cases, tasks, document reviews |
+| **Expat Client** | `alex.expat@gmail.com` | `berlin-expat-mortgages` | `Password123!` | Personal case portal (`/portal/case`), document upload |
+| **Platform Admin** | `admin@leadflow-platform.com` | *(None required)* | `Password123!` | System-wide brokerages list, cross-tenant health |
+
+---
+
+## ✅ Critical QA & Verification Status
+
+A dedicated automated QA test runner (`scripts/qa-journey-verification.ts`) exercises all 5 mission-critical user journeys against active services:
+
+1. **Staff login → pipeline → lead detail → client conversion**: Verified advisor authentication, 7-stage Kanban pipeline, lead inspection, invalid stage guards (rejection of `NEW` leads with HTTP 400), and conversion of eligible leads into borrower cases.
+2. **Client login → own case → document upload**: Verified client portal authentication, token-derived case resolution (`GET /api/clients/me`), anti-IDOR HTTP 404 concealment, and multipart document uploads.
+3. **Document processing & realtime sync**: Verified Socket.IO handshake authentication, room-isolated updates, and BullMQ worker verification lifecycle.
+4. **Advisor task/automation workflow**: Verified trigger configuration, automated stage transition task generation, and advisor task completion (`PATCH /api/tasks/:id`).
+5. **Role boundaries & tenant isolation**: Verified HTTP 403 blocks for unauthorized endpoints across roles, cross-brokerage HTTP 404 anti-IDOR concealment, and global Platform Admin access.
+
+- **Automated QA Journey Runner**: **33 passed, 0 failed** (0 blockers)
+- **Monorepo TypeScript Verification**: **0 errors** across `client`, `server`, and `worker`
+- **Frontend Test Suite**: **106 passed across 13 test files** (`vitest`)
+- **Backend Test Suite**: **333 passed across 17 test files** (`vitest`)
+- **Production Build**: Clean Vite bundle compiled in <1s
 
 ---
 

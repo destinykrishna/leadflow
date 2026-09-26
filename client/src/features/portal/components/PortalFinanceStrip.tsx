@@ -1,10 +1,3 @@
-import {
-  IndianRupee,
-  Building,
-  TrendingUp,
-  Wallet,
-  Info,
-} from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/lib/format'
 import type { Client } from '@/types/client.types'
@@ -35,125 +28,72 @@ export function PortalFinanceStrip({ client }: PortalFinanceStripProps) {
       ? ((loanAmount / propertyValue) * 100).toFixed(1)
       : null
 
+  if (!hasFinancialData) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
+        <span className="font-semibold text-slate-800">Financial Assessment:</span>{' '}
+        Loan terms and valuation figures will appear here once your preliminary documentation is reviewed by your advisor.
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">
-            Loan & Financing Overview
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Current financing figures under review for your property acquisition
+    <Card className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xs">
+      <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
+        {/* 1. Target Home Loan */}
+        <div className="p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Requested Loan Amount
+          </p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {formatCurrency(loanAmount)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {downPayment > 0
+              ? `Down payment: ${formatCurrency(downPayment)}`
+              : 'Subject to final sanction'}
+          </p>
+        </div>
+
+        {/* 2. Property Valuation */}
+        <div className="p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Property Valuation
+          </p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {propertyValue > 0 ? formatCurrency(propertyValue) : 'Under Valuation'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Estimated purchase price
+          </p>
+        </div>
+
+        {/* 3. Loan-to-Value (LTV) */}
+        <div className="p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Loan-to-Value (LTV)
+          </p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {ltv ? `${ltv}%` : '—'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {ltv ? 'Financed portion of asset' : 'Pending valuation report'}
+          </p>
+        </div>
+
+        {/* 4. Monthly Gross Income */}
+        <div className="p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Assessed Monthly Income
+          </p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Verified via KYC'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Eligibility basis
           </p>
         </div>
       </div>
-
-      {hasFinancialData ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Target Home Loan */}
-          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">
-                Target Loan Amount
-              </span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <IndianRupee className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-                {formatCurrency(loanAmount)}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              {downPayment > 0
-                ? `Down payment: ${formatCurrency(downPayment)}`
-                : 'Sanction requested'}
-            </p>
-          </Card>
-
-          {/* 2. Property Valuation */}
-          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">
-                Property Valuation
-              </span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                <Building className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-                {formatCurrency(propertyValue)}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              Estimated acquisition price
-            </p>
-          </Card>
-
-          {/* 3. Loan-to-Value (LTV) */}
-          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">
-                Loan-to-Value (LTV)
-              </span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-                {ltv ? `${ltv}%` : 'N/A'}
-              </span>
-              {ltv && Number(ltv) <= 80 && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                  Standard Ratio
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              {ltv ? 'Financed portion of property' : 'Pending final valuation'}
-            </p>
-          </Card>
-
-          {/* 4. Monthly Gross Income */}
-          <Card className="p-4 bg-white border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">
-                Monthly Gross Income
-              </span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                <Wallet className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-                {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Verified via KYC'}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              Assessed borrower eligibility
-            </p>
-          </Card>
-        </div>
-      ) : (
-        <Card className="p-5 border-slate-200/80 bg-slate-50/50">
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <Info className="h-4 w-4" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-xs font-semibold text-slate-900">
-                Financial Assessment in Progress
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Your mortgage advisor is calculating your optimal loan-to-value ratio, interest rates, and loan ticket size based on your property choice and income proof documents.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-    </div>
+    </Card>
   )
 }

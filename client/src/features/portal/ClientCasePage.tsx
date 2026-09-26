@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Home, RefreshCw } from 'lucide-react'
+import { RefreshCw, FileText } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -53,25 +53,20 @@ export function ClientCasePage() {
   // 1. Loading Skeleton State
   if (isClientLoading || isDocsLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6">
         {/* Header Skeleton */}
-        <div className="h-44 w-full rounded-2xl bg-slate-200" />
+        <Skeleton className="h-28 w-full rounded-lg" />
 
         {/* Financial KPI Strip Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-        </div>
+        <Skeleton className="h-24 w-full rounded-lg" />
 
         {/* Milestone Tracker Skeleton */}
-        <Skeleton className="h-40 rounded-xl" />
+        <Skeleton className="h-28 w-full rounded-lg" />
 
         {/* Bottom Split Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-72 rounded-xl lg:col-span-2" />
-          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-80 rounded-lg lg:col-span-2" />
+          <Skeleton className="h-80 rounded-lg" />
         </div>
       </div>
     )
@@ -97,17 +92,17 @@ export function ClientCasePage() {
   if (!client) {
     return (
       <div className="py-12">
-        <Card className="p-8 text-center max-w-lg mx-auto border-slate-200 bg-white">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-            <Home className="h-6 w-6" />
+        <Card className="p-8 text-center max-w-lg mx-auto border-slate-200 bg-white rounded-lg">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+            <FileText className="h-5 w-5" />
           </div>
-          <h2 className="mt-4 text-base font-bold text-slate-900">
-            Application Dossier in Preparation
+          <h2 className="mt-3 text-base font-semibold text-slate-900">
+            Application Dossier Pending Allocation
           </h2>
-          <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-            Your mortgage account has been registered, but your formal case file has not yet been linked. Your designated mortgage advisor is preparing your initial file.
+          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+            Your borrower account is verified, but your formal mortgage dossier is being indexed by your brokerage. Your assigned advisor will link your case file shortly.
           </p>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-5 flex justify-center gap-3">
             <Button size="sm" onClick={handleRefresh} variant="outline" className="text-xs">
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               Check Again

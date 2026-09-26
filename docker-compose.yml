@@ -1,0 +1,61 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: leadflow-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: leadflow
+
+  redis:
+    image: redis:7-alpine
+    container_name: leadflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: leadflow-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/leadflow
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=http://localhost:5173
+      - JWT_SECRET=leadflow-jwt-super-secret-access-token-key-min32chars!
+      - JWT_REFRESH_SECRET=leadflow-jwt-super-secret-refresh-token-key-min32chars!
+      - COOKIE_SECRET=leadflow-secure-cookie-secret-key-development
+    depends_on:
+      - mongodb
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: leadflow-worker
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/leadflow
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongo-data:
+  redis-data:

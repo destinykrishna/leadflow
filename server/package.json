@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "seed": "tsx scripts/seed.ts",
+    "qa": "tsx scripts/qa-journey-verification.ts",
     "benchmark": "tsx scripts/benchmark.ts"
   },
   "keywords": [],
