@@ -3180,4 +3180,75 @@ COMPLETED
    - Monorepo TypeScript check (`npm run typecheck`): 0 errors across `client`, `server`, and `worker`.
    - Monorepo production build (`npm run build`): clean bundle compiled in 571ms.
 
+## Phase 8 — Typeform Lead Source Setup Runbook
+```
+Phase 8 — Typeform Lead Source Setup Runbook
+
+Read AGENTS.md, README.md, PROMPTS.md and inspect the existing lead-ingestion implementation and relevant docs/code.
+
+Do NOT modify application code.
+
+Create:
+`docs/TYPEFORM_SETUP_RUNBOOK.md`
+
+The goal is to document exactly how a developer/operator can connect a real Typeform form to the deployed LeadFlow application and verify end-to-end lead ingestion.
+
+Explain step-by-step:
+
+1. Create/use a Typeform account.
+2. Create a "Home Loan Enquiry" Typeform.
+3. Define the exact fields/questions that match the LeadFlow Typeform ingestion implementation.
+4. Explain what Typeform sends to LeadFlow.
+5. Identify the exact LeadFlow webhook endpoint and required authentication/secret configuration from the existing implementation.
+6. Explain the Typeform webhook configuration required to send submissions to LeadFlow.
+7. Explain any HTTPS/deployment requirement.
+8. Explain required environment variables/configuration, without exposing secrets.
+9. Submit a realistic test home-loan enquiry.
+10. Verify that the lead appears in the LeadFlow advisor pipeline.
+11. Verify duplicate/known-lead behavior using a second submission.
+12. Include troubleshooting for authentication failure, validation failure, duplicate lead, webhook delivery failure and lead not appearing.
+13. Include a final end-to-end verification checklist.
+
+Important:
+- Base everything on the EXISTING LeadFlow implementation. Inspect the actual code before documenting endpoints, fields, authentication or environment variables.
+- Do not invent endpoints, fields, configuration or behavior.
+- Clearly distinguish what must be configured in Typeform from what is configured in LeadFlow.
+- Use Indian mortgage terminology and INR examples.
+- Do not include secrets or real credentials.
+- Keep the document practical enough that another developer can follow it without reading the source code.
+- Do not modify frontend/backend behavior.
+- Do not create tests.
+- Do not refactor anything.
+
+After creating the runbook:
+- Run typecheck/build only if needed to confirm nothing was accidentally changed.
+- Update AGENTS.md and README.md only if necessary to reference the runbook.
+- Append this exact prompt and completion status to PROMPTS.md.
+- Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Creation of Typeform Setup Runbook (`docs/TYPEFORM_SETUP_RUNBOOK.md`)**:
+   - Authored a comprehensive, practical setup guide based strictly on existing LeadFlow ingestion routes, middleware, normalization functions, and database models.
+   - Documented the architecture and sequence from Typeform form submission through `verifyWebhookAuth`, `brokerageIngestionLimiter`, payload normalization, deduplicated MongoDB persistence, and Socket.IO real-time pipeline broadcasting.
+   - Specified the exact question fields and reference IDs (`ref`) matching `normalizeIncomingLeadPayload`: `email` (mandatory), `first_name`, `last_name`, `phone`, `loanAmount`, `propertyValue`, `monthlyGrossIncome`, `downPayment`, `propertyCity`, `employmentType`, and `utm_source` hidden fields.
+   - Documented the full Typeform JSON webhook payload schema (`form_response.answers`, `form_response.hidden`, `event_id`).
+   - Identified the exact LeadFlow webhook endpoints (`POST /api/leads/webhook/:brokerageId` and `/api/leads/ingest/:brokerageId`) and both supported authentication mechanisms: HMAC SHA-256 (`x-signature-sha256` / `x-hub-signature-256`) and shared secret header (`x-webhook-secret` / Bearer token).
+   - Provided step-by-step instructions for configuring webhooks inside Typeform's Connect portal with destination URLs and secret keys.
+   - Documented public HTTPS mandates and detailed local development tunneling procedures (`cloudflared tunnel` and `ngrok`).
+   - Documented required environment variables without exposing sensitive credentials, and explained how to retrieve `brokerageId` and `webhookSecret` from MongoDB or seed scripts.
+   - Provided concrete test execution steps using realistic Indian mortgage data (Priya Sharma, ₹48 Lakhs loan, ₹60 Lakhs property in Bengaluru) with expected HTTP 201 response JSON, pipeline verification instructions, and task creation checks.
+   - Detailed duplicate submission verification (HTTP 200 idempotent response, zero duplicate cards) and existing client recognition (`isAlreadyKnown: true`, `knownAs: 'CLIENT'`).
+   - Authored an exhaustive troubleshooting guide covering HTTP 401 unauthorized, HTTP 400 validation failures, HTTP 403 brokerage suspension, HTTP 429 rate limit exceeded, connection/SSL errors, and board filter issues.
+   - Included a 14-point sign-off verification checklist.
+2. **Repository & Build Invariants**:
+   - Zero application code modified. Zero tests modified or generated.
+   - Updated `README.md` and `AGENTS.md` to reference `docs/TYPEFORM_SETUP_RUNBOOK.md`.
+   - Monorepo TypeScript check (`npm run typecheck`): 0 errors across `client`, `server`, and `worker`.
+   - Monorepo production build (`npm run build`): clean bundle built in <1s.
+
+
 

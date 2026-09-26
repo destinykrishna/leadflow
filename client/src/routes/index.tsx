@@ -26,12 +26,64 @@ import { ClientAdvisorPage } from '@/features/portal/ClientAdvisorPage'
 import { BrokeragesPage } from '@/features/admin/BrokeragesPage'
 import { HealthPage } from '@/features/admin/HealthPage'
 import { AuditPage } from '@/features/admin/AuditPage'
+import { useLocation } from 'react-router-dom'
+import * as React from 'react'
+
+function RouteTitleSync() {
+  const location = useLocation()
+
+  React.useEffect(() => {
+    const pathname = location.pathname
+
+    if (pathname === '/login') {
+      document.title = 'Sign In · LeadFlow'
+    } else if (pathname === '/app/dashboard') {
+      document.title = 'Dashboard · LeadFlow'
+    } else if (pathname === '/app/pipeline') {
+      document.title = 'Pipeline · LeadFlow'
+    } else if (pathname === '/app/leads') {
+      document.title = 'Leads · LeadFlow'
+    } else if (pathname.startsWith('/app/leads/')) {
+      document.title = 'Lead Details · LeadFlow'
+    } else if (pathname === '/app/clients') {
+      document.title = 'Clients · LeadFlow'
+    } else if (pathname.startsWith('/app/clients/')) {
+      document.title = 'Client Details · LeadFlow'
+    } else if (pathname === '/app/documents') {
+      document.title = 'Documents · LeadFlow'
+    } else if (pathname === '/app/tasks') {
+      document.title = 'Tasks · LeadFlow'
+    } else if (pathname === '/app/templates') {
+      document.title = 'Templates · LeadFlow'
+    } else if (pathname === '/app/triggers') {
+      document.title = 'Triggers · LeadFlow'
+    } else if (pathname === '/portal/case') {
+      document.title = 'My Case · LeadFlow'
+    } else if (pathname === '/portal/documents') {
+      document.title = 'Documents · LeadFlow'
+    } else if (pathname === '/portal/advisor') {
+      document.title = 'Advisor · LeadFlow'
+    } else if (pathname === '/admin/brokerages') {
+      document.title = 'Brokerages · LeadFlow'
+    } else if (pathname === '/admin/health') {
+      document.title = 'System Health · LeadFlow'
+    } else if (pathname === '/admin/audit') {
+      document.title = 'Audit Logs · LeadFlow'
+    } else {
+      document.title = 'LeadFlow — Mortgage OS'
+    }
+  }, [location.pathname])
+
+  return null
+}
 
 export function AppRoutes() {
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <RouteTitleSync />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<LoginPage />} />
 
       {/* Root redirector */}
       <Route path="/" element={<RootRedirect />} />
@@ -76,5 +128,6 @@ export function AppRoutes() {
       {/* Fallback 404 */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   )
 }
