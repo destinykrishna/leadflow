@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { pino } from 'pino';
+import { pino, type LoggerOptions } from 'pino';
 import {
   connectDatabase,
   disconnectDatabase,
@@ -32,9 +32,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
-const logger = pino({
+const isDev = (process.env.NODE_ENV || 'development') === 'development';
+
+const workerLoggerOptions: LoggerOptions = {
   level: process.env.LOG_LEVEL || 'info',
-});
+  ...(isDev
+    ? {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:HH:MM:ss',
+            ignore: 'pid,hostname',
+          },
+        },
+      }
+    : {}),
+};
+
+const logger = pino(workerLoggerOptions);
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/leadflow';
 
