@@ -68,7 +68,7 @@ export class ClientRepository extends ScopedRepository<IClient, IClientDocument>
         .findById(objectId)
         .populate('assignedTo', 'name email phone role')
         .populate('brokerageId', 'name slug')
-        .populate('leadId', 'status source score createdAt');
+        .populate('leadId', 'status source score createdAt customFields');
     }
 
     if (!userContext.brokerageId) {
@@ -83,7 +83,7 @@ export class ClientRepository extends ScopedRepository<IClient, IClientDocument>
       .findOne(filter)
       .populate('assignedTo', 'name email phone role')
       .populate('brokerageId', 'name slug')
-      .populate('leadId', 'status source score createdAt');
+      .populate('leadId', 'status source score createdAt customFields');
   }
 }
 

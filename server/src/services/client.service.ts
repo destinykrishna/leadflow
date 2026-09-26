@@ -370,7 +370,7 @@ export class ClientService implements IDomainService {
     )
       .populate('assignedTo', 'name email phone role')
       .populate('brokerageId', 'name slug')
-      .populate('leadId', 'status source score createdAt');
+      .populate('leadId', 'status source score createdAt customFields');
 
     if (!client) {
       throw new NotFoundError('Client case not found');

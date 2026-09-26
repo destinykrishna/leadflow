@@ -2578,6 +2578,76 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
    - Production bundle: clean Vite build in 792ms.
 
+---
+
+## Phase 6 — Prompt 1: Client Portal Foundation
+
+### Prompt
+```
+Phase 6 — Prompt 1: Client Portal Foundation
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing client APIs, document APIs, auth/role guards and current advisor-side case workspace.
+
+Build the client-facing portal foundation using real backend data:
+- Add a protected CLIENT-only portal area separate from the advisor workspace.
+- Build a clean client dashboard/case overview showing the client's own case information, status, loan/financial information available from the API, and assigned advisor.
+- Show a concise document summary with current document statuses.
+- Ensure CLIENT users can access only their own case/data and cannot access advisor/admin routes.
+- Handle loading, empty, error and unauthorized/not-found states.
+- Reuse existing API contracts and components where appropriate; do not add backend endpoints or invent data.
+- Use Indian terminology and INR formatting consistently.
+- Keep the portal simpler and more client-friendly than the advisor UI.
+- Preserve the existing LeadFlow visual language and responsive behavior.
+
+Testing:
+- Do NOT add exhaustive frontend tests.
+- Add automated tests only for client-only route protection or other security-sensitive/complex behavior.
+- Rely on the existing test suite, typecheck, build and manual browser QA for ordinary UI.
+
+Run frontend tests, typecheck and build.
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **API Integration & Data Flow**:
+   - Added `useMyCase` query hook in `client/src/features/clients/api/clients.api.ts` calling `GET /api/clients/me` (IDOR-immune, deriving client case strictly from verified session token `req.user.id`).
+   - Extended backend `leadId` populate projection with `customFields` in `clientService.getMyClientCase` and `clientRepository.findByIdWithDetails` (`server/src/services/client.service.ts` and `server/src/repositories/client.repository.ts`). This allows authentic mortgage loan parameters (`loanAmount`, `propertyValue`, `monthlyGrossIncome`, `downPayment`) from originating lead records to flow directly to the client without creating new endpoints.
+   - Updated TypeScript domain types in `client/src/types/client.types.ts` (`ClientLeadOrigin.customFields`).
+
+2. **Client Portal Architecture (`/portal/*`)**:
+   - **Protected Zone**: Enforced role-based access control via `ProtectedRoute allowedRoles={['CLIENT']}` in `routes/index.tsx`. Attempts by `CLIENT` users to visit advisor or platform admin routes (`/app/*`, `/admin/*`) automatically redirect to `/portal/case`. Conversely, advisors and admins navigating to `/portal/*` are redirected back to their staff dashboards (`/app/pipeline` or `/admin/brokerages`).
+   - **Client Dashboard / Case Overview (`ClientCasePage.tsx` at `/portal/case`)**:
+     - **Welcome Banner (`PortalCaseHeader.tsx`)**: Deep sapphire gradient header displaying borrower greeting ("Welcome back, Rahul"), verified client portal pill, partner brokerage name (e.g. Apex Home Finance), active mortgage case badge, profile type, case reference `#ID` with 1-click copy, and refresh status button.
+     - **Financing Overview Strip (`PortalFinanceStrip.tsx`)**: 4-card metric strip displaying Target Home Loan Amount (₹), Property Valuation (₹), Loan-to-Value ratio (dynamic LTV % with standard ratio indicator), and Monthly Gross Income (₹) in Indian currency (`formatCurrency`), with informative fallback for cases in preliminary assessment.
+     - **Application Progress Journey (`PortalMilestoneStepper.tsx`)**: 4-milestone linear progress tracker (Application Initiated, Document Verification, Underwriting & Valuation, Sanction & Disbursement) clearly communicating file progress to the borrower.
+     - **Document Verification Summary (`PortalDocumentSummary.tsx`)**: Concise 4-metric status strip (`Verified`, `Under Review`, `Pending Queue`, `Needs Attention`), recent document list with inspection rejection notes, direct secure link viewing, and 1-click "Upload Document" button opening the upload modal.
+     - **Assigned Mortgage Specialist Card (`PortalAdvisorCard.tsx`)**: Dedicated advisor profile card with name, title ("Senior Mortgage Specialist"), brokerage firm, direct `mailto:` email with copy button, and `tel:` phone links.
+     - **Case Details Card (`PortalCaseDetails.tsx`)**: Applicant legal name, registered email, phone, application date, and communication address.
+   - **Dedicated Document Center (`ClientDocumentsPage.tsx` at `/portal/documents`)**:
+     - 5-metric filter strip (`Total Files`, `Verified`, `Under Review`, `Pending Queue`, `Needs Action`).
+     - Upload document button pre-configured with the client's verified case ID via `UploadDocumentModal.tsx`.
+     - Inspection rejection notes with actionable "Re-upload Corrected Document" button.
+     - Essential home loan checklist (PAN, Aadhaar, salary slips with employer seal, Form 16 / ITR, 6-month bank statement).
+   - **Advisor Desk (`ClientAdvisorPage.tsx` at `/portal/advisor`)**:
+     - Senior advisor profile and direct contact options.
+     - Overview of advisory services (bank rate comparison, CIBIL pre-screening, valuation, sanction letter).
+     - Home loan applicant FAQ addressing verification timelines, document formats, and re-upload handling.
+
+3. **Indian Terminology & UX Consistency**:
+   - Replaced all legacy German mortgage labels across `UploadDocumentModal.tsx` and the portal with standard Indian mortgage terminology (`Identity Proof (PAN / Aadhaar / Passport)`, `Salary Slip / Form 16`, `Bank Account Statement`, `Income Proof / ITR Computation`, `Agreement to Sale`, `Property Documents & Layout`).
+   - All currency figures formatted in Indian Rupees (INR / ₹) with standard Indian numbering grouping.
+   - Real-time Socket.IO subscriptions (`useDocumentSocket`) attached to the client's isolated room (`client:<userId>`), refreshing document verification status automatically without full-page reloads.
+
+4. **Testing & Verification**:
+   - Created focused automated test suite in `client/src/tests/client-portal.test.tsx` (8 tests) covering route protection (unauthenticated -> login, advisor -> pipeline, admin -> brokerages, client -> portal, client blocked from advisor workspace), financial data and INR rendering, milestone tracker, document summary counts, empty state handling, and error state with retry.
+   - Client test suite: **106 passed across 13 test files** (`vitest`).
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
+   - Production bundle: clean Vite build in 569ms.
+
 
 
 

@@ -39,36 +39,36 @@ export interface UploadDocumentModalProps {
 
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, { label: string; desc: string }> = {
   IDENTIFICATION: {
-    label: 'Identification (Pass / Ausweis)',
-    desc: 'Passport, National ID, or German residence permit (Aufenthaltstitel)',
+    label: 'Identity Proof (PAN / Aadhaar / Passport)',
+    desc: 'Government photo identification, PAN card, Aadhaar, or Passport',
   },
   PAYSLIP: {
-    label: 'Payslip (Gehaltsabrechnung)',
-    desc: 'Recent monthly salary statements from employer (last 3 months)',
+    label: 'Salary Slip / Form 16',
+    desc: 'Recent monthly salary slips (last 3-6 months) or employer Form 16',
   },
   BANK_STATEMENT: {
-    label: 'Bank Statement (Kontoauszug)',
-    desc: 'Checking and savings account statements showing liquidity & reserves',
+    label: 'Bank Account Statement',
+    desc: 'Bank statement of primary salary/savings account for the last 6 months',
   },
   INCOME_PROOF: {
-    label: 'Income Proof (Einkommensnachweis)',
-    desc: 'Tax assessment (Steuerbescheid), freelance profit/loss, or dividend records',
+    label: 'Income Proof / ITR Statement',
+    desc: 'Income Tax Return (ITR-V) computation of income for last 2 assessment years',
   },
   CONTRACT: {
-    label: 'Employment / Purchase Contract (Vertrag)',
-    desc: 'Permanent work contract or draft property purchase agreement (Kaufvertrag)',
+    label: 'Employment / Agreement to Sale',
+    desc: 'Appointment letter or draft registered agreement to sale for the property',
   },
   TAX_RETURN: {
-    label: 'Tax Return (Steuererklärung)',
-    desc: 'Official tax returns filed with the local Finanzamt',
+    label: 'Tax Return (ITR-V)',
+    desc: 'Acknowledged tax return and Form 26AS tax credit statement',
   },
   PROPERTY_DETAILS: {
-    label: 'Property Exposé & Plans',
-    desc: 'Floor plans, energy certificate (Energieausweis), land register (Grundbuch)',
+    label: 'Property Documents & Layout',
+    desc: 'Sale deed, title search report, property tax receipt, or floor plan',
   },
   OTHER: {
-    label: 'Other Financial Record',
-    desc: 'SCHUFA certificate, gift letters, down payment verification, or misc docs',
+    label: 'Other Financial Records',
+    desc: 'CIBIL report, down payment investment proof, or loan clearance certificates',
   },
 }
 

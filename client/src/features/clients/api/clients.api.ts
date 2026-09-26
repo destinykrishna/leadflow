@@ -74,6 +74,15 @@ export const clientsApi = {
 export const CLIENTS_QUERY_KEY = ['clients']
 export const CLIENT_QUERY_KEY = (id: string) => ['client', id]
 export const CLIENT_DOCUMENTS_KEY = (clientId: string) => ['client-documents', clientId]
+export const MY_CASE_QUERY_KEY = ['my-client-case']
+
+export function useMyCase() {
+  return useQuery({
+    queryKey: MY_CASE_QUERY_KEY,
+    queryFn: clientsApi.getMyCase,
+    staleTime: 1000 * 30,
+  })
+}
 
 export function useClients() {
   return useQuery({

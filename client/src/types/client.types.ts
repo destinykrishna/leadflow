@@ -25,6 +25,7 @@ export interface ClientLeadOrigin {
   source?: string
   score?: number
   createdAt?: string
+  customFields?: Record<string, unknown>
 }
 
 export interface Client {
