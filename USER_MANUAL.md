@@ -1,6 +1,7 @@
 # LeadFlow User Manual & System Guide
 
-> Complete operating instructions for borrowers, mortgage advisors, brokerage administrators, and platform operators.
+> Complete operating instructions for borrowers, mortgage advisors, brokerage administrators, and platform operators.  
+> *For comprehensive step-by-step employee onboarding and business workflow training, see the [LeadFlow Employee Training Manual](LEADFLOW_TRAINING_MANUAL.md).*
 
 ---
 

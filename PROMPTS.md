@@ -3057,3 +3057,127 @@ COMPLETED
    - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
    - Monorepo production build (`npm run build`): clean bundle built in <1s (CSS 83.35 kB, JS 1,010 kB / 279 kB gzip).
 
+## Final Documentation — LeadFlow Employee Training & System Workflow Manual
+```
+Final Documentation — LeadFlow Employee Training & System Workflow Manual
+
+Act as a senior LeadFlow trainer onboarding a completely new employee.
+
+Read:
+- assignment.md
+- AGENTS.md
+- README.md
+- USER_MANUAL.md
+- relevant docs/
+- backend routes/controllers/services/repositories/models
+- frontend routes/pages/components
+- worker/job processing
+- authentication/RBAC
+- lead ingestion
+- client conversion
+- document processing
+- tasks and automation
+- email templates/triggers
+- Socket.IO/realtime flows
+
+Do NOT modify application code.
+
+Create a new comprehensive document:
+
+`LEADFLOW_TRAINING_MANUAL.md`
+
+This is NOT a developer README. It is a practical employee training manual explaining how a new employee should understand and use LeadFlow from start to finish.
+
+Teach the system as if the reader has never used LeadFlow before.
+
+Structure it around the real business workflow:
+
+1. What LeadFlow is and what problem it solves.
+2. The four user roles and what each role is responsible for.
+3. The complete lifecycle of a mortgage enquiry:
+   External lead source → LeadFlow → New Lead → Qualification → Pipeline → Client Conversion → Client Portal → Documents → Verification → Loan Case progression.
+4. Explain exactly where a lead comes from.
+   Document the implemented Typeform webhook integration, what information Typeform sends, how LeadFlow authenticates and validates it, how the payload is normalized, how duplicates are detected, and when the lead appears in the advisor pipeline.
+5. Explain the advisor's daily workflow from receiving a new lead through qualification and client conversion.
+6. Explain every pipeline stage and what an advisor should do at each stage.
+7. Explain how automatic tasks and email triggers work from the employee's perspective.
+8. Explain exactly what happens when "Convert to Client" is used.
+   Explain the Lead → Client relationship, advisor assignment, client account creation, credentials, portal access and security boundaries.
+9. Explain the client experience step-by-step:
+   login → case → financial information → document checklist → upload → processing → verification/rejection → re-upload → advisor contact.
+10. Explain document verification in business terms first, then briefly explain that processing happens in the background and status updates appear live.
+11. Explain the difference between:
+   Lead
+   Client
+   User account
+   Mortgage case
+   Document
+   Task
+   Automation
+   Email template
+12. Explain what each role can and cannot access.
+13. Explain common employee situations and what to do:
+   duplicate lead
+   already-known client
+   wrong pipeline stage
+   rejected document
+   concurrent update/conflict
+   client cannot log in
+   document appears stuck
+   task becomes overdue
+   email automation does not execute
+14. Include a complete realistic example:
+   "A customer named Priya submits a home-loan enquiry."
+   Follow her journey all the way from Typeform submission to client portal document verification.
+15. Include a "First Day Checklist" for:
+   Platform Admin
+   Brokerage Admin
+   Advisor
+   Client
+16. Include a "10-minute reviewer demo" walkthrough.
+17. Include a glossary of LeadFlow terminology.
+
+IMPORTANT:
+- Explain actual implemented behavior only.
+- Do not invent features, screens, workflows, notifications or business rules.
+- Clearly distinguish what the employee sees from what happens internally.
+- Explain technical mechanisms only when they help the employee understand the workflow.
+- Use Indian mortgage terminology and INR.
+- Use simple language and practical examples.
+- Do not expose secrets, tokens, passwords or sensitive credentials.
+- Do not modify application code.
+- Do not generate or modify tests.
+
+At the end, add:
+"How LeadFlow works in one page" containing a simple end-to-end workflow diagram in Markdown.
+
+Update USER_MANUAL.md only if necessary to point users toward the new training manual.
+
+Append this exact prompt and a concise completion record to PROMPTS.md.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Creation of Comprehensive Employee Training Manual (`LEADFLOW_TRAINING_MANUAL.md`)**:
+   - Authored an exhaustive, newcomer-friendly employee training manual covering all 18 specified operational sections from the perspective of a senior LeadFlow trainer.
+   - Grounded strictly in actual implemented application behavior without inventing unbacked features, screens, or workflows.
+   - Covered the full business problem, the 4 RBAC user roles, and the complete 8-stage mortgage inquiry lifecycle from external lead capture to final loan disbursement.
+   - Documented the Typeform webhook ingestion engine in detail: payload format, dual HMAC/secret authentication, constant-time verification, normalization of mortgage fields (loan amount, property value, monthly gross income, down payment in INR ₹), scoped deduplication, and immediate real-time appearance on the advisor's Kanban board.
+   - Detailed the mortgage advisor's daily routine, all 7 pipeline stages with operational actions and state machine constraints, automated stage trigger execution (`CREATE_TASK` and `SEND_EMAIL`), and the atomic mechanics of client conversion.
+   - Documented the institutional borrower portal experience, the 4-pillar Indian mortgage document checklist, background verification via BullMQ and ImageKit, crash reconciliation sweeper recovery, and live Socket.IO status updates.
+   - Clarified domain entity distinctions (Lead vs. Client vs. User Account vs. Mortgage Case vs. Document vs. Task vs. Automation vs. Email Template).
+   - Provided standard operating procedures for 9 common employee edge cases (duplicate leads, already-known clients, wrong stages, rejected documents, concurrency conflicts, login issues, stuck verification, overdue tasks, and trigger troubleshooting).
+   - Included a complete real-world narrative tracing Priya's home loan inquiry from Typeform submission through client conversion and document verification.
+   - Added First-Day Checklists for all 4 roles, a 10-Minute Reviewer Demo Walkthrough, a comprehensive LeadFlow Glossary, and an end-to-end "How LeadFlow Works in One Page" Markdown system workflow diagram.
+2. **User Manual Integration (`USER_MANUAL.md`)**:
+   - Added prominent cross-reference pointer at the top of `USER_MANUAL.md` guiding new staff to the in-depth training manual.
+3. **Application & Verification Invariants**:
+   - Zero application code modified. Zero tests modified or generated.
+   - Monorepo TypeScript check (`npm run typecheck`): 0 errors across `client`, `server`, and `worker`.
+   - Monorepo production build (`npm run build`): clean bundle compiled in 571ms.
+
+
