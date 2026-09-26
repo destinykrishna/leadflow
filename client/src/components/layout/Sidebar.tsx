@@ -89,17 +89,14 @@ export function Sidebar({
         heading: 'Workspace',
         items: baseItems,
       },
-    ]
-
-    if (user.role === 'BROKERAGE_ADMIN') {
-      sections.push({
-        heading: 'Settings',
+      {
+        heading: 'Automations',
         items: [
-          { label: 'Email Templates', to: '/app/templates', icon: Mail, shortcut: 'G E' },
           { label: 'Stage Automations', to: '/app/triggers', icon: Zap, shortcut: 'G S' },
+          { label: 'Email Templates', to: '/app/templates', icon: Mail, shortcut: 'G E' },
         ],
-      })
-    }
+      },
+    ]
 
     return sections
   }

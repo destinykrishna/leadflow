@@ -196,30 +196,25 @@ export function CommandPalette({
           keywords: 'todo checklist overdue follow-up reminders',
           action: () => nav('/app/tasks'),
         },
+        {
+          id: 'nav-templates',
+          label: 'Email Templates',
+          category: 'Navigation',
+          icon: Mail,
+          shortcut: ['G', 'E'],
+          keywords: 'email templates automated messages drafts',
+          action: () => nav('/app/templates'),
+        },
+        {
+          id: 'nav-triggers',
+          label: 'Stage Automations',
+          category: 'Navigation',
+          icon: Zap,
+          shortcut: ['G', 'S'],
+          keywords: 'triggers automation rules pipeline workflow stage',
+          action: () => nav('/app/triggers'),
+        },
       )
-
-      if (user?.role === 'BROKERAGE_ADMIN') {
-        items.push(
-          {
-            id: 'nav-templates',
-            label: 'Email Templates',
-            category: 'Navigation',
-            icon: Mail,
-            shortcut: ['G', 'E'],
-            keywords: 'email templates automated messages drafts',
-            action: () => nav('/app/templates'),
-          },
-          {
-            id: 'nav-triggers',
-            label: 'Stage Automations',
-            category: 'Navigation',
-            icon: Zap,
-            shortcut: ['G', 'S'],
-            keywords: 'triggers automation rules pipeline workflow',
-            action: () => nav('/app/triggers'),
-          },
-        )
-      }
     }
 
     // Actions category

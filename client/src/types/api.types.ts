@@ -7,6 +7,7 @@ export interface ApiErrorPayload {
 export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
+  count?: number
   message?: string
   error?: ApiErrorPayload
 }

@@ -2455,6 +2455,131 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
    - Production bundle: clean Vite build in 524ms.
 
+## Phase 5, Prompt 1: Advisor Tasks + Frontend Zod
+```
+Phase 5 — Prompt 1: Advisor Tasks + Frontend Zod
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect existing task APIs/components and current frontend validation patterns.
+
+First add Zod to the client and establish a small reusable validation pattern:
+- Use Zod for important frontend form/payload validation and selected API response validation.
+- Do not duplicate every backend schema or treat frontend validation as a security boundary.
+- Keep backend Zod authoritative.
+
+Then build the advisor-facing Tasks experience using real backend data:
+- Task list/workspace with search and useful filters.
+- Show title, associated lead/client, assigned advisor, due date and status.
+- Clearly distinguish overdue, due-today and upcoming tasks.
+- Support existing task create/update flows where provided by the backend.
+- Allow navigation to the associated lead/client workspace.
+- Handle loading, empty, error and mutation states.
+- Preserve RBAC, tenant isolation, INR formatting and LeadFlow visual language.
+- Use Indian terminology throughout; do not introduce German localization.
+- Do not add backend endpoints or invent data.
+
+Testing:
+- Add focused frontend tests for Zod validation, task rendering/filtering, overdue states, navigation and mutations.
+- Run frontend tests, typecheck and build.
+
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Frontend Zod Validation Layer (`client/src/lib/validation.ts`)**:
+   - Installed `zod` in `client` package (`v4.6.5`).
+   - Established reusable validation pattern: `validateForm<T>` for pre-mutation/form payload validation returning `{ success: true, data: T }` or `{ success: false, errors, message }`, and `formatZodError` for flattened field error paths.
+   - Implemented `validateApiResponse<T>` for lightweight runtime validation of API responses (`taskListResponseSchema`), logging non-fatal warnings in development without crashing UI on non-breaking schema extensions.
+   - Authored reusable client schemas: `taskStatusSchema`, `taskPrioritySchema`, `updateTaskStatusSchema`, `taskFilterSchema`, `populatedUserSummarySchema`, `populatedLeadSummarySchema`, `taskResponseItemSchema`, `taskListResponseSchema`.
+   - Kept backend Zod strictly authoritative without duplicating unnecessary database models or treating client validation as a security boundary.
+
+2. **Advisor Tasks Workspace (`TasksPage.tsx` & Components)**:
+   - Built full-featured advisor workspace at `/app/tasks` using real backend data (`GET /api/tasks`).
+   - **5-Metric KPI Strip (`TaskMetricsStrip.tsx`)**: Displays `Total Tasks`, `Overdue` (rose warning alert), `Due Today` (amber clock), `In Progress` (primary blue), and `Completed` (emerald check) with interactive quick-filter toggling.
+   - **Multi-Dimensional Filtering & Real-Time Search**: Search bar across task title, description, borrower name, or advisor name; dropdown selectors for Status (`ALL`, `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), Due Timeline (`ALL`, `OVERDUE`, `DUE_TODAY`, `UPCOMING`, `NO_DUE_DATE`), Priority (`ALL`, `URGENT`, `HIGH`, `MEDIUM`, `LOW`), and Assignment Scope (`ALL`, `MY_TASKS`, `LEADS_ONLY`, `CLIENTS_ONLY`) with a 1-click `Reset Filters` control.
+   - **Timeline & Due Date Classification (`TaskDueBadge.tsx`)**: Distinct visual badges for Overdue (`badge-overdue` with AlertTriangle and formatted date), Due Today (`badge-due-today` with Clock), Upcoming (`badge-upcoming` with Calendar), and No deadline.
+   - **Task Row Presentation (`TaskItemRow.tsx`)**: Fast 1-click completion checkbox calling `PATCH /api/tasks/:id`, status dropdown selector with real-time mutation feedback, assigned advisor avatar (with "You" tags for matching user), and direct navigation buttons to associated Lead (`/app/leads/:id`) and Client Case (`/app/clients/:id`) profiles.
+   - **Comprehensive Task Detail Modal (`TaskDetailModal.tsx`)**: Complete detail viewer displaying full task description/notes, linked entities with direct navigation, assigned advisor with avatar initials, timeline creation and completion timestamps, and quick action status buttons (`Mark Completed`, `Start Task`, `Set to Pending`, `Cancel`) with mutation loading and error alerts.
+   - **Automated Workflow Callout Banner**: Explains that tasks are scheduled automatically by LeadFlow workflow triggers as mortgage leads transition stages.
+   - **Resilient States**: High-fidelity skeleton shimmer loading, ErrorState with retry control, and contextual empty states (distinguishing 0 total tasks from 0 filter matches).
+   - **Indian Terminology & INR (₹)**: Strict Indian financial context and naming throughout; zero German localization.
+
+3. **Testing & Verification**:
+   - Created `client/src/tests/advisor-tasks.test.tsx` (21 focused unit and integration tests) covering Zod form/payload validation, error path formatting, API response schema parsing, KPI metric strip rendering, overdue/due-today/upcoming badges, multi-dimensional search/filtering, lead and client workspace navigation, checkbox/dropdown status mutations, modal action buttons, and empty/error states.
+   - Client test suite: **88 passed across 11 test files** (`vitest`).
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
+   - Production bundle: clean Vite build in 792ms.
+
+---
+
+## Phase 5 — Prompt 2: Automation & Email
+
+### Prompt
+```
+Phase 5 — Prompt 2: Automation & Email
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing trigger, task and email-template APIs/components.
+
+Build the advisor-facing Automation experience using the existing backend:
+- Show stage-triggered task automation rules and their current state.
+- Show email templates with available placeholders and useful template previews.
+- Show configured stage/email triggers and their enabled/disabled state where supported by the API.
+- Make trigger/template relationships understandable without exposing implementation details.
+- Provide appropriate loading, empty, error and mutation states.
+- Allow supported template/trigger actions using existing APIs only.
+- Preserve RBAC, tenant isolation, INR/Indian terminology and the existing LeadFlow visual language.
+- Do not add backend endpoints or invent automation behavior.
+
+Testing:
+- Do NOT add exhaustive frontend tests.
+- Reuse the existing test suite for regression detection.
+- Add new tests only for genuinely complex validation, business logic or security-sensitive behavior.
+- Rely on typecheck, build and manual browser QA for ordinary UI behavior.
+
+Run frontend tests, typecheck and build.
+Update AGENTS.md, README.md and PROMPTS.md. Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Frontend Zod Schemas & API Integration**:
+   - Extended `client/src/lib/validation.ts` with client-side schemas: `triggerActionTypeSchema`, `triggerRecipientTypeSchema`, `triggerActionConfigSchema`, `createTriggerFormSchema`, `updateTriggerStatusSchema`, `updateTriggerFormSchema`, `triggerResponseItemSchema`, `triggerListResponseSchema`, `createEmailTemplateFormSchema`, `updateEmailTemplateFormSchema`, `emailTemplateResponseItemSchema`, `emailTemplateListResponseSchema`.
+   - Maintained authoritative backend validation boundaries while providing instant client-side feedback and development runtime response verification (`validateApiResponse`).
+   - Built TanStack Query API modules: `triggers.api.ts` (`useTriggers`, `useCreateTrigger`, `useToggleTrigger`, `useDeleteTrigger`) and `templates.api.ts` (`useEmailTemplates`, `useCreateEmailTemplate`, `useUpdateEmailTemplate`).
+
+2. **Stage Automations Workspace (`TriggersPage.tsx` at `/app/triggers`)**:
+   - Built full-featured advisor-facing automation workspace with unified tab switching (`TriggerNavigationTabs`) between Stage Automations and Email Templates.
+   - **5-Metric KPI Strip (`TriggerMetricsStrip.tsx`)**: Displays `Total Rules`, `Active` (emerald), `Task Triggers` (blue), `Email Dispatches` (purple), and `Email Templates` (amber) with interactive 1-click filter selection.
+   - **Multi-Dimensional Toolbar**: Real-time search across rule name, from/to stage, and task title; action type filter (`ALL`, `CREATE_TASK`, `SEND_EMAIL`); stage filter (`ALL`, `NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, `WON`, `LOST`); and status filter (`ALL`, `ACTIVE`, `PAUSED`).
+   - **Trigger Item Cards (`TriggerItemCard.tsx`)**: Surfaces human-readable transition rules (`fromStage` → `toStage`, task configuration with priority/due timeline, or email dispatch with linked template name, slug, and recipient) without exposing underlying BullMQ queue or schema implementation details. Includes a direct "Preview Email" button for email triggers.
+   - **Role-Aware RBAC Controls**: Real-time active/paused switch toggle calling `PATCH /api/triggers/:id` and delete action enabled for `BROKERAGE_ADMIN` and `PLATFORM_ADMIN`, while displaying an informative view-only indicator (`Brokerage Admin configured`) for `ADVISOR` users.
+   - **Create Trigger Modal (`CreateTriggerModal.tsx`)**: Modal allowing authorized admins to configure stage triggers with dynamic action inputs and Zod pre-validation.
+
+3. **Email Templates Workspace (`TemplatesPage.tsx` at `/app/templates`)**:
+   - **4-Metric KPI Strip (`TemplateMetricsStrip.tsx`)**: Displays `Total Templates`, `Active`, `In Automations`, and `Placeholders`.
+   - **Template Cards (`TemplateCard.tsx`)**: Displays template name, slug badge, active badge, subject line with highlighted placeholder badges, variable chips with 1-click clipboard copy, and badges showing all stage triggers linked to this template.
+   - **Template Preview Modal (`EmailPreviewModal.tsx`)**: Simulates live email preview with realistic Indian mortgage borrower context (Rahul Sharma, `rahul.sharma@example.com`, ₹75 Lakh Home Loan, Advisor Priya Patel, Apex Home Finance) with toggleable rendered view and raw placeholder display, and prototype pollution defenses matching backend `template.ts`.
+   - **Template Editor Modal (`TemplateEditorModal.tsx`)**: Allows creating and editing templates with auto-slug generation, dynamic placeholder insertion chips (`AVAILABLE_TEMPLATE_VARIABLES`), and live rendering preview.
+
+4. **Routing, Navigation & Visual Language**:
+   - Updated `routes/index.tsx` so both `ADVISOR` and `BROKERAGE_ADMIN` roles can access `/app/triggers` and `/app/templates`.
+   - Updated `Sidebar.tsx` and `CommandPalette.tsx` (`⌘K` / `Ctrl+K`) to include Stage Automations (`G then S`) and Email Templates (`G then E`) in the main workspace navigation for all advisors.
+   - Preserved Indian financial terminology (INR ₹, Lakhs/Crores, Indian borrower names, CIBIL, KYC) throughout; zero German localization.
+
+5. **Testing & Verification**:
+   - Created focused test suite in `client/src/tests/automation-triggers.test.tsx` (10 tests) covering Zod schemas, template placeholder rendering and variable replacement, prototype pollution defense, and RBAC view-only vs admin-mutable actions.
+   - Client test suite: **98 passed across 12 test files** (`vitest`).
+   - Server test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
+   - Production bundle: clean Vite build in 792ms.
+
+
+
 
 
 

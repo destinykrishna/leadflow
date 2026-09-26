@@ -48,12 +48,8 @@ export function AppRoutes() {
           <Route path="/app/clients/:id" element={<ClientDetailPage />} />
           <Route path="/app/documents" element={<DocumentsPage />} />
           <Route path="/app/tasks" element={<TasksPage />} />
-
-          {/* Brokerage Admin Only */}
-          <Route element={<ProtectedRoute allowedRoles={['BROKERAGE_ADMIN']} />}>
-            <Route path="/app/templates" element={<TemplatesPage />} />
-            <Route path="/app/triggers" element={<TriggersPage />} />
-          </Route>
+          <Route path="/app/templates" element={<TemplatesPage />} />
+          <Route path="/app/triggers" element={<TriggersPage />} />
         </Route>
       </Route>
 
