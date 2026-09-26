@@ -7,6 +7,7 @@ import {
   User,
   ArrowRight,
   ExternalLink,
+  RotateCw,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -29,7 +30,7 @@ export function LeadsPage() {
   const [search, setSearch] = React.useState('')
   const [selectedStatus, setSelectedStatus] = React.useState<string>('ALL')
 
-  const { data, isLoading, isError, error, refetch } = useLeadsList({
+  const { data, isLoading, isError, error, refetch, isFetching } = useLeadsList({
     status: selectedStatus !== 'ALL' ? (selectedStatus as LeadStatus) : undefined,
     search: search.trim() || undefined,
   })
@@ -69,15 +70,28 @@ export function LeadsPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/app/pipeline')}
-          className="gap-1.5 text-xs self-start sm:self-auto"
-        >
-          View Kanban Pipeline
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="gap-1.5 text-xs text-slate-600"
+          >
+            <RotateCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/app/pipeline')}
+            className="gap-1.5 text-xs"
+          >
+            View Kanban Pipeline
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

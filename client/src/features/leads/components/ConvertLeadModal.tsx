@@ -240,7 +240,7 @@ export function ConvertLeadModal({
                 </DialogTitle>
               </div>
               <DialogDescription>
-                Create an official client profile and expat portal account for{' '}
+                Create an official client profile and borrower portal account for{' '}
                 <span className="font-semibold text-slate-800">
                   {lead.firstName} {lead.lastName}
                 </span>{' '}
@@ -300,7 +300,7 @@ export function ConvertLeadModal({
                   placeholder="Auto-generated if left blank"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="text-xs h-8.5"
+                  className="text-xs h-9"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Leave empty to generate a cryptographically secure temporary password.

@@ -6,6 +6,7 @@ import {
   Search,
   Keyboard,
   PanelLeft,
+  User,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAuth } from '@/hooks/useAuth'
@@ -19,6 +20,7 @@ interface HeaderProps {
   isSidebarCollapsed?: boolean
   onOpenCommandPalette?: () => void
   onOpenShortcuts?: () => void
+  onOpenProfile?: () => void
   isMac?: boolean
 }
 
@@ -27,6 +29,7 @@ export function Header({
   onToggleSidebar,
   onOpenCommandPalette,
   onOpenShortcuts,
+  onOpenProfile,
   isMac = false,
 }: HeaderProps) {
   const { user, logout } = useAuth()
@@ -184,6 +187,17 @@ export function Header({
               </div>
 
               <div className="p-1 space-y-0.5">
+                <DropdownMenu.Item
+                  onClick={onOpenProfile}
+                  className="flex w-full cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:bg-slate-100 focus:outline-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Profile & Settings</span>
+                  </div>
+                  <kbd className="font-mono text-[10px] text-slate-400">G U</kbd>
+                </DropdownMenu.Item>
+
                 <DropdownMenu.Item
                   onClick={onOpenCommandPalette}
                   className="flex w-full cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:bg-slate-100 focus:outline-none"

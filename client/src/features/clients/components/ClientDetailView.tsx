@@ -69,7 +69,7 @@ const CLIENT_TYPE_INFO: Record<
   OTHER: {
     label: 'Special Financing',
     badgeVariant: 'neutral',
-    desc: 'Commercial, remortgage, or specialized expat financing file',
+    desc: 'Commercial, refinance, or specialized home loan financing file',
   },
 }
 
@@ -884,7 +884,7 @@ export function ClientDetailView({
                   <div>
                     <span className="font-semibold block">Portal Identity Active</span>
                     <span className="text-[11px] text-emerald-700">
-                      Expat client is credentialed for self-service document access.
+                      Borrower client is credentialed for self-service document access.
                     </span>
                   </div>
                 </div>

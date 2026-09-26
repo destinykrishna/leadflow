@@ -76,7 +76,7 @@ export function PipelineHeader({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search borrower or email..."
-              className="h-8.5 w-full rounded-lg border border-border bg-card pl-8 pr-7 text-xs text-foreground placeholder:text-muted-foreground transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-9 w-full rounded-lg border border-border bg-card pl-8 pr-7 text-xs text-foreground placeholder:text-muted-foreground transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             {search && (
               <button
@@ -95,7 +95,7 @@ export function PipelineHeader({
             <select
               value={sourceFilter}
               onChange={(e) => onSourceFilterChange(e.target.value)}
-              className="h-8.5 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+              className="h-9 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
             >
               <option value="">All Sources</option>
               <option value="WEBSITE">Website</option>
@@ -112,7 +112,7 @@ export function PipelineHeader({
           <select
             value={minLoanFilter}
             onChange={(e) => onMinLoanFilterChange(Number(e.target.value))}
-            className="h-8.5 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
           >
             <option value="0">All Loan Sizes</option>
             <option value="250000">≥ ₹2,50,000</option>
@@ -125,7 +125,7 @@ export function PipelineHeader({
             <select
               value={sortBy}
               onChange={(e) => onSortByChange(e.target.value)}
-              className="h-8.5 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+              className="h-9 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
             >
               <option value="default">Newest Inquiries</option>
               <option value="loan-desc">Highest Loan</option>
@@ -140,7 +140,7 @@ export function PipelineHeader({
               variant="ghost"
               size="sm"
               onClick={onClearFilters}
-              className="h-8.5 px-2 text-xs text-slate-500 hover:text-slate-800"
+              className="h-9 px-2 text-xs text-slate-500 hover:text-slate-800"
             >
               Reset
             </Button>
@@ -152,7 +152,7 @@ export function PipelineHeader({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
-            className="h-8.5 gap-1.5 text-xs text-slate-600"
+            className="h-9 gap-1.5 text-xs text-slate-600"
           >
             <RotateCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>

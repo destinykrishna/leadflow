@@ -17,7 +17,7 @@ import { TasksPage } from '@/features/tasks/TasksPage'
 import { TemplatesPage } from '@/features/templates/TemplatesPage'
 import { TriggersPage } from '@/features/triggers/TriggersPage'
 
-// Expat Portal features (Borrowers)
+// Client Portal features (Borrowers)
 import { ClientCasePage } from '@/features/portal/ClientCasePage'
 import { ClientDocumentsPage } from '@/features/portal/ClientDocumentsPage'
 import { ClientAdvisorPage } from '@/features/portal/ClientAdvisorPage'
@@ -53,7 +53,7 @@ export function AppRoutes() {
         </Route>
       </Route>
 
-      {/* Expat Client Portal */}
+      {/* Client Portal */}
       <Route element={<ProtectedRoute allowedRoles={['CLIENT']} />}>
         <Route element={<AppLayout />}>
           <Route path="/portal" element={<Navigate to="/portal/case" replace />} />

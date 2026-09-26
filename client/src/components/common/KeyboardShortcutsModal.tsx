@@ -21,6 +21,7 @@ export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardSh
   const globalShortcuts: ShortcutItem[] = [
     { keys: [modKey, 'K'], description: 'Open command palette' },
     { keys: [modKey, 'B'], description: 'Toggle navigation sidebar' },
+    { keys: ['G', 'U'], description: 'Open Profile & Settings' },
     { keys: ['?'], description: 'Show keyboard shortcuts' },
     { keys: ['Esc'], description: 'Close modal or menu' },
   ]

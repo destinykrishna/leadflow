@@ -135,7 +135,7 @@ export function TriggersPage() {
     filters.status !== 'ALL'
 
   return (
-    <div className="flex-1 space-y-4 p-6 max-w-7xl mx-auto">
+    <div className="space-y-4">
       {/* Page Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

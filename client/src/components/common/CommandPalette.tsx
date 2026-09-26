@@ -22,6 +22,7 @@ import {
   Link2,
   LogOut,
   Check,
+  User,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -31,6 +32,7 @@ interface CommandPaletteProps {
   isMac: boolean
   onToggleSidebar?: () => void
   onOpenShortcuts?: () => void
+  onOpenProfile?: () => void
 }
 
 interface CommandItem {
@@ -49,6 +51,7 @@ export function CommandPalette({
   isMac,
   onToggleSidebar,
   onOpenShortcuts,
+  onOpenProfile,
 }: CommandPaletteProps) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -117,7 +120,7 @@ export function CommandPalette({
           category: 'Navigation',
           icon: Home,
           shortcut: ['G', 'C'],
-          keywords: 'mortgage loan application status progress expat',
+          keywords: 'mortgage loan application status progress borrower case expat',
           action: () => nav('/portal/case'),
         },
         {
@@ -126,7 +129,7 @@ export function CommandPalette({
           category: 'Navigation',
           icon: UploadCloud,
           shortcut: ['G', 'D'],
-          keywords: 'upload files id passport payslip salary proof',
+          keywords: 'upload files id passport payslip salary proof pan aadhaar kyc bank statement',
           action: () => nav('/portal/documents'),
         },
         {
@@ -184,7 +187,7 @@ export function CommandPalette({
           category: 'Navigation',
           icon: FileText,
           shortcut: ['G', 'D'],
-          keywords: 'verification files payslips passport pdf review',
+          keywords: 'verification files payslips salary slips pan aadhaar kyc passport pdf review',
           action: () => nav('/app/documents'),
         },
         {
@@ -260,17 +263,31 @@ export function CommandPalette({
     )
 
     // Account category
-    items.push({
-      id: 'acc-logout',
-      label: 'Sign Out',
-      category: 'Account',
-      icon: LogOut,
-      keywords: 'logout exit signout disconnect leave session',
-      action: () => {
-        onOpenChange(false)
-        logout()
+    items.push(
+      {
+        id: 'acc-profile',
+        label: 'Profile & Settings',
+        category: 'Account',
+        icon: User,
+        shortcut: ['G', 'U'],
+        keywords: 'profile settings account user preferences organization brokerage credentials security',
+        action: () => {
+          onOpenChange(false)
+          onOpenProfile?.()
+        },
       },
-    })
+      {
+        id: 'acc-logout',
+        label: 'Sign Out',
+        category: 'Account',
+        icon: LogOut,
+        keywords: 'logout exit signout disconnect leave session',
+        action: () => {
+          onOpenChange(false)
+          logout()
+        },
+      },
+    )
 
     return items
   }

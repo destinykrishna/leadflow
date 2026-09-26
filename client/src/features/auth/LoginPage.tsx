@@ -170,7 +170,7 @@ export function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@brokerage.de"
+                placeholder="advisor@brokerage.com"
                 required
                 autoComplete="email"
                 startIcon={<Mail className="h-4 w-4" />}
@@ -192,7 +192,7 @@ export function LoginPage() {
                 type="text"
                 value={brokerageSlug}
                 onChange={(e) => setBrokerageSlug(e.target.value)}
-                placeholder="berlin-expat-mortgages"
+                placeholder="e.g. apex-home-finance"
                 helperText="Enter your brokerage ID or slug if applicable"
                 startIcon={<Building className="h-4 w-4" />}
               />

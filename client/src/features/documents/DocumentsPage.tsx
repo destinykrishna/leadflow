@@ -106,7 +106,7 @@ export function DocumentsPage() {
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Review borrower payslips, tax records, SCHUFA certificates, and bank statements across all active files.
+            Review borrower salary slips, ITR tax records, PAN/KYC proofs, and bank statements across all active files.
           </p>
         </div>
 

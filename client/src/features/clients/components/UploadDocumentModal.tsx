@@ -35,6 +35,10 @@ export interface UploadDocumentModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: (doc: DocumentItem) => void
+  initialType?: DocumentType
+  initialTitle?: string
+  initialNotes?: string
+  reuploadDoc?: DocumentItem | null
 }
 
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, { label: string; desc: string }> = {
@@ -90,31 +94,35 @@ export function UploadDocumentModal({
   isOpen,
   onClose,
   onSuccess,
+  initialType,
+  initialTitle,
+  initialNotes,
+  reuploadDoc,
 }: UploadDocumentModalProps) {
   const uploadMutation = useUploadClientDocument()
 
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
-  const [docType, setDocType] = React.useState<DocumentType>('IDENTIFICATION')
-  const [title, setTitle] = React.useState('')
-  const [notes, setNotes] = React.useState('')
+  const [docType, setDocType] = React.useState<DocumentType>(initialType || 'IDENTIFICATION')
+  const [title, setTitle] = React.useState(initialTitle || '')
+  const [notes, setNotes] = React.useState(initialNotes || '')
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [isSuccess, setIsSuccess] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
   const [uploadedDoc, setUploadedDoc] = React.useState<DocumentItem | null>(null)
 
-  // Reset form when modal opens
+  // Reset or initialize form when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setSelectedFile(null)
-      setDocType('IDENTIFICATION')
-      setTitle('')
-      setNotes('')
+      setDocType(initialType || (reuploadDoc ? reuploadDoc.type : 'IDENTIFICATION'))
+      setTitle(initialTitle || (reuploadDoc ? `${reuploadDoc.title} (Updated)` : ''))
+      setNotes(initialNotes || '')
       setErrorMessage(null)
       setIsSuccess(false)
       setIsDragging(false)
       setUploadedDoc(null)
     }
-  }, [isOpen])
+  }, [isOpen, initialType, initialTitle, initialNotes, reuploadDoc])
 
   const validateAndSetFile = (file: File) => {
     // 1. Size Validation
@@ -245,7 +253,7 @@ export function UploadDocumentModal({
               </h3>
               <p className="mt-1 text-xs text-muted-foreground max-w-sm leading-relaxed">
                 <span className="font-semibold text-slate-800">{uploadedDoc?.title || selectedFile?.name}</span>{' '}
-                was stored securely in the vault and dispatched to the BullMQ background verification processor.
+                was stored securely in the vault and dispatched for background verification processing.
               </p>
             </div>
 
@@ -274,14 +282,31 @@ export function UploadDocumentModal({
                 </div>
                 <div>
                   <DialogTitle className="text-base font-bold text-slate-900">
-                    Upload Case Document
+                    {reuploadDoc ? 'Re-upload Corrected Document' : 'Upload Case Document'}
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Attach verification documents to {clientName ? `${clientName}'s` : 'this'} mortgage file.
+                    {reuploadDoc
+                      ? `Upload a fresh copy to replace "${reuploadDoc.title}" for verification.`
+                      : `Attach verification documents to ${clientName ? `${clientName}'s` : 'this'} mortgage file.`}
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
+
+            {/* Re-upload Context Banner */}
+            {reuploadDoc && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-800 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <span className="font-semibold">Re-submitting:</span> {reuploadDoc.title}
+                  {(reuploadDoc.verificationNotes || reuploadDoc.failureReason) && (
+                    <p className="mt-0.5 text-[11px] text-amber-700">
+                      <strong>Previous feedback:</strong> {reuploadDoc.verificationNotes || reuploadDoc.failureReason}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Error Banner (Context Preserved) */}
             {errorMessage && (
@@ -416,7 +441,7 @@ export function UploadDocumentModal({
                 <div className="flex items-center justify-between text-xs text-primary font-medium">
                   <div className="flex items-center gap-1.5">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Uploading file & dispatching to BullMQ queue...</span>
+                    <span>Uploading file & queueing for verification...</span>
                   </div>
                 </div>
                 <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">

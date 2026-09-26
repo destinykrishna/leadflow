@@ -678,7 +678,7 @@ export function LeadDetailView({
               </div>
 
               <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-                <span className="text-muted-foreground block mb-1">Expat Residence Status</span>
+                <span className="text-muted-foreground block mb-1">Residence / Citizenship Status</span>
                 <span className="font-semibold text-slate-900 text-xs">
                   {residenceStatus || 'EU Blue Card'}
                 </span>
@@ -923,7 +923,7 @@ export function LeadDetailView({
                           size="sm"
                           disabled={updateStageMutation.isPending}
                           onClick={() => handleStageTransition(nextStage)}
-                          className="w-full justify-between text-xs h-8.5 shadow-xs"
+                          className="w-full justify-between text-xs h-9 shadow-xs"
                         >
                           <span className="flex items-center gap-1.5">
                             Advance to {nextDef?.label || nextStage}

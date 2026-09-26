@@ -6,12 +6,14 @@ interface KeyboardShortcutsOptions {
   onToggleCommandPalette?: () => void
   onToggleSidebar?: () => void
   onToggleShortcutsModal?: () => void
+  onToggleProfileModal?: () => void
 }
 
 export function useKeyboardShortcuts({
   onToggleCommandPalette,
   onToggleSidebar,
   onToggleShortcutsModal,
+  onToggleProfileModal,
 }: KeyboardShortcutsOptions = {}) {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -64,6 +66,13 @@ export function useKeyboardShortcuts({
         const targetKey = e.key.toLowerCase()
         clearTimeout(chordRef.current.timer)
         chordRef.current = null
+
+        // Global profile shortcut across all roles: G then U
+        if (targetKey === 'u') {
+          e.preventDefault()
+          onToggleProfileModal?.()
+          return
+        }
 
         if (user?.role === 'CLIENT') {
           if (targetKey === 'c') {

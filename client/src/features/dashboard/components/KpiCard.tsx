@@ -33,7 +33,7 @@ export function KpiCard({
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             {title}
           </span>
-          <div className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-slate-100 text-slate-600 shadow-2xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 shadow-2xs">
             <Icon className="h-4 w-4" />
           </div>
         </div>

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { KeyboardShortcutsModal } from '@/components/common/KeyboardShortcutsModal'
+import { ProfileSettingsModal } from '@/components/common/ProfileSettingsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +13,7 @@ export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false)
   const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false)
+  const [profileModalOpen, setProfileModalOpen] = React.useState(false)
 
   const toggleCommandPalette = React.useCallback(() => {
     setCommandPaletteOpen((prev) => !prev)
@@ -25,10 +27,15 @@ export function AppLayout() {
     setShortcutsModalOpen((prev) => !prev)
   }, [])
 
+  const toggleProfileModal = React.useCallback(() => {
+    setProfileModalOpen((prev) => !prev)
+  }, [])
+
   const { isMac } = useKeyboardShortcuts({
     onToggleCommandPalette: toggleCommandPalette,
     onToggleSidebar: toggleSidebar,
     onToggleShortcutsModal: toggleShortcutsModal,
+    onToggleProfileModal: toggleProfileModal,
   })
 
   return (
@@ -77,6 +84,7 @@ export function AppLayout() {
           isSidebarCollapsed={sidebarCollapsed}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onOpenShortcuts={() => setShortcutsModalOpen(true)}
+          onOpenProfile={() => setProfileModalOpen(true)}
           isMac={isMac}
         />
         <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
@@ -91,12 +99,20 @@ export function AppLayout() {
         isMac={isMac}
         onToggleSidebar={toggleSidebar}
         onOpenShortcuts={() => setShortcutsModalOpen(true)}
+        onOpenProfile={() => setProfileModalOpen(true)}
       />
 
       {/* Keyboard Shortcuts Cheat Sheet Modal (?) */}
       <KeyboardShortcutsModal
         open={shortcutsModalOpen}
         onOpenChange={setShortcutsModalOpen}
+        isMac={isMac}
+      />
+
+      {/* Profile & Settings Modal */}
+      <ProfileSettingsModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
         isMac={isMac}
       />
     </div>

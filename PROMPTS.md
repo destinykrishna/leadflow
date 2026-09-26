@@ -2648,6 +2648,192 @@ COMPLETED
    - Monorepo typecheck: **0 errors** across `client`, `server`, and `worker`.
    - Production bundle: clean Vite build in 569ms.
 
+## Phase 6 — Prompt 2: Client Document Center
+```
+Phase 6 — Prompt 2: Client Document Center
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing client portal, document APIs, upload components and realtime document status handling.
+
+Complete the client-facing document workflow using the existing backend:
+
+- Refine `/portal/documents` into a production-quality document center.
+- Support client upload with document type selection, file validation, upload/loading/success/failure states and clear re-upload actions for rejected documents.
+- Clearly present PENDING, PROCESSING, VERIFIED and REJECTED states using existing backend data.
+- Show rejection notes and actionable re-upload guidance when provided.
+- Ensure newly uploaded documents and processing-status changes refresh correctly through the existing TanStack Query/Socket.IO mechanisms.
+- Preserve CLIENT-only access, tenant isolation and safe document viewing.
+- Keep the experience simple, client-friendly and responsive on mobile.
+- Use Indian mortgage terminology and INR consistently.
+- Do not add backend endpoints, invent processing behavior, or expose internal implementation details.
+
+Testing:
+- Do NOT create or modify frontend tests.
+- Do not perform exhaustive browser testing.
+- Only run the existing test suite for regression detection.
+- Verify with typecheck and production build.
+
+Documentation:
+- Append the exact prompt and concise completion record to PROMPTS.md.
+- Do not rewrite, reformat, summarize, or inspect existing prompt history.
+- Update AGENTS.md and README.md with current state.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Production-Quality Client Document Center (`/portal/documents`)**:
+   - Refined `ClientDocumentsPage.tsx` into a dedicated borrower document center with comprehensive document lifecycle tracking.
+   - Built interactive 5-status metric filter buttons (`All Files`, `Verified & Approved`, `Under Review`, `Queued`, `Needs Action`) with live counter badges.
+   - Integrated instant client-side search to locate documents by file title, classification type, or verification notes.
+   - Added an Indian Home Loan Document Checklist featuring 4 essential loan verification pillars (PAN & Aadhaar KYC, 3-Month Salary Slips, 6-Month Bank Statement with salary credits, and Agreement to Sale / Property Documents) with 1-click quick upload buttons pre-selecting document types.
+   - Added verified live WebSocket sync indicator (`Live Sync Active`) reflecting real-time backend verification updates.
+
+2. **Upload & Re-upload Lifecycle**:
+   - Enhanced `UploadDocumentModal.tsx` to accept optional `initialType`, `initialTitle`, `initialNotes`, and `reuploadDoc` props.
+   - Added pre-populated re-upload flow: clicking "Re-upload Corrected Document" on any rejected card pre-selects the document classification, contextual title, and highlights previous verification feedback banner directly in the modal.
+   - Maintained client-friendly UI feedback: removed internal infrastructure terminology (e.g. BullMQ queue details) while preserving complete upload progress, loading states, validation error alerts, and success confirmations.
+   - Enforced client-side validation: 10MB file size limit, whitelisted MIME types and extensions (PDF, PNG, JPEG, WEBP, TIFF), and drag-and-drop file attachment.
+
+3. **Status Presentation & Actionable Rejection Guidance**:
+   - Clearly displayed all 4 backend document verification states (`PENDING`, `PROCESSING`, `VERIFIED`, `REJECTED`) with tailored icons, badges, and explanatory microcopy:
+     - `VERIFIED`: Emerald badge + checkmark, approval timestamp.
+     - `PROCESSING`: Blue badge + spinning indicator, "Verification review in progress".
+     - `PENDING`: Amber badge + clock icon, "Queued in verification pipeline".
+     - `REJECTED`: Rose badge + alert triangle, prominent resubmission alert card displaying `verificationNotes` / `failureReason`, actionable guidance for resolution (e.g. flat scan, uncropped borders, password removal), and 1-click re-upload action.
+   - Provided safe document viewing opening files in isolated tabs via `target="_blank" rel="noopener noreferrer"` without leaking server or storage credentials.
+
+4. **Testing & Verification**:
+   - Executed full client test suite: **106 passed across 13 test files** (`vitest`).
+   - Executed full backend test suite: **333 passed across 17 test files** (`vitest`).
+   - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
+   - Production bundle (`npm run build`): clean build, all Vite client assets generated.
+
+## Phase 7 — Prompt 1: UX Polish + Settings/Profile
+```
+Phase 7 — Prompt 1: UX Polish + Settings/Profile
+
+Read AGENTS.md, README.md and PROMPTS.md. Inspect the existing frontend and current advisor, admin and client portal experiences.
+
+Polish the existing product without adding major new features:
+
+- Audit the main authenticated flows for visual and UX inconsistencies.
+- Standardize terminology, labels, status messaging and INR/Indian mortgage terminology.
+- Remove remaining developer-facing/internal wording from user-visible UI.
+- Improve missing loading, empty, error and confirmation states where clearly needed.
+- Add/refine a useful Profile/Settings experience using existing authenticated user data and supported APIs only.
+- Ensure navigation, sidebar, header, command palette and responsive behavior remain consistent across staff and client areas.
+- Fix obvious mobile/responsive issues and accessibility problems encountered during inspection.
+- Preserve the existing LeadFlow visual language and architecture.
+- Do not invent backend capabilities or add endpoints unless absolutely required by an existing supported flow.
+- Do not refactor unrelated code.
+
+Testing:
+- Do NOT create or modify frontend tests.
+- Do not perform exhaustive browser testing.
+- Run the existing test suites only for regression detection.
+- Verify typecheck and production build.
+
+Documentation:
+- Append the exact prompt and concise completion record to PROMPTS.md.
+- Do not rewrite, reformat, summarize, or inspect existing prompt history.
+- Update AGENTS.md and README.md with the current state.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Interactive Profile & Settings Experience (`ProfileSettingsModal.tsx`)**:
+   - Engineered a comprehensive profile and settings modal accessible across all 4 user roles (`PLATFORM_ADMIN`, `BROKERAGE_ADMIN`, `ADVISOR`, `CLIENT`).
+   - Integrated with:
+     - `Header.tsx`: Avatar dropdown menu now includes `Profile & Settings` with `G U` shortcut hint.
+     - `CommandPalette.tsx`: `Account` category includes `Profile & Settings` (`G U`) with search keywords (`profile, settings, account, preferences, brokerage, security`).
+     - Global keyboard shortcut handler (`useKeyboardShortcuts.ts`): chord `G` then `U` immediately opens the modal from anywhere in the app.
+     - `KeyboardShortcutsModal.tsx`: Updated keyboard cheatsheet displaying `G U` shortcut.
+   - Structured across 4 dedicated tabs:
+     - **Identity & Profile**: Large avatar, user name, role badge with color coding, active account indicator, copyable User ID and email, plus linked mortgage case details for clients.
+     - **Organization & Brokerage**: Dynamically queries `GET /api/brokerages/:brokerageId` using existing React Query / API clients. Displays partner brokerage name, slug, plan tier (`GROWTH`, `STARTER`, `ENTERPRISE`), copyable Brokerage ID, and tenant isolation status banner ("Cryptographic Tenant Isolation Verified"). For Platform Admins, indicates global multi-tenant unrestricted scope.
+     - **Preferences & Localization**: Details base currency as `Indian Rupee (INR — ₹)`, numbering system (`Lakhs & Crores`), date presentation (`en-IN / DD MMM YYYY`), active Socket.IO WebSocket connectivity status, and keyboard shortcut tips.
+     - **Security & Roles**: Details short-lived 15m access token lifespan, 7-day RFC 6819 refresh rotation with SHA-256 session family tracking, anti-IDOR HTTP 404 concealment verification, role capabilities matrix, and clean sign-out action.
+
+2. **Standardized Terminology & Polish**:
+   - Standardized Indian mortgage terminology across client views:
+     - `DocumentsPage.tsx`: Subtitle refined to "Review borrower salary slips, ITR tax records, PAN/KYC proofs, and bank statements across all active files".
+     - `ConvertLeadModal.tsx`: Updated description to "Create an official client profile and borrower portal account".
+     - `ClientDetailView.tsx`: Updated profile type description to "Commercial, refinance, or specialized home loan financing file" and portal status to "Borrower client is credentialed for self-service document access".
+     - `ClientsPage.tsx`: Tooltip updated to "Borrower portal account linked".
+     - `LeadDetailView.tsx`: Updated section header to "Residence / Citizenship Status".
+     - `routes/index.tsx`: Cleaned routing section comments to "Client Portal features (Borrowers)".
+
+3. **Loading, Empty, Error & Layout Consistency**:
+   - `ClientAdvisorPage.tsx`: Added defensive `isError` handling with `ErrorState` and retry button if case retrieval fails.
+   - `LeadsPage.tsx`: Added Refresh button (`RotateCw`) next to the Kanban button to match `DashboardPage`, `DocumentsPage`, `ClientsPage`, and `TasksPage`.
+   - `TemplatesPage.tsx` & `TriggersPage.tsx`: Standardized outer layout container by removing redundant nested `p-6 max-w-7xl mx-auto` wrappers, aligning them with the unified layout geometry in `AppLayout`.
+
+4. **Testing & Verification**:
+   - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
+   - Full client test suite: **106 passed across 13 test files** (`vitest`).
+   - Full server test suite: **333 passed across 17 test files** (`vitest`).
+   - Production bundle: clean Vite build in 3.33s.
+
+## Phase 7 — Prompt 2: Final UX Cleanup
+```
+Phase 7 — Prompt 2: Final UX Cleanup
+
+Read AGENTS.md and README.md.
+
+Perform one focused final UX cleanup pass on the existing frontend.
+
+Only fix obvious user-facing issues that materially affect polish or usability:
+- inconsistent terminology or Indian mortgage wording;
+- clearly broken spacing/layout/responsive behavior;
+- missing obvious loading/error/empty states;
+- unnecessarily technical/internal wording visible to users;
+- obvious navigation or interaction inconsistencies.
+
+Do NOT add new features.
+Do NOT redesign existing screens.
+Do NOT perform a broad architectural review.
+Do NOT generate or modify frontend tests.
+Do NOT add backend functionality.
+
+Keep changes minimal and production-focused.
+
+Run existing tests for regression detection, typecheck and production build.
+
+Append the exact prompt and concise completion record to PROMPTS.md.
+Update AGENTS.md and README.md only if the current state changed.
+
+Stop after this focused cleanup pass.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Terminology & Placeholder Standardization**:
+   - Standardized Command Palette search keywords in `CommandPalette.tsx` for borrower loan cases, salary slips, PAN, Aadhaar, and KYC documents across staff and borrower navigation shortcuts.
+   - Refined authentication form placeholders in `LoginPage.tsx` to clean, production-grade domain standards (`advisor@brokerage.com` and `e.g. apex-home-finance`), while keeping live demo presets synchronized with the server seed database.
+
+2. **Layout Sizing & Geometric Consistency**:
+   - Standardized control heights in `PipelineHeader.tsx` from arbitrary `h-8.5` to standard Tailwind `h-9` across search input, source dropdown, loan threshold filter, sort dropdown, reset button, and refresh button.
+   - Standardized control height in `ConvertLeadModal.tsx` from arbitrary `h-8.5` to `h-9` for the optional portal password input.
+   - Standardized control height in `LeadDetailView.tsx` from arbitrary `h-8.5` to `h-9` on the primary stage advancement button.
+   - Standardized icon container dimensions in `KpiCard.tsx` from arbitrary `h-7.5 w-7.5` to standard `h-8 w-8`.
+
+3. **Regression Testing & Production Verification**:
+   - Monorepo TypeScript check (`npm run typecheck`): **0 errors** across `client`, `server`, and `worker`.
+   - Full client test suite (`npm test -- --run` in `client`): **106 passed across 13 test files** (`vitest`).
+   - Full server test suite (`npm test` in `server`): **333 passed across 17 test files** (`vitest`).
+   - Client production build (`npm run build` in `client`): clean Vite bundle generated with zero errors.
+
+
+
 
 
 

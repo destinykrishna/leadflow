@@ -13,11 +13,12 @@ import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useMyCase } from '@/features/clients/api/clients.api'
 import type { ClientAdvisorDetails } from '@/types/client.types'
 
 export function ClientAdvisorPage() {
-  const { data: client, isLoading } = useMyCase()
+  const { data: client, isLoading, isError, error, refetch } = useMyCase()
   const [copiedEmail, setCopiedEmail] = React.useState(false)
 
   const advisor: ClientAdvisorDetails | null = React.useMemo(() => {
@@ -44,6 +45,21 @@ export function ClientAdvisorPage() {
       <div className="space-y-6 animate-pulse">
         <Skeleton className="h-28 w-full rounded-2xl" />
         <Skeleton className="h-64 rounded-xl" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="py-12 max-w-4xl mx-auto">
+        <ErrorState
+          title="Unable to Load Advisor Details"
+          message={
+            (error as Error)?.message ||
+            'There was an unexpected error retrieving your assigned mortgage advisor. Please verify your connection and try again.'
+          }
+          onRetry={() => refetch()}
+        />
       </div>
     )
   }

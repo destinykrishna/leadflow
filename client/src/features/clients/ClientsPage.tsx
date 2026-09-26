@@ -299,7 +299,7 @@ export function ClientsPage() {
                                 {client.firstName} {client.lastName}
                               </span>
                               {hasPortalUser && (
-                                <span title="Expat portal account linked">
+                                <span title="Borrower portal account linked">
                                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
                                 </span>
                               )}
