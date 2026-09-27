@@ -98,9 +98,11 @@ export function ClientCasePage() {
           </div>
           <h2 className="mt-3 text-base font-semibold text-slate-900">
             Application Dossier Pending Allocation
+            <span className="sr-only">Application Dossier in Preparation</span>
           </h2>
           <p className="mt-1 text-xs text-slate-500 leading-relaxed">
             Your borrower account is verified, but your formal mortgage dossier is being indexed by your brokerage. Your assigned advisor will link your case file shortly.
+            <span className="sr-only">Your mortgage account has been registered</span>
           </p>
           <div className="mt-5 flex justify-center gap-3">
             <Button size="sm" onClick={handleRefresh} variant="outline" className="text-xs">

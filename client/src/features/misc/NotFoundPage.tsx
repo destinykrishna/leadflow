@@ -12,7 +12,7 @@ export function NotFoundPage() {
       </div>
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Page Not Found</h1>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The requested resource does not exist or you lack sufficient tenant authorization to view it.
+        The requested page does not exist or you do not have permission to view it.
       </p>
       <div className="mt-6">
         <Button variant="primary" size="md" onClick={() => navigate('/')} className="gap-2">

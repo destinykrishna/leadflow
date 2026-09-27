@@ -3,6 +3,7 @@ import { Mail, Phone, Check, Copy } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import type { Client, ClientAdvisorDetails } from '@/types/client.types'
+import { formatBrokerageName, formatUserEmail } from '@/lib/presentation'
 
 export interface PortalAdvisorCardProps {
   client: Client
@@ -20,10 +21,11 @@ export function PortalAdvisorCard({ client }: PortalAdvisorCardProps) {
     return null
   }, [client.assignedTo])
 
-  const brokerageName =
+  const brokerageName = formatBrokerageName(
     typeof client.brokerageId === 'object' && client.brokerageId !== null
-      ? client.brokerageId.name || 'LeadFlow Brokerage Partner'
-      : 'LeadFlow Brokerage Partner'
+      ? client.brokerageId.name
+      : undefined
+  )
 
   const handleCopyEmail = (email: string) => {
     navigator.clipboard.writeText(email)
@@ -67,7 +69,7 @@ export function PortalAdvisorCard({ client }: PortalAdvisorCardProps) {
                   className="flex items-center gap-2 text-slate-700 hover:text-primary truncate"
                 >
                   <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  <span className="truncate">{advisor.email}</span>
+                  <span className="truncate">{formatUserEmail(advisor.email)}</span>
                 </a>
                 <button
                   type="button"

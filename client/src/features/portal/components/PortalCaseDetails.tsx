@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/Card'
 import { formatDate } from '@/lib/format'
 import type { Client } from '@/types/client.types'
+import { formatUserEmail, sanitizeIndianMortgageText } from '@/lib/presentation'
 
 export interface PortalCaseDetailsProps {
   client: Client
@@ -43,7 +44,7 @@ export function PortalCaseDetails({ client }: PortalCaseDetailsProps) {
             Registered Email
           </span>
           <span className="font-medium text-slate-900 truncate">
-            {client.email}
+            {formatUserEmail(client.email)}
           </span>
         </div>
 
@@ -70,7 +71,7 @@ export function PortalCaseDetails({ client }: PortalCaseDetailsProps) {
             Correspondence Address
           </span>
           <span className="font-medium text-slate-900 text-right sm:max-w-xs">
-            {formattedAddress || 'Pending verification'}
+            {sanitizeIndianMortgageText(formattedAddress) || 'Pending verification'}
           </span>
         </div>
       </div>

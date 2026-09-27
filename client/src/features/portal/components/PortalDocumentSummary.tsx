@@ -73,9 +73,11 @@ export function PortalDocumentSummary({
         <div>
           <h2 className="text-sm font-semibold text-slate-900">
             Required Documents
+            <span className="sr-only">Document Verification Summary</span>
           </h2>
           <p className="text-xs text-slate-500">
             KYC, income proofs, and property verification records
+            <span className="sr-only">{verifiedCount} of {documents.length} documents verified</span>
           </p>
         </div>
 

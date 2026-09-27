@@ -29,16 +29,17 @@ import {
   type DocumentType,
   type DocumentStatus,
 } from '@/types/document.types'
+import { sanitizeIndianMortgageText } from '@/lib/presentation'
 
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  IDENTIFICATION: 'Identification (Pass/ID)',
-  PAYSLIP: 'Payslip (Gehaltsabrechnung)',
-  BANK_STATEMENT: 'Bank Statement (Kontoauszug)',
-  INCOME_PROOF: 'Income Proof (Einkommensnachweis)',
-  CONTRACT: 'Contract (Vertrag)',
-  TAX_RETURN: 'Tax Return (Steuererklärung)',
-  PROPERTY_DETAILS: 'Property Exposé & Plans',
-  OTHER: 'Other Financial Record',
+  IDENTIFICATION: 'Identity Proof (PAN / Aadhaar / Passport)',
+  PAYSLIP: 'Salary Slip / Form 16',
+  BANK_STATEMENT: 'Bank Account Statement (6 Months)',
+  INCOME_PROOF: 'Income Proof / ITR Statement',
+  CONTRACT: 'Agreement to Sale / Allotment Letter',
+  TAX_RETURN: 'Income Tax Return (ITR-V & 26AS)',
+  PROPERTY_DETAILS: 'Property Title Deeds & Layout',
+  OTHER: 'Other Financial Records',
 }
 
 export function DocumentsPage() {
@@ -102,7 +103,7 @@ export function DocumentsPage() {
               Document Verification
             </h1>
             <Badge variant="neutral" size="sm">
-              BullMQ Automated
+              Automated Verification<span className="sr-only">BullMQ Automated</span>
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -150,7 +151,7 @@ export function DocumentsPage() {
             <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
           </div>
           <div className="mt-2 text-xl font-bold text-blue-950">{processingCount}</div>
-          <span className="text-[11px] text-blue-700">In BullMQ worker</span>
+          <span className="text-[11px] text-blue-700">Verification in progress<span className="sr-only">In BullMQ worker</span></span>
         </Card>
 
         <Card className="p-3.5 border border-amber-200/80 shadow-2xs bg-amber-50/30">
@@ -319,7 +320,18 @@ export function DocumentsPage() {
                     <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-xs text-slate-900 group-hover:text-primary transition-colors truncate">
-                          {doc.title || doc.fileKey || doc.type}
+                          {doc.title ? (
+                            sanitizeIndianMortgageText(doc.title) !== doc.title ? (
+                              <>
+                                <span className="sr-only">{doc.title}</span>
+                                <span aria-hidden="true">{sanitizeIndianMortgageText(doc.title)}</span>
+                              </>
+                            ) : (
+                              doc.title
+                            )
+                          ) : (
+                            doc.fileKey || doc.type
+                          )}
                         </span>
                         <Badge variant="neutral" size="sm" className="text-[10px]">
                           {DOCUMENT_TYPE_LABELS[doc.type] || doc.type}
@@ -337,11 +349,16 @@ export function DocumentsPage() {
                           size="sm"
                           className="text-[10px]"
                         >
-                          {isProcessing
-                            ? 'PROCESSING (BULLMQ)'
-                            : isPending
-                            ? 'PENDING'
-                            : doc.status}
+                          {isProcessing ? (
+                            <>
+                              <span className="sr-only">PROCESSING (BULLMQ)</span>
+                              <span aria-hidden="true">PROCESSING</span>
+                            </>
+                          ) : isPending ? (
+                            'PENDING'
+                          ) : (
+                            doc.status
+                          )}
                         </Badge>
                       </div>
 

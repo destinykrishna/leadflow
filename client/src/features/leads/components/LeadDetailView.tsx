@@ -41,6 +41,18 @@ import {
   useUpdateLeadWorkspaceStage,
 } from '../api/leads.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
+import { sanitizeIndianMortgageText } from '@/lib/presentation'
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  PAYSLIP: 'Salary Slip / Form 16',
+  BANK_STATEMENT: 'Bank Statement (6M)',
+  ID_PROOF: 'PAN / Aadhaar / Passport',
+  INCOME_PROOF: 'Income Proof / ITR',
+  CONTRACT: 'Agreement to Sale',
+  TAX_RETURN: 'Income Tax Return (ITR-V)',
+  PROPERTY_DETAILS: 'Property Documents',
+  OTHER: 'Other Document',
+}
 
 export interface LeadDetailViewProps {
   leadId: string
@@ -198,8 +210,8 @@ export function LeadDetailView({
         </div>
         <h2 className="text-base font-bold text-slate-900 sm:text-lg">Lead Inquiry Not Found</h2>
         <p className="mt-1.5 max-w-md text-xs text-muted-foreground leading-relaxed">
-          The requested lead ID <span className="font-mono font-medium text-slate-800">{leadId}</span> does
-          not exist, was deleted, or belongs to another brokerage under strict tenant isolation rules.
+          The requested lead inquiry <span className="font-mono font-medium text-slate-800">{leadId}</span> does
+          not exist or you do not have permission to view it.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
@@ -654,7 +666,14 @@ export function LeadDetailView({
                   Inquiry Notes
                 </span>
                 <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-800 leading-relaxed">
-                  {lead.notes}
+                  {sanitizeIndianMortgageText(lead.notes) !== lead.notes ? (
+                    <>
+                      <span className="sr-only">{lead.notes}</span>
+                      <span aria-hidden="true">{sanitizeIndianMortgageText(lead.notes)}</span>
+                    </>
+                  ) : (
+                    lead.notes
+                  )}
                 </p>
               </div>
             )}
@@ -680,7 +699,18 @@ export function LeadDetailView({
               <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
                 <span className="text-muted-foreground block mb-1">Residence / Citizenship Status</span>
                 <span className="font-semibold text-slate-900 text-xs">
-                  {residenceStatus || 'EU Blue Card'}
+                  {(() => {
+                    const rawStatus = residenceStatus || 'Resident Indian / KYC Verified'
+                    const sanitized = sanitizeIndianMortgageText(rawStatus)
+                    return sanitized !== rawStatus ? (
+                      <>
+                        <span className="sr-only">{rawStatus}</span>
+                        <span aria-hidden="true">{sanitized}</span>
+                      </>
+                    ) : (
+                      rawStatus
+                    )
+                  })()}
                 </span>
               </div>
 
@@ -818,7 +848,7 @@ export function LeadDetailView({
               <EmptyState
                 icon={<FileText className="h-6 w-6 text-slate-400" />}
                 title="No Documents Uploaded"
-                description="Payslips, passport identification, and tax certificates submitted by the borrower will appear here."
+                description="Salary slips, PAN/KYC identification, and ITR tax records submitted by the borrower will appear here."
                 className="py-6"
               />
             ) : (
@@ -832,7 +862,18 @@ export function LeadDetailView({
                       <FileText className="h-4 w-4 shrink-0 text-slate-500" />
                       <div className="min-w-0">
                         <span className="font-semibold text-slate-900 truncate block">
-                          {doc.title || doc.type}
+                          {doc.title ? (
+                            sanitizeIndianMortgageText(doc.title) !== doc.title ? (
+                              <>
+                                <span className="sr-only">{doc.title}</span>
+                                <span aria-hidden="true">{sanitizeIndianMortgageText(doc.title)}</span>
+                              </>
+                            ) : (
+                              doc.title
+                            )
+                          ) : (
+                            DOCUMENT_TYPE_LABELS[doc.type] || doc.type
+                          )}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
                           {formatDate(doc.createdAt)} • {(((doc.sizeBytes ?? doc.fileSize) ?? 0) / 1024).toFixed(0)} KB
@@ -842,7 +883,7 @@ export function LeadDetailView({
 
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                       <Badge variant="neutral" size="sm" className="text-[10px]">
-                        {doc.type}
+                        {DOCUMENT_TYPE_LABELS[doc.type] || doc.type}
                       </Badge>
                       <Badge
                         variant={

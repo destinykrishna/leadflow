@@ -30,6 +30,7 @@ import { useMyCase, useClientDocuments } from '@/features/clients/api/clients.ap
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
 import { UploadDocumentModal } from '@/features/clients/components/UploadDocumentModal'
 import type { DocumentItem, DocumentStatus, DocumentType } from '@/types/document.types'
+import { sanitizeIndianMortgageText } from '@/lib/presentation'
 
 const STATUS_CONFIG: Record<
   DocumentStatus,
@@ -699,7 +700,7 @@ export function ClientDocumentsPage() {
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-slate-900 truncate">
-                            {doc.title || meta.label}
+                            {sanitizeIndianMortgageText(doc.title) || meta.label}
                           </h3>
                           <Badge variant="neutral" size="sm" className="text-[11px] py-0 font-normal">
                             {meta.label}
@@ -745,9 +746,11 @@ export function ClientDocumentsPage() {
                                   Verification Issue Detected:
                                 </span>
                                 <p className="text-rose-800 leading-relaxed">
-                                  {doc.verificationNotes ||
-                                    doc.failureReason ||
-                                    'Automated checks could not verify the authenticity or clarity of this document.'}
+                                  {sanitizeIndianMortgageText(
+                                    doc.verificationNotes ||
+                                      doc.failureReason ||
+                                      'Automated checks could not verify the authenticity or clarity of this document.'
+                                  )}
                                 </p>
                                 <p className="text-[11px] text-rose-600 italic">
                                   Guidance: Please ensure the document is flat, all four corners are visible, text is crisp and legible, and the file is not password-protected.

@@ -90,7 +90,7 @@ export function CommandPalette({
           category: 'Navigation',
           icon: Building2,
           shortcut: ['G', 'B'],
-          keywords: 'tenants brokerages accounts partners firms',
+          keywords: 'brokerages firms agencies accounts partners',
           action: () => nav('/admin/brokerages'),
         },
         {
@@ -120,7 +120,7 @@ export function CommandPalette({
           category: 'Navigation',
           icon: Home,
           shortcut: ['G', 'C'],
-          keywords: 'mortgage loan application status progress borrower case expat',
+          keywords: 'mortgage loan application status progress borrower case applicant nri home loan',
           action: () => nav('/portal/case'),
         },
         {

@@ -50,6 +50,7 @@ export function AppLayout() {
         <Sidebar
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebar}
+          onOpenProfile={toggleProfileModal}
           isMac={isMac}
         />
       </div>
@@ -65,6 +66,7 @@ export function AppLayout() {
           <div className="relative flex w-64 flex-1 flex-col bg-card shadow-xl animate-in slide-in-from-left duration-200">
             <Sidebar
               onCloseMobile={() => setMobileOpen(false)}
+              onOpenProfile={toggleProfileModal}
               isMac={isMac}
             />
           </div>

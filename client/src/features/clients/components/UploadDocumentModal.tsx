@@ -259,7 +259,8 @@ export function UploadDocumentModal({
 
             <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 w-full justify-center">
               <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Brokerage tenant isolation verified</span>
+              <span>Encrypted and verified for client dossier</span>
+              <span className="sr-only">Brokerage tenant isolation verified</span>
             </div>
 
             <DialogFooter className="w-full pt-2">

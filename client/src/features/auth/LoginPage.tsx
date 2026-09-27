@@ -15,27 +15,48 @@ interface DemoPreset {
   brokerageSlug?: string
 }
 
+// Credentials mapper: allows presentation using Indian institutional terminology
+// while seamlessly fulfilling backend authentication against MongoDB seed accounts.
+const CREDENTIAL_ALIASES: Record<string, { email: string; brokerageSlug?: string }> = {
+  'admin@apexfinance.in': {
+    email: 'klaus.mueller@berlin-mortgages.de',
+    brokerageSlug: 'berlin-expat-mortgages',
+  },
+  'advisor@apexfinance.in': {
+    email: 'elena.schmidt@berlin-mortgages.de',
+    brokerageSlug: 'berlin-expat-mortgages',
+  },
+  'borrower@apexfinance.in': {
+    email: 'alex.expat@gmail.com',
+    brokerageSlug: 'berlin-expat-mortgages',
+  },
+  'apex-home-finance': {
+    email: '',
+    brokerageSlug: 'berlin-expat-mortgages',
+  },
+}
+
 const DEMO_PRESETS: DemoPreset[] = [
   {
     role: 'BROKERAGE_ADMIN',
     label: 'Brokerage Admin',
-    email: 'klaus.mueller@berlin-mortgages.de',
+    email: 'admin@apexfinance.in',
     password: 'Password123!',
-    brokerageSlug: 'berlin-expat-mortgages',
+    brokerageSlug: 'apex-home-finance',
   },
   {
     role: 'ADVISOR',
-    label: 'Mortgage Advisor',
-    email: 'elena.schmidt@berlin-mortgages.de',
+    label: 'Loan Advisor',
+    email: 'advisor@apexfinance.in',
     password: 'Password123!',
-    brokerageSlug: 'berlin-expat-mortgages',
+    brokerageSlug: 'apex-home-finance',
   },
   {
     role: 'CLIENT',
-    label: 'Client Portal',
-    email: 'alex.expat@gmail.com',
+    label: 'Borrower Portal',
+    email: 'borrower@apexfinance.in',
     password: 'Password123!',
-    brokerageSlug: 'berlin-expat-mortgages',
+    brokerageSlug: 'apex-home-finance',
   },
   {
     role: 'PLATFORM_ADMIN',
@@ -50,9 +71,9 @@ export function LoginPage() {
   const location = useLocation()
   const { login, isAuthenticated, user } = useAuth()
 
-  const [email, setEmail] = React.useState('klaus.mueller@berlin-mortgages.de')
+  const [email, setEmail] = React.useState('admin@apexfinance.in')
   const [password, setPassword] = React.useState('Password123!')
-  const [brokerageSlug, setBrokerageSlug] = React.useState('berlin-expat-mortgages')
+  const [brokerageSlug, setBrokerageSlug] = React.useState('apex-home-finance')
   const [isLoading, setIsLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [activePreset, setActivePreset] = React.useState<UserRole>('BROKERAGE_ADMIN')
@@ -87,12 +108,26 @@ export function LoginPage() {
     setIsLoading(true)
 
     try {
+      let resolvedEmail = email.trim()
+      let resolvedSlug = brokerageSlug.trim().toLowerCase().replace(/\s+/g, '-')
+
+      if (CREDENTIAL_ALIASES[resolvedEmail]) {
+        if (CREDENTIAL_ALIASES[resolvedEmail].brokerageSlug && !resolvedSlug) {
+          resolvedSlug = CREDENTIAL_ALIASES[resolvedEmail].brokerageSlug!
+        }
+        resolvedEmail = CREDENTIAL_ALIASES[resolvedEmail].email
+      }
+
+      if (resolvedSlug === 'apex-home-finance') {
+        resolvedSlug = 'berlin-expat-mortgages'
+      }
+
       const payload: LoginCredentials = {
-        email: email.trim(),
+        email: resolvedEmail,
         password,
       }
-      if (brokerageSlug.trim()) {
-        payload.brokerageSlug = brokerageSlug.trim().toLowerCase().replace(/\s+/g, '-')
+      if (resolvedSlug) {
+        payload.brokerageSlug = resolvedSlug
       }
 
       const authenticatedUser = await login(payload)

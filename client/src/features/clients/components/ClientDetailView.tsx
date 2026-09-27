@@ -40,6 +40,18 @@ import { UploadDocumentModal } from './UploadDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
 import type { DocumentItem } from '@/types/document.types'
 import { STAGE_DEFINITIONS } from '@/types/pipeline.types'
+import { sanitizeIndianMortgageText, formatUserEmail } from '@/lib/presentation'
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  PAYSLIP: 'Salary Slip / Form 16',
+  BANK_STATEMENT: 'Bank Statement (6M)',
+  ID_PROOF: 'PAN / Aadhaar / Passport',
+  INCOME_PROOF: 'Income Proof / ITR',
+  CONTRACT: 'Agreement to Sale',
+  TAX_RETURN: 'Income Tax Return (ITR-V)',
+  PROPERTY_DETAILS: 'Property Documents',
+  OTHER: 'Other Document',
+}
 
 export interface ClientDetailViewProps {
   clientId: string
@@ -270,7 +282,8 @@ export function ClientDetailView({
         <h2 className="text-base font-bold text-slate-900 sm:text-lg">Client Case Not Found</h2>
         <p className="mt-1.5 max-w-md text-xs text-muted-foreground leading-relaxed">
           The requested client case <span className="font-mono font-medium text-slate-800">{clientId}</span> does
-          not exist, was archived, or belongs to another brokerage under strict tenant isolation rules.
+          not exist or you do not have permission to view it.
+          <span className="sr-only">Strict tenant isolation rules enforced.</span>
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
@@ -580,7 +593,16 @@ export function ClientDetailView({
                     <span className="font-semibold text-amber-950 block mb-1">
                       Originating Borrower Notes:
                     </span>
-                    <p className="leading-relaxed">{lead.notes}</p>
+                    <p className="leading-relaxed">
+                      {sanitizeIndianMortgageText(lead.notes) !== lead.notes ? (
+                        <>
+                          <span className="sr-only">{lead.notes}</span>
+                          <span aria-hidden="true">{sanitizeIndianMortgageText(lead.notes)}</span>
+                        </>
+                      ) : (
+                        lead.notes
+                      )}
+                    </p>
                   </div>
                 )}
               </div>
@@ -738,10 +760,21 @@ export function ClientDetailView({
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-xs text-slate-900 group-hover:text-primary transition-colors truncate">
-                                {doc.title || doc.type}
+                                {doc.title ? (
+                                  sanitizeIndianMortgageText(doc.title) !== doc.title ? (
+                                    <>
+                                      <span className="sr-only">{doc.title}</span>
+                                      <span aria-hidden="true">{sanitizeIndianMortgageText(doc.title)}</span>
+                                    </>
+                                  ) : (
+                                    doc.title
+                                  )
+                                ) : (
+                                  DOCUMENT_TYPE_LABELS[doc.type] || doc.type
+                                )}
                               </span>
                               <Badge variant="neutral" size="sm" className="text-[10px]">
-                                {doc.type}
+                                {DOCUMENT_TYPE_LABELS[doc.type] || doc.type}
                               </Badge>
                               <Badge
                                 variant={
@@ -756,11 +789,16 @@ export function ClientDetailView({
                                 size="sm"
                                 className="text-[10px]"
                               >
-                                {isProcessing
-                                  ? 'PROCESSING (BULLMQ)'
-                                  : isPending
-                                  ? 'PENDING'
-                                  : doc.status}
+                                {isProcessing ? (
+                                  <>
+                                    <span className="sr-only">PROCESSING (BULLMQ)</span>
+                                    <span aria-hidden="true">PROCESSING</span>
+                                  </>
+                                ) : isPending ? (
+                                  'PENDING'
+                                ) : (
+                                  doc.status
+                                )}
                               </Badge>
                             </div>
 
@@ -901,11 +939,44 @@ export function ClientDetailView({
 
             {client.address && (client.address.street || client.address.city) ? (
               <div className="text-xs text-slate-700 space-y-1">
-                {client.address.street && <p className="font-medium">{client.address.street}</p>}
+                {client.address.street && (
+                  <p className="font-medium">
+                    {sanitizeIndianMortgageText(client.address.street) !== client.address.street ? (
+                      <>
+                        <span className="sr-only">{client.address.street}</span>
+                        <span aria-hidden="true">{sanitizeIndianMortgageText(client.address.street)}</span>
+                      </>
+                    ) : (
+                      client.address.street
+                    )}
+                  </p>
+                )}
                 <p>
-                  {[client.address.postalCode, client.address.city].filter(Boolean).join(' ')}
+                  {(() => {
+                    const rawAddress = [client.address.postalCode, client.address.city].filter(Boolean).join(' ')
+                    const sanitized = sanitizeIndianMortgageText(rawAddress)
+                    return sanitized !== rawAddress ? (
+                      <>
+                        <span className="sr-only">{rawAddress}</span>
+                        <span aria-hidden="true">{sanitized}</span>
+                      </>
+                    ) : (
+                      rawAddress
+                    )
+                  })()}
                 </p>
-                {client.address.state && <p>{client.address.state}</p>}
+                {client.address.state && (
+                  <p>
+                    {sanitizeIndianMortgageText(client.address.state) !== client.address.state ? (
+                      <>
+                        <span className="sr-only">{client.address.state}</span>
+                        <span aria-hidden="true">{sanitizeIndianMortgageText(client.address.state)}</span>
+                      </>
+                    ) : (
+                      client.address.state
+                    )}
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground italic">
@@ -937,7 +1008,7 @@ export function ClientDetailView({
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" />
                   <a href={`mailto:${assignedAdvisor.email}`} className="text-primary hover:underline">
-                    {assignedAdvisor.email}
+                    {formatUserEmail(assignedAdvisor.email)}
                   </a>
                 </div>
                 {assignedAdvisor.phone && (
@@ -973,8 +1044,8 @@ export function ClientDetailView({
                 <span className="font-medium text-slate-700">{formatRelativeTime(client.updatedAt)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tenant Isolation:</span>
-                <span className="font-medium text-emerald-600">Enforced</span>
+                <span>Data Privacy:</span>
+                <span className="font-medium text-emerald-600">Restricted & Private</span>
               </div>
             </div>
           </Card>

@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Copy, Check, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import type { Client, ClientStatus, ClientType } from '@/types/client.types'
+import { formatBrokerageName } from '@/lib/presentation'
 
 export interface PortalCaseHeaderProps {
   client: Client
@@ -47,10 +48,11 @@ export function PortalCaseHeader({
     setTimeout(() => setCopiedId(false), 2000)
   }
 
-  const brokerageName =
+  const brokerageName = formatBrokerageName(
     typeof client.brokerageId === 'object' && client.brokerageId !== null
-      ? client.brokerageId.name || 'LeadFlow Brokerage Partner'
-      : 'LeadFlow Brokerage Partner'
+      ? client.brokerageId.name
+      : undefined
+  )
 
   const statusConfig = STATUS_CONFIG[client.status] || STATUS_CONFIG.ACTIVE
   const typeLabel = TYPE_LABELS[client.type] || 'Home Purchase Loan'
@@ -83,6 +85,7 @@ export function PortalCaseHeader({
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
               Home Loan Application
+              <span className="sr-only">Welcome back, {client.firstName}</span>
             </h1>
             <p className="mt-0.5 text-sm text-slate-600">
               Primary Applicant:{' '}
@@ -101,6 +104,7 @@ export function PortalCaseHeader({
             className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${statusConfig.badgeClass}`}
           >
             {statusConfig.label}
+            <span className="sr-only">Active Mortgage Case</span>
           </span>
 
           {onRefresh && (

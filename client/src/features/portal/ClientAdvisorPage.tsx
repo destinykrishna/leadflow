@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useMyCase } from '@/features/clients/api/clients.api'
 import type { ClientAdvisorDetails } from '@/types/client.types'
+import { formatBrokerageName, formatUserEmail } from '@/lib/presentation'
 
 export function ClientAdvisorPage() {
   const { data: client, isLoading, isError, error, refetch } = useMyCase()
@@ -27,10 +28,11 @@ export function ClientAdvisorPage() {
     return null
   }, [client?.assignedTo])
 
-  const brokerageName =
+  const brokerageName = formatBrokerageName(
     typeof client?.brokerageId === 'object' && client.brokerageId !== null
-      ? client.brokerageId.name || 'LeadFlow Brokerage Partner'
-      : 'LeadFlow Brokerage Partner'
+      ? client.brokerageId.name
+      : undefined
+  )
 
   const handleCopyEmail = (email: string) => {
     navigator.clipboard.writeText(email)
@@ -123,7 +125,7 @@ export function ClientAdvisorPage() {
                     Direct Email
                   </span>
                   <span className="font-medium text-slate-900 truncate block">
-                    {advisor.email}
+                    {formatUserEmail(advisor.email)}
                   </span>
                 </div>
               </div>
