@@ -8,6 +8,7 @@ declare global {
   namespace Express {
     interface Request {
       webhookBrokerage?: IBrokerageDocument;
+      rawBody?: Buffer;
     }
   }
 }
@@ -29,6 +30,7 @@ function safeCompare(a: string, b: string): boolean {
 
 /**
  * Verifies webhook secret or HMAC signature for incoming lead webhook requests.
+ * Supports standard SHA256 hex signatures and Typeform base64-encoded signatures.
  * Prevents brokerage-ID enumeration and status disclosure to unauthenticated callers.
  */
 export async function verifyWebhookAuth(
@@ -37,8 +39,10 @@ export async function verifyWebhookAuth(
   next: NextFunction
 ): Promise<void> {
   try {
-    // 1. Extract credentials from headers first
+    // 1. Extract credentials from headers first (supports standard & Typeform headers)
     const rawSignature =
+      (req.headers['typeform-signature'] as string | undefined) ||
+      (req.headers['x-typeform-signature'] as string | undefined) ||
       (req.headers['x-signature-sha256'] as string | undefined) ||
       (req.headers['x-hub-signature-256'] as string | undefined);
 
@@ -73,16 +77,28 @@ export async function verifyWebhookAuth(
 
     // 5. Verify HMAC-SHA256 signature if provided
     if (rawSignature) {
-      const providedHex = rawSignature.replace(/^sha256=/, '').trim();
-      const payloadString =
-        typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
+      const providedSignature = rawSignature.replace(/^sha256=/, '').trim();
+      const rawBuffer =
+        req.rawBody ??
+        (typeof req.body === 'string'
+          ? Buffer.from(req.body, 'utf8')
+          : Buffer.from(JSON.stringify(req.body ?? {}), 'utf8'));
 
+      // Check standard Hex digest (used by generic webhooks)
       const computedHex = crypto
         .createHmac('sha256', brokerageSecret)
-        .update(payloadString, 'utf8')
+        .update(rawBuffer)
         .digest('hex');
 
-      isAuthenticated = safeCompare(providedHex, computedHex);
+      // Check Base64 digest (used by Typeform-Signature)
+      const computedBase64 = crypto
+        .createHmac('sha256', brokerageSecret)
+        .update(rawBuffer)
+        .digest('base64');
+
+      isAuthenticated =
+        safeCompare(providedSignature, computedHex) ||
+        safeCompare(providedSignature, computedBase64);
     } else if (providedSecret) {
       // 6. Verify shared webhook secret
       isAuthenticated = safeCompare(providedSecret.trim(), brokerageSecret);

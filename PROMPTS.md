@@ -3461,3 +3461,188 @@ COMPLETED
    - Vitest: 106 passed across 13 test files.
    - TypeScript: 0 errors across server, worker, and client (`tsc -b`).
    - Production Build: Clean Vite bundle generated in 1.19s.
+
+## Google Forms + Google Apps Script External Lead Source Integration
+```
+Replace the planned external lead source from Typeform with Google Forms + Google Apps Script.
+
+Read:
+- AGENTS.md
+- README.md
+- PROMPTS.md
+- assignment.md
+- existing lead ingestion implementation
+- docs/TYPEFORM_SETUP_RUNBOOK.md if it exists
+- relevant lead webhook routes/controllers/services/validation
+- existing environment configuration and `.env.example` files
+
+We have decided to use Google Forms as the real external lead source for the LeadFlow demo.
+
+IMPORTANT:
+Do NOT redesign or rewrite the lead ingestion architecture.
+
+The existing LeadFlow webhook endpoint and ingestion pipeline should remain the source of truth. Google Apps Script should simply transform the Google Form submission into the payload expected by the existing LeadFlow webhook.
+
+Tasks:
+
+1. Replace Typeform references in the relevant documentation with:
+   Google Forms → Google Apps Script → LeadFlow webhook → Lead pipeline.
+
+2. Rename/remove `docs/TYPEFORM_SETUP_RUNBOOK.md` and create:
+   `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md`
+
+3. Document the complete real-world setup:
+   - Create a Google Form named "Home Loan Enquiry".
+   - Add the exact fields required by the existing LeadFlow ingestion contract.
+   - Configure the Google Form submit trigger.
+   - Configure Apps Script to receive the form submission event.
+   - Transform the submitted answers into the existing LeadFlow webhook payload.
+   - Send the HTTP POST to the existing LeadFlow webhook endpoint.
+   - Send the existing webhook authentication header/secret.
+   - Verify the lead appears in the LeadFlow pipeline.
+   - Test duplicate/known-lead behavior.
+
+4. Inspect the actual LeadFlow code and document the exact webhook URL pattern, authentication mechanism, expected payload and field mapping. Do not invent anything.
+
+5. Provide the exact Google Apps Script required for the integration.
+
+6. Clearly separate:
+   GOOGLE FORMS CONFIGURATION
+   GOOGLE APPS SCRIPT CONFIGURATION
+   LEADFLOW CONFIGURATION
+   END-TO-END TEST
+
+7. ENVIRONMENT CONFIGURATION:
+   - Inspect the existing `.env`, `.env.example` and environment configuration used by the lead-ingestion implementation.
+   - Identify the actual environment variables required for the webhook URL/base URL and webhook authentication.
+   - Do NOT hardcode the example ngrok URL or example webhook secret from this prompt.
+   - Use the actual current environment/deployment values where appropriate.
+   - If the local development environment currently uses an ngrok/public HTTPS URL, update the appropriate local `.env` variable with the current configured value rather than embedding the URL directly in application code.
+   - If a webhook secret already exists, preserve it rather than generating a new incompatible secret.
+   - Never expose secrets in README.md, documentation, Git history, frontend code, or committed source files.
+   - Ensure `.env` remains gitignored.
+   - Update `.env.example` only with safe placeholder values if necessary.
+   - If the required environment value cannot be determined safely from the existing configuration, stop and report exactly what is missing instead of inventing a value.
+
+8. Provide the exact Google Apps Script required for the integration, but make the webhook URL and secret clearly configurable rather than permanently hardcoded into the script.
+
+9. Include troubleshooting for:
+   - unauthorized webhook
+   - invalid payload
+   - missing required lead data
+   - duplicate lead
+   - known client detection
+   - webhook request failure
+   - lead not appearing in pipeline
+
+10. Update README.md and AGENTS.md where necessary so Google Forms is now the documented external lead source.
+
+11. Search the project for Typeform references. Remove outdated user-facing/documentation references where appropriate.
+
+12. Do NOT modify backend/frontend behavior unless the existing webhook contract makes Google Forms integration impossible. If a code change is genuinely required, stop and report exactly what is missing instead of redesigning the ingestion system.
+
+13. Do not create tests.
+14. Do not add unnecessary dependencies.
+15. Do not expose real secrets.
+16. Use Indian mortgage terminology and INR examples.
+17. Do not use German/European/expat terminology.
+
+Run typecheck/build only if code was changed.
+
+Update PROMPTS.md with this exact prompt and completion status.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Preserved Lead Ingestion Architecture**:
+   - Left all existing LeadFlow webhook routes (`POST /api/leads/webhook/:brokerageId`), anti-enumeration authentication middleware (`verifyWebhookAuth`), tenant rate limiter (`brokerageIngestionLimiter`), and standard lead schema validation (`standardLeadPayloadSchema`) 100% intact with zero architectural redesign.
+2. **Authored Comprehensive Runbook (`docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md`)**:
+   - Removed obsolete `docs/TYPEFORM_SETUP_RUNBOOK.md` and created `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md`.
+   - Structured with dedicated, clear sections:
+     - `GOOGLE FORMS CONFIGURATION`: Question definitions matching `standardLeadPayloadSchema` (Full Name, Email Address, Phone Number, Target Home Loan Amount, Estimated Property Value, Gross Monthly Income, Property City, Employment Type).
+     - `GOOGLE APPS SCRIPT CONFIGURATION`: Production-ready Apps Script with `onFormSubmit(e)` event handling, rupee parsing, full name splitting, lead quality score calculation (0-100), standard JSON construction, configurable Script Properties (`PropertiesService.getScriptProperties()`), and automated trigger setup.
+     - `LEADFLOW CONFIGURATION & ENVIRONMENT VARIABLES`: Environment setup with `.env` / `.env.example` guidance (`WEBHOOK_BASE_URL`), tenant isolation via `:brokerageId`, and constant-time secret validation (`x-webhook-secret`).
+     - `END-TO-END TEST`: Step-by-step verification instructions using realistic Indian borrower figures (Priya Venkataraman, ₹50 Lakh loan, ₹65 Lakh property in Bengaluru), Apps Script execution logging, Kanban board real-time appearance, duplicate idempotent absorption (`HTTP 200`), and known client detection.
+     - `TROUBLESHOOTING`: Detailed diagnosis for 401 unauthorized, 400 validation error, network/SSL failures, duplicate leads, and pipeline filtering issues.
+3. **Environment & Security Hygiene**:
+   - Preserved active running ngrok URL in local gitignored `.env` (`WEBHOOK_BASE_URL`).
+   - Updated `.env.example` with safe placeholder (`WEBHOOK_BASE_URL=https://your-public-tunnel-or-domain.ngrok-free.dev`).
+   - Updated `server/src/config/env.ts` to parse `WEBHOOK_BASE_URL` safely if present.
+   - Zero secrets exposed in git, documentation, or codebase.
+4. **Documentation Synchronization**:
+   - Updated `README.md` and `AGENTS.md` to reference Google Forms + Google Apps Script as the official lead source and `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md`.
+   - Updated `USER_MANUAL.md` and `MANUAL_QA_TEST_PLAN.md` removing outdated references.
+5. **Quality & Build Verification**:
+   - Monorepo TypeScript check (`npm run typecheck`): 0 errors across `server` and `client`.
+   - Client production build (`npm run build`): clean bundle generated without errors.
+
+## Google Forms Integration — Finalize Apps Script Configuration
+```
+Google Forms Integration — Finalize Apps Script Configuration
+
+Read AGENTS.md, README.md, PROMPTS.md and the completed:
+`docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md`
+
+We are now configuring the actual Google Forms → LeadFlow integration.
+
+Do not change the backend architecture.
+
+Make these corrections/confirmations in the runbook and implementation guidance:
+
+1. The LeadFlow `source` field must remain `WEBSITE` because that is the currently supported backend enum. Do not change it to `GOOGLE_FORMS`.
+
+2. `provider: GOOGLE_FORMS` may remain inside `customFields` because it identifies the external source without changing the LeadFlow source enum.
+
+3. Google Apps Script must NOT contain a real webhook URL or webhook secret in committed/source code.
+
+4. Use Google Apps Script `PropertiesService` Script Properties:
+   - `LEADFLOW_WEBHOOK_URL`
+   - `LEADFLOW_WEBHOOK_SECRET`
+
+5. The runbook must explicitly instruct me to enter the actual current values into Apps Script Script Properties rather than using the placeholder values.
+
+6. Inspect the current LeadFlow environment and configuration and tell me exactly:
+   - the public LeadFlow base URL I should use;
+   - the exact brokerage ID for the demo brokerage;
+   - where the current webhook secret is stored and how I should retrieve it safely.
+   
+   Do NOT print or expose the actual webhook secret in README, AGENTS.md, PROMPTS.md, the runbook, source code, or any committed file.
+
+7. If the current local setup uses ngrok, clearly state that the Apps Script URL must use the currently active HTTPS ngrok URL and that it must be updated whenever the tunnel URL changes.
+
+8. Keep the Apps Script integration deterministic and compatible with the exact Google Form question titles documented in the runbook.
+
+9. Do not invent new backend fields, source enum values, endpoints, or authentication mechanisms.
+
+10. Do not modify application code unless absolutely required. This task is configuration/documentation only.
+
+Update the runbook with these corrections and update PROMPTS.md with this exact prompt and completion status.
+
+Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Source Enum & Provider Preservation**:
+   - Confirmed `source: 'WEBSITE'` in Google Apps Script payload construction, adhering strictly to the backend `LeadSource` enum (`WEBSITE`, `REFERRAL`, `CAMPAIGN`, `MANUAL`, `OTHER`).
+   - Retained `provider: 'GOOGLE_FORMS'` in `customFields` to identify external form provenance without mutating the core enum schema.
+2. **Zero Hardcoded Secrets in Script Code**:
+   - Refactored `Code.gs` in `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md` to retrieve `LEADFLOW_WEBHOOK_URL` and `LEADFLOW_WEBHOOK_SECRET` dynamically via `PropertiesService.getScriptProperties()`. Added explicit defensive validation throwing a helpful setup error if either property is missing.
+3. **Mandatory Script Properties Instructions**:
+   - Added explicit instructions for the user to configure the real values under Apps Script **Project Settings -> Script Properties** rather than using placeholders.
+4. **Environment & Brokerage Target Inspection**:
+   - Public Base URL: Configured in monorepo `.env` as `WEBHOOK_BASE_URL` (currently active ngrok HTTPS forwarding address).
+   - Demo Brokerage ID: `6ab6a2f444ff3081377a7257`.
+   - Secret Storage & Retrieval: Documented safe terminal query via `node -e` connecting to local MongoDB to inspect `brokerage.webhookSecret` without exposing the secret string in any committed file or documentation.
+5. **Dynamic ngrok Update Notice**:
+   - Added prominent callout explaining that local ngrok URLs change on restart and must be updated in Apps Script Script Properties whenever the tunnel restarts.
+6. **Zero Code Changes**:
+   - No modifications made to backend endpoints, auth middleware, or frontend components.
+
+

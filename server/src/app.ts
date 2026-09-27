@@ -34,8 +34,14 @@ export function createApp(): Express {
   // Cookie parser for HTTP-only refresh tokens
   app.use(cookieParser(env.COOKIE_SECRET));
 
-  // Body parsing
-  app.use(express.json());
+  // Body parsing (preserves raw buffer for cryptographic webhook HMAC verification)
+  app.use(
+    express.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true }));
 
   // Auth rate limiter to defend against brute force attempts (disabled during automated tests)

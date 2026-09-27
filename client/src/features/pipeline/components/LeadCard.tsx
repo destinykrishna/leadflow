@@ -41,8 +41,19 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
           </div>
 
           {lead.source && (
-            <Badge variant="neutral" size="sm" className="text-[10px] shrink-0 font-normal">
-              {lead.source.toLowerCase()}
+            <Badge
+              variant="neutral"
+              size="sm"
+              className="text-[10px] shrink-0 font-normal capitalize"
+              title={
+                lead.customFields?.utm_source
+                  ? `Acquisition channel: ${lead.customFields.utm_source}`
+                  : `Source: ${lead.source}`
+              }
+            >
+              {lead.customFields?.utm_source
+                ? String(lead.customFields.utm_source).toLowerCase()
+                : lead.source.toLowerCase()}
             </Badge>
           )}
         </div>
@@ -77,7 +88,10 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
 
         {/* Footer: Score & Age */}
         <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
-          <div className="flex items-center gap-1">
+          <div
+            className="flex items-center gap-1 cursor-help"
+            title="Lead Qualification Score (0-100 based on verified contact details, income, and loan eligibility)"
+          >
             <span className="font-medium text-slate-600">Score:</span>
             <span
               className={`font-semibold ${

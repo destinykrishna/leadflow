@@ -163,6 +163,22 @@ export const typeformWebhookSchema = z.object({
   form_response: z.object({
     form_id: z.string().optional(),
     submitted_at: z.string().optional(),
+    definition: z
+      .object({
+        id: z.string().optional(),
+        title: z.string().optional(),
+        fields: z
+          .array(
+            z.object({
+              id: z.string(),
+              ref: z.string().optional(),
+              type: z.string().optional(),
+              title: z.string().optional(),
+            })
+          )
+          .optional(),
+      })
+      .optional(),
     answers: z.array(typeformAnswerSchema).min(1, 'Typeform answers cannot be empty'),
     hidden: z.record(z.string(), z.unknown()).optional(),
   }),
@@ -200,35 +216,56 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     const { form_response, event_id } = typeformParsed.data;
     const answers = form_response.answers;
 
+    // Build lookup map from field definition if provided by Typeform
+    const definitionMap = new Map<string, { title?: string | undefined; ref?: string | undefined }>();
+    if (form_response.definition?.fields) {
+      for (const f of form_response.definition.fields) {
+        definitionMap.set(f.id, { title: f.title, ref: f.ref });
+      }
+    }
+
+    const getFieldInfo = (field: { id: string; ref?: string | undefined }) => {
+      const def = definitionMap.get(field.id);
+      const title = (def?.title || '').toLowerCase();
+      const id = field.id.toLowerCase();
+      const ref = (field.ref || def?.ref || '').toLowerCase();
+      return { title, id, ref };
+    };
+
     // Extract email
-    const emailAnswer = answers.find(
-      (a) =>
+    const emailAnswer = answers.find((a) => {
+      const { title, id, ref } = getFieldInfo(a.field);
+      return (
         a.type === 'email' ||
         a.field.type === 'email' ||
-        a.field.id.toLowerCase().includes('email') ||
-        a.field.ref?.toLowerCase().includes('email')
-    );
+        id.includes('email') ||
+        ref.includes('email') ||
+        title.includes('email')
+      );
+    });
     const email = emailAnswer?.email || emailAnswer?.text;
     if (!email) {
       throw new ValidationError('Typeform payload missing required email answer');
     }
 
     // Extract names
-    const firstNameAnswer = answers.find(
-      (a) =>
-        a.field.id.toLowerCase().includes('first') ||
-        a.field.ref?.toLowerCase().includes('first')
-    );
-    const lastNameAnswer = answers.find(
-      (a) =>
-        a.field.id.toLowerCase().includes('last') ||
-        a.field.ref?.toLowerCase().includes('last')
-    );
-    const fullNameAnswer = answers.find(
-      (a) =>
-        a.field.id.toLowerCase().includes('name') ||
-        a.field.ref?.toLowerCase().includes('name')
-    );
+    const firstNameAnswer = answers.find((a) => {
+      const { title, id, ref } = getFieldInfo(a.field);
+      return id.includes('first') || ref.includes('first') || title.includes('first');
+    });
+    const lastNameAnswer = answers.find((a) => {
+      const { title, id, ref } = getFieldInfo(a.field);
+      return id.includes('last') || ref.includes('last') || title.includes('last');
+    });
+    const fullNameAnswer = answers.find((a) => {
+      const { title, id, ref } = getFieldInfo(a.field);
+      return (
+        id.includes('name') ||
+        ref.includes('name') ||
+        title.includes('name') ||
+        (a.type === 'text' && !title.includes('city') && !title.includes('comment'))
+      );
+    });
 
     let firstName = firstNameAnswer?.text?.trim() || '';
     let lastName = lastNameAnswer?.text?.trim() || '';
@@ -236,23 +273,26 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     if (!firstName && !lastName && fullNameAnswer?.text) {
       const parts = fullNameAnswer.text.trim().split(/\s+/);
       firstName = parts[0] || 'Unknown';
-      lastName = parts.slice(1).join(' ') || 'Lead';
+      lastName = parts.slice(1).join(' ') || 'Applicant';
     } else {
       if (!firstName) firstName = fullNameAnswer?.text?.trim() || 'Unknown';
-      if (!lastName) lastName = 'Lead';
+      if (!lastName) lastName = 'Applicant';
     }
 
     // Extract phone
-    const phoneAnswer = answers.find(
-      (a) =>
+    const phoneAnswer = answers.find((a) => {
+      const { title, id, ref } = getFieldInfo(a.field);
+      return (
         a.type === 'phone_number' ||
         a.field.type === 'phone_number' ||
-        a.field.id.toLowerCase().includes('phone') ||
-        a.field.ref?.toLowerCase().includes('phone')
-    );
+        id.includes('phone') ||
+        ref.includes('phone') ||
+        title.includes('phone')
+      );
+    });
     const phone = phoneAnswer?.phone_number || phoneAnswer?.text;
 
-    // Collect customFields
+    // Collect customFields with intelligent semantic mapping for mortgage fields
     const customFields: Record<string, unknown> = {
       provider: 'TYPEFORM',
       eventId: event_id,
@@ -261,34 +301,93 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     };
 
     for (const answer of answers) {
-      const key = answer.field.ref || answer.field.id;
+      const { title, id, ref } = getFieldInfo(answer.field);
+      let key = answer.field.ref || answer.field.id;
+
+      // Map common mortgage questionnaire questions to standard LeadFlow customField keys
+      if (title.includes('loan amount') || title.includes('target home loan') || ref.includes('loan')) {
+        key = 'loanAmount';
+      } else if (title.includes('property value') || title.includes('valuation') || ref.includes('property')) {
+        key = 'propertyValue';
+      } else if (title.includes('monthly income') || title.includes('gross monthly') || ref.includes('income')) {
+        key = 'monthlyGrossIncome';
+      } else if (title.includes('down payment') || ref.includes('downpayment')) {
+        key = 'downPayment';
+      } else if (title.includes('city') || ref.includes('city')) {
+        key = 'propertyCity';
+      }
+
       const value =
+        answer.number ??
         answer.text ??
         answer.email ??
         answer.phone_number ??
-        answer.number ??
         answer.boolean ??
         answer.choice?.label ??
         answer.choices?.labels;
+
       if (value !== undefined) {
         customFields[key] = value;
+        // Dual-populate monthlyGrossIncome and monthlyIncome for universal UI compatibility
+        if (key === 'monthlyGrossIncome' || key === 'monthlyIncome') {
+          customFields.monthlyGrossIncome = value;
+          customFields.monthlyIncome = value;
+        }
       }
     }
 
     if (form_response.hidden) {
       customFields.hidden = form_response.hidden;
+      if (typeof form_response.hidden.utm_source === 'string') {
+        customFields.utm_source = form_response.hidden.utm_source;
+      }
+      if (typeof form_response.hidden.utm_medium === 'string') {
+        customFields.utm_medium = form_response.hidden.utm_medium;
+      }
+      if (typeof form_response.hidden.utm_campaign === 'string') {
+        customFields.utm_campaign = form_response.hidden.utm_campaign;
+      }
     }
 
-    // Map source
+    // Map source and build descriptive notes
     let source: LeadSource = 'WEBSITE';
-    if (form_response.hidden && typeof form_response.hidden.utm_source === 'string') {
-      const utm = form_response.hidden.utm_source.toUpperCase();
-      if (LEAD_SOURCES.includes(utm as LeadSource)) {
-        source = utm as LeadSource;
+    const utmSource = typeof form_response.hidden?.utm_source === 'string'
+      ? (form_response.hidden.utm_source as string).trim()
+      : undefined;
+    const utmCampaign = typeof form_response.hidden?.utm_campaign === 'string'
+      ? (form_response.hidden.utm_campaign as string).trim()
+      : undefined;
+
+    if (utmSource) {
+      const upper = utmSource.toUpperCase();
+      if (LEAD_SOURCES.includes(upper as LeadSource)) {
+        source = upper as LeadSource;
+      } else if (upper.includes('WHATSAPP') || upper.includes('REFERRAL') || upper.includes('FRIEND')) {
+        source = 'REFERRAL';
       } else {
         source = 'CAMPAIGN';
       }
     }
+
+    let notes = `Ingested from Typeform (Form ID: ${form_response.form_id || 'unknown'})`;
+    if (utmSource) {
+      notes += ` • Channel: ${utmSource}`;
+    }
+    if (utmCampaign) {
+      notes += ` • Campaign: ${utmCampaign}`;
+    }
+
+    // Calculate smart lead qualification score (0-100)
+    let score = 10; // Baseline for completed form
+    if (email && email.includes('@')) score += 20;
+    if (phone && phone.trim().length >= 8) score += 20;
+    const loanAmt = Number(customFields.loanAmount) || 0;
+    if (loanAmt > 0) score += 20;
+    const grossIncome = Number(customFields.monthlyGrossIncome || customFields.monthlyIncome) || 0;
+    if (grossIncome > 0) score += 15;
+    const propVal = Number(customFields.propertyValue) || 0;
+    if (propVal > 0) score += 15;
+    score = Math.min(100, Math.max(0, score));
 
     // Re-validate using standard constraints
     const validated = standardLeadPayloadSchema.safeParse({
@@ -297,8 +396,8 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
       email,
       phone,
       source,
-      score: 0,
-      notes: `Ingested from Typeform (Form ID: ${form_response.form_id || 'unknown'})`,
+      score,
+      notes,
       customFields,
     });
 

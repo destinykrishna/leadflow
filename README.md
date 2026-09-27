@@ -42,12 +42,12 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Secure Cookie Delivery**: SameSite Lax, HTTP-only, secure cookie support with header/body fallbacks for API clients.
 
 ### ⚡ High-Throughput Webhook Lead Ingestion
-- **Multi-Source Normalization**: Ingests leads from standard REST webhooks and external form providers (Typeform `form_response`), automatically extracting contact info, UTM campaign parameters, and custom fields.
+- **Multi-Source Normalization**: Ingests leads from standard REST webhooks and external form providers (Google Forms → Google Apps Script → LeadFlow webhook), automatically extracting contact info, UTM campaign parameters, and custom mortgage fields.
 - **Dual Webhook Authentication**: Authenticates external payloads via shared webhook secret (`x-webhook-secret` or Bearer token) or HMAC SHA-256 signatures (`x-signature-sha256`) with constant-time verification.
 - **Anti-Enumeration Guard**: Unauthenticated probes fail immediately with uniform HTTP 401 responses, disclosing zero information about brokerage existence or account standing.
 - **Deterministic Deduplication**: Enforces scoped unique identity on `{ brokerageId: 1, email: 1 }`. Duplicate submissions return HTTP 200 idempotently without creating duplicate records.
 - **"Already Known" Person Detection**: Matches incoming leads against existing `Client` profiles in the brokerage, linking client IDs and preserving advisor assignments.
-- **Tenant-Aware Ingestion Rate Limiting**: 1,000 requests/minute per verified brokerage placed after authentication. Protects brokerages from noisy neighbors sharing external webhook IPs (e.g. Typeform or Zapier egress).
+- **Tenant-Aware Ingestion Rate Limiting**: 1,000 requests/minute per verified brokerage placed after authentication. Protects brokerages from noisy neighbors sharing external webhook IPs (e.g. Google Apps Script or Zapier egress).
 
 ### 📊 Realtime Lead Pipeline & Optimistic Concurrency
 - **Stage Progression State Machine**: Strictly enforces forward pipeline moves: `NEW → CONTACTED → QUALIFIED → PROPOSAL → NEGOTIATION → WON / LOST`. Disallows stage skipping, self-transitions, and backward moves.
@@ -167,7 +167,7 @@ leadflow/
     ├── document-storage.md # Object storage, ImageKit integration, and folder namespacing
     ├── document-processing.md # Asynchronous queue, worker lifecycle, and reconciliation
     ├── pipeline-triggers.md   # Pipeline triggers, task automation, and email queuing
-    └── TYPEFORM_SETUP_RUNBOOK.md # Typeform webhook integration and verification runbook
+    └── GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md # Google Forms + Apps Script lead integration runbook
 ```
 
 ---

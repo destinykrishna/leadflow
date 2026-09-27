@@ -257,7 +257,10 @@ export function LeadDetailView({
   // Financial fields extraction
   const loanAmount = Number(lead.customFields?.loanAmount) || 0
   const propertyValue = Number(lead.customFields?.propertyValue) || 0
-  const monthlyIncome = Number(lead.customFields?.monthlyIncome) || 0
+  const monthlyIncome =
+    Number(lead.customFields?.monthlyGrossIncome) ||
+    Number(lead.customFields?.monthlyIncome) ||
+    0
   const employmentStatus = (lead.customFields?.employmentStatus as string) || null
   const residenceStatus = (lead.customFields?.residenceStatus as string) || null
 
@@ -644,9 +647,16 @@ export function LeadDetailView({
 
               <div>
                 <span className="text-muted-foreground block mb-0.5">Inquiry Source</span>
-                <Badge variant="neutral" size="sm">
-                  {lead.source}
-                </Badge>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="neutral" size="sm">
+                    {lead.source}
+                  </Badge>
+                  {Boolean(lead.customFields?.utm_source) && (
+                    <Badge variant="outline" size="sm" className="capitalize text-primary border-primary/30 bg-primary/5 text-[11px]">
+                      via {String(lead.customFields?.utm_source)}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div>

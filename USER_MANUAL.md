@@ -170,7 +170,7 @@ The **Mortgage Advisor** is the primary operator handling borrower files, moving
 Advisors land on the **Interactive Pipeline Kanban Board** (`/app/pipeline`):
 - **7 Linear Stages**: `NEW` → `CONTACTED` → `QUALIFIED` → `PROPOSAL` → `NEGOTIATION` → `WON` / `LOST`.
 - **Column Header Metrics**: Live card counts and total loan volume per stage formatted in Indian Rupees (INR ₹).
-- **Multi-Dimensional Filters**: Search by borrower name/email, filter by lead source (`WEBSITE`, `REFERRAL`, `TYPEFORM`, etc.), filter by minimum loan amount threshold (`≥ ₹2,50,000`, `≥ ₹5,00,000` Jumbo), and sort by ticket size or score.
+- **Multi-Dimensional Filters**: Search by borrower name/email, filter by lead source (`WEBSITE`, `REFERRAL`, `CAMPAIGN`, etc.), filter by minimum loan amount threshold (`≥ ₹2,50,000`, `≥ ₹5,00,000` Jumbo), and sort by ticket size or score.
 - **Stage Quick-Jump Bar**: Horizontal navigation bar for instant scrolling to any stage column on compact displays.
 
 ### Primary Workflows & Important Actions

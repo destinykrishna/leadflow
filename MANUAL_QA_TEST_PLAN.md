@@ -377,7 +377,7 @@ Use these seeded test accounts to sign in at `http://localhost:5173/login`:
 
 ## 8. External Webhook Ingestion Test
 
-**Goal**: Verify external lead ingestion from marketing sources (Typeform / Webhook) and idempotent duplicate handling.
+**Goal**: Verify external lead ingestion from marketing sources (Google Forms / Webhook) and idempotent duplicate handling.
 
 ### Test 8.1: Ingest New Lead via Webhook
 - **Method**: `POST`
@@ -394,7 +394,7 @@ Use these seeded test accounts to sign in at `http://localhost:5173/login`:
     "firstName": "Priya",
     "lastName": "Sharma",
     "phone": "+91 98765 43210",
-    "source": "TYPEFORM",
+    "source": "WEBSITE",
     "loanAmount": 7500000,
     "propertyValue": 9500000,
     "monthlyGrossIncome": 185000,
