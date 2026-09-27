@@ -29,6 +29,7 @@ const envSchema = z.object({
   COOKIE_SECRET: z.string().default('leadflow-secure-cookie-secret-key-development'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   WEBHOOK_BASE_URL: z.string().url().optional(),
+  LEADFLOW_WEBHOOK_SECRET: z.string().optional(),
   IMAGEKIT_PUBLIC_KEY: z.string().default('public_mock_imagekit_key'),
   IMAGEKIT_PRIVATE_KEY: z.string().default('private_mock_imagekit_key'),
   IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/leadflow_test'),
