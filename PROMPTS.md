@@ -4122,3 +4122,40 @@ COMPLETED
 ### Remaining Gaps
 - None. Brokerage Admin team management and Google Forms lead source integration are fully functional, typed, and verified.
 
+## Phase 4 — Final Integration & Product QA
+
+```markdown
+Phase 4 — Final Integration & Product QA
+
+This is the final implementation pass for the onboarding/lifecycle work completed in Phases 1–3.
+
+Perform a focused end-to-end integration review of the completed lifecycle:
+PLATFORM_ADMIN -> creates brokerage -> initial BROKERAGE_ADMIN -> brokerage configuration/webhook setup -> BROKERAGE_ADMIN manages advisors -> Google Forms lead ingestion -> advisors operate within their brokerage.
+```
+
+### Status
+COMPLETED
+
+### Decisions & Assumptions
+1. **System Health Connection (Platform Admin)**:
+   - Replaced placeholder `FeatureShell` on `HealthPage.tsx` (`/admin/health`) with an active, real data-backed dashboard.
+   - Connected to real backend endpoint `GET /api/health` via `health.api.ts`, measuring actual HTTP roundtrip latency in milliseconds and displaying real process uptime formatted as `Xd Xh Xm Xs`.
+   - Connected to active Socket.IO instance (`getSocket()`), tracking live connection status (`Connected` with emerald indicator vs `Connecting` with amber pulse).
+   - Displayed live tenant registry metrics (`X Active Brokerages of Y total`) queried from `GET /api/brokerages`.
+   - Built a comprehensive Service Component Breakdown table and documented the exact health monitoring contract: explicitly clarifying that container-isolated background worker internals (BullMQ queue depths, Redis memory pools, and upstream storage latency) are managed at the container/process level (`worker/src/worker.ts`) and not exposed as public REST monitoring endpoints, avoiding fabricated telemetry.
+2. **End-to-End Onboarding & Role Boundaries**:
+   - Re-verified full lifecycle flow: `PLATFORM_ADMIN` brokerage creation with rollback, auto-generation of 24-byte hex webhook secret, status management (`ACTIVE`/`SUSPENDED`), and immediate token rejection on suspension.
+   - Re-verified `BROKERAGE_ADMIN` team management: onboarding advisors, profile updates, and active/inactive deactivation with immediate session revocation in MongoDB while prohibiting hard deletion (`ADVISOR_DELETION_PROHIBITED`).
+   - Re-verified Google Forms integration card matches `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md` and uses the real webhook URL, brokerage ID, and webhook secret with confidentiality warnings.
+   - Re-verified strict tenant isolation (`withBrokerageScope`), anti-IDOR 404 concealment, and RBAC guards preventing `CLIENT` and `ADVISOR` roles from accessing admin or management routes.
+
+### Verification
+- **Automated QA Journey**: Executed `tsx scripts/qa-journey-verification.ts` across all 5 mission-critical user journeys. All **34/34 checks passed with 0 failures**.
+- **Backend Integration Tests**: Executed core test suites covering brokerage lifecycle, advisors, auth, leads, and tenant isolation (`brokerage-lifecycle.test.ts`, `advisors.test.ts`, `auth.test.ts`, `leads.test.ts`, `brokerage-isolation.test.ts`). All **106/106 tests passed cleanly**.
+- **Frontend Test Suite**: Executed `npm --prefix client test -- --run`. All **106/106 tests passed** across 13 test files.
+- **Monorepo Typecheck**: `npm run typecheck` passed with **0 errors** across `server`, `worker`, and `client`.
+- **Production Build**: `npm run build` completed successfully in **622ms** (`dist/` generated).
+
+### Remaining Gaps
+- None. The end-to-end onboarding, team management, and lead source lifecycle is fully integrated, verified against real contracts, and production ready.
+
