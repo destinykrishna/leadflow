@@ -74,4 +74,31 @@ router.post(
   (req, res, next) => void advisorController.createAdvisor(req, res, next)
 );
 
+router.get(
+  '/:brokerageId/advisors/:id',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => void advisorController.getAdvisorById(req, res, next)
+);
+
+router.patch(
+  '/:brokerageId/advisors/:id',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => void advisorController.updateAdvisor(req, res, next)
+);
+
+router.delete(
+  '/:brokerageId/advisors/:id',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => advisorController.deleteAdvisor(req, res, next)
+);
+
 export const brokerageRouter = router;

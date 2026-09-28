@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import crypto from 'node:crypto';
 import { User, type IUserDocument } from '../models/user.model.js';
 import { Brokerage } from '../models/brokerage.model.js';
+import { Session } from '../models/session.model.js';
 import { hashPassword } from '../utils/password.js';
 import {
   ConflictError,
@@ -189,6 +190,11 @@ export class AdvisorService implements IDomainService {
       if (!caller.brokerageId) {
         throw new BrokerageIsolationError('Brokerage context missing for administrator');
       }
+      if (query.brokerageId && query.brokerageId.toString() !== caller.brokerageId.toString()) {
+        throw new BrokerageIsolationError(
+          'Access denied: Cross-brokerage tenant boundary violation'
+        );
+      }
       filter.brokerageId = new Types.ObjectId(caller.brokerageId);
     } else if (query.brokerageId) {
       if (!Types.ObjectId.isValid(query.brokerageId)) {
@@ -231,48 +237,10 @@ export class AdvisorService implements IDomainService {
    * Retrieves an advisor by ID with anti-IDOR protection.
    * Returns 404 NotFoundError on cross-tenant access to prevent discovery of external IDs.
    */
-  async getAdvisorById(caller: AuthUserContext, advisorId: string): Promise<SafeAdvisorResult> {
-    if (caller.role !== 'PLATFORM_ADMIN' && caller.role !== 'BROKERAGE_ADMIN') {
-      throw new ForbiddenError(
-        `Access denied: Role ${caller.role} is not authorized to manage advisors`
-      );
-    }
-
-    if (!Types.ObjectId.isValid(advisorId)) {
-      throw new NotFoundError('Advisor resource not found');
-    }
-
-    const advisor = await User.findOne({
-      _id: new Types.ObjectId(advisorId),
-      role: 'ADVISOR',
-    });
-
-    if (!advisor) {
-      throw new NotFoundError('Advisor resource not found');
-    }
-
-    // Anti-IDOR check for BROKERAGE_ADMIN
-    if (caller.role === 'BROKERAGE_ADMIN') {
-      if (
-        !caller.brokerageId ||
-        !advisor.brokerageId ||
-        advisor.brokerageId.toString() !== caller.brokerageId
-      ) {
-        throw new NotFoundError('Advisor resource not found');
-      }
-    }
-
-    return this.sanitizeAdvisor(advisor);
-  }
-
-  /**
-   * Updates advisor details (name, phone, status: ACTIVE / INACTIVE).
-   * Preserves historical assignments (leads, clients, tasks) when an advisor is marked INACTIVE.
-   */
-  async updateAdvisor(
+  async getAdvisorById(
     caller: AuthUserContext,
     advisorId: string,
-    input: UpdateAdvisorInput
+    expectedBrokerageId?: string
   ): Promise<SafeAdvisorResult> {
     if (caller.role !== 'PLATFORM_ADMIN' && caller.role !== 'BROKERAGE_ADMIN') {
       throw new ForbiddenError(
@@ -304,6 +272,60 @@ export class AdvisorService implements IDomainService {
       }
     }
 
+    // Verify expectedBrokerageId if explicitly targeted via nested route
+    if (expectedBrokerageId && advisor.brokerageId?.toString() !== expectedBrokerageId) {
+      throw new NotFoundError('Advisor resource not found');
+    }
+
+    return this.sanitizeAdvisor(advisor);
+  }
+
+  /**
+   * Updates advisor details (name, phone, status: ACTIVE / INACTIVE).
+   * Preserves historical assignments (leads, clients, tasks) when an advisor is marked INACTIVE.
+   * Immediately revokes all active sessions upon deactivation.
+   */
+  async updateAdvisor(
+    caller: AuthUserContext,
+    advisorId: string,
+    input: UpdateAdvisorInput,
+    expectedBrokerageId?: string
+  ): Promise<SafeAdvisorResult> {
+    if (caller.role !== 'PLATFORM_ADMIN' && caller.role !== 'BROKERAGE_ADMIN') {
+      throw new ForbiddenError(
+        `Access denied: Role ${caller.role} is not authorized to manage advisors`
+      );
+    }
+
+    if (!Types.ObjectId.isValid(advisorId)) {
+      throw new NotFoundError('Advisor resource not found');
+    }
+
+    const advisor = await User.findOne({
+      _id: new Types.ObjectId(advisorId),
+      role: 'ADVISOR',
+    });
+
+    if (!advisor) {
+      throw new NotFoundError('Advisor resource not found');
+    }
+
+    // Anti-IDOR check for BROKERAGE_ADMIN
+    if (caller.role === 'BROKERAGE_ADMIN') {
+      if (
+        !caller.brokerageId ||
+        !advisor.brokerageId ||
+        advisor.brokerageId.toString() !== caller.brokerageId
+      ) {
+        throw new NotFoundError('Advisor resource not found');
+      }
+    }
+
+    // Verify expectedBrokerageId if explicitly targeted via nested route
+    if (expectedBrokerageId && advisor.brokerageId?.toString() !== expectedBrokerageId) {
+      throw new NotFoundError('Advisor resource not found');
+    }
+
     if (input.name !== undefined) {
       advisor.name = input.name.trim();
     }
@@ -318,6 +340,13 @@ export class AdvisorService implements IDomainService {
 
     if (input.status !== undefined) {
       advisor.status = input.status;
+      if (input.status === 'INACTIVE') {
+        // Immediately invalidate all active refresh sessions in database
+        await Session.updateMany(
+          { userId: advisor._id, isRevoked: false },
+          { isRevoked: true, revokedAt: new Date() }
+        );
+      }
     }
 
     await advisor.save();

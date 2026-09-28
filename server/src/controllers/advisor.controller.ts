@@ -5,7 +5,7 @@ import {
   updateAdvisorSchema,
   listAdvisorsQuerySchema,
 } from '../validators/advisor.validators.js';
-import { AppError } from '../utils/errors.js';
+import { AppError, BrokerageIsolationError } from '../utils/errors.js';
 
 export class AdvisorController {
   /**
@@ -14,14 +14,30 @@ export class AdvisorController {
    */
   async createAdvisor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const paramBrokerageId =
+        typeof req.params.brokerageId === 'string' ? req.params.brokerageId : undefined;
+
+      // Defend against payload vs route parameter tenant spoofing
+      if (
+        paramBrokerageId &&
+        req.body.brokerageId &&
+        req.body.brokerageId.toString() !== paramBrokerageId
+      ) {
+        throw new BrokerageIsolationError(
+          'Access denied: Cross-brokerage tenant boundary violation between route parameter and payload'
+        );
+      }
+
       // Default to caller.brokerageId while preserving any explicitly supplied body.brokerageId
       // so AdvisorService can detect cross-tenant tampering attempts.
       const bodyWithBrokerage = {
         ...(req.user?.role === 'BROKERAGE_ADMIN' && req.user.brokerageId
           ? { brokerageId: req.user.brokerageId }
-          : {}),
+          : paramBrokerageId
+            ? { brokerageId: paramBrokerageId }
+            : {}),
         ...req.body,
-        ...(req.params.brokerageId ? { brokerageId: req.params.brokerageId } : {}),
+        ...(paramBrokerageId ? { brokerageId: paramBrokerageId } : {}),
       };
 
       const input = createAdvisorSchema.parse(bodyWithBrokerage);
@@ -42,9 +58,23 @@ export class AdvisorController {
    */
   async listAdvisors(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const paramBrokerageId =
+        typeof req.params.brokerageId === 'string' ? req.params.brokerageId : undefined;
+
+      // Defend against query vs route parameter tenant spoofing
+      if (
+        paramBrokerageId &&
+        req.query.brokerageId &&
+        req.query.brokerageId.toString() !== paramBrokerageId
+      ) {
+        throw new BrokerageIsolationError(
+          'Access denied: Cross-brokerage tenant boundary violation between route parameter and query filter'
+        );
+      }
+
       const queryWithBrokerage = {
         ...req.query,
-        ...(req.params.brokerageId ? { brokerageId: req.params.brokerageId } : {}),
+        ...(paramBrokerageId ? { brokerageId: paramBrokerageId } : {}),
       };
 
       const query = listAdvisorsQuerySchema.parse(queryWithBrokerage);
@@ -65,13 +95,15 @@ export class AdvisorController {
    */
   async getAdvisorById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const paramBrokerageId =
+        typeof req.params.brokerageId === 'string' ? req.params.brokerageId : undefined;
       const advisorId =
         typeof req.params.id === 'string'
           ? req.params.id
           : typeof req.params.advisorId === 'string'
             ? req.params.advisorId
             : '';
-      const advisor = await advisorService.getAdvisorById(req.user!, advisorId);
+      const advisor = await advisorService.getAdvisorById(req.user!, advisorId, paramBrokerageId);
 
       res.status(200).json({
         success: true,
@@ -88,6 +120,8 @@ export class AdvisorController {
    */
   async updateAdvisor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const paramBrokerageId =
+        typeof req.params.brokerageId === 'string' ? req.params.brokerageId : undefined;
       const advisorId =
         typeof req.params.id === 'string'
           ? req.params.id
@@ -95,7 +129,12 @@ export class AdvisorController {
             ? req.params.advisorId
             : '';
       const input = updateAdvisorSchema.parse(req.body);
-      const advisor = await advisorService.updateAdvisor(req.user!, advisorId, input);
+      const advisor = await advisorService.updateAdvisor(
+        req.user!,
+        advisorId,
+        input,
+        paramBrokerageId
+      );
 
       res.status(200).json({
         success: true,

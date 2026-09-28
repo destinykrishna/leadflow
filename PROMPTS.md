@@ -3943,3 +3943,48 @@ COMPLETED
    - 371/371 backend tests passing across all 20 test files in `server`.
    - Monorepo typecheck (`npm run typecheck`): 0 errors across `server`, `worker`, and `client`.
    - Production bundle build (`npm run build`): clean compilation.
+
+---
+
+## Phase 2 — Prompt 2: Advisor Lifecycle Hardening
+
+### Scope & Invariants Checked
+- `BROKERAGE_ADMIN` can manage only advisors in their own brokerage.
+- `PLATFORM_ADMIN` retains appropriate platform-level access.
+- `CLIENT` and `ADVISOR` cannot manage advisor accounts.
+- `INACTIVE` advisors cannot authenticate or continue using protected HTTP access through existing sessions/tokens.
+- Advisor creation cannot leak generated/provided passwords or password hashes.
+- Duplicate advisor creation remains safely handled under concurrent requests.
+- Nested brokerage advisor routes do not bypass tenant isolation.
+- Existing lead/client/task references remain valid when an advisor becomes `INACTIVE`.
+- Advisor management does not accidentally alter unrelated authentication or RBAC behavior.
+
+### Status
+COMPLETED
+
+### Findings & Fixes
+1. **Dangling Refresh Token Sessions Upon Advisor Deactivation**:
+   - *Finding*: When an advisor's status was changed to `INACTIVE`, `authenticate` middleware correctly prevented HTTP access via access tokens because it queried `user.status === 'ACTIVE'`. However, outstanding refresh token documents in the `Session` collection remained with `isRevoked: false`. If the user was ever re-activated, an unrevoked session family could potentially be reused.
+   - *Fix*: In `advisorService.updateAdvisor`, added explicit revocation: when `input.status === 'INACTIVE'`, calls `Session.updateMany({ userId: advisor._id, isRevoked: false }, { isRevoked: true, revokedAt: new Date() })`, immediately revoking all active sessions in MongoDB.
+2. **Nested Brokerage Route Parameter vs Payload/Query Spoofing**:
+   - *Finding*: On nested routes (`/api/brokerages/:brokerageId/advisors*`), if a request supplied a mismatched `brokerageId` in the JSON request body or URL query parameters, it was possible for inconsistent tenant scopes to exist between route parameters and payload data.
+   - *Fix*: Hardened `advisor.controller.ts` so that in `createAdvisor` and `listAdvisors`, if a nested `paramBrokerageId` exists and contradicts `req.body.brokerageId` or `req.query.brokerageId`, the controller immediately rejects the request with HTTP 403 `BrokerageIsolationError`. In `getAdvisorById` and `updateAdvisor`, passed `paramBrokerageId` as `expectedBrokerageId` down to service layer assertions, guaranteeing anti-IDOR 404 concealment across nested paths.
+3. **Concurrent Duplicate Advisor Creation Race Conditions**:
+   - *Finding*: High-volume simultaneous creation requests with identical `{ brokerageId, email }` could pass pre-save checks concurrently and trigger unhandled MongoDB E11000 duplicate key errors before reaching the response handler.
+   - *Fix*: Wrapped `advisor.save()` in `advisorService.createAdvisor` with defensive error handling to catch MongoDB code 11000 and return a structured HTTP 409 `ConflictError`.
+
+### Verification
+- Added 6 new targeted integration tests in `server/tests/integration/advisors.test.ts` (suite total: 23 passed):
+  1. Immediate access token invalidation on protected routes + refresh token revocation and reuse detection upon advisor deactivation.
+  2. High-concurrency duplicate advisor creation test (5 simultaneous requests resulting in exactly 1 `201 Created` and 4 `409 ConflictError` without unhandled errors).
+  3. Nested route parameter vs payload mismatch test (`POST /api/brokerages/:brokerageId/advisors`) rejecting with 403 `BROKERAGE_ISOLATION_VIOLATION`.
+  4. Nested route parameter vs query mismatch test (`GET /api/brokerages/:brokerageId/advisors`) rejecting with 403 `BROKERAGE_ISOLATION_VIOLATION`.
+  5. Nested single item retrieval matching brokerage route context.
+  6. Nested single item cross-brokerage 404 concealment.
+- Ran all relevant isolation, auth, and lifecycle suites: 77 passed across 4 files (`advisors.test.ts`, `brokerage-lifecycle.test.ts`, `brokerage-isolation.test.ts`, `auth.test.ts`).
+- Monorepo typecheck clean (`npm run typecheck`): 0 errors across `server`, `worker`, and `client`.
+- Production bundle build clean (`npm run build`).
+
+### Remaining Gaps
+- None for Phase 2 Prompt 2. All advisor lifecycle, RBAC, tenant isolation, concurrency, and session termination invariants are verified and hardened.
+

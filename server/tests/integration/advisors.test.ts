@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { Types } from 'mongoose';
 import { app } from '../../src/app.js';
-import { Brokerage, User, Lead, Task } from '../../src/models/index.js';
+import { Brokerage, User, Lead, Task, Session } from '../../src/models/index.js';
 import { tokenService } from '../../src/services/token.service.js';
 import { hashPassword } from '../../src/utils/password.js';
 
@@ -497,6 +497,137 @@ describe('Phase 2 Prompt 1: Advisor & Team Management Integration Tests', () => 
 
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('BROKERAGE_ISOLATION_VIOLATION');
+    });
+
+    it('rejects nested POST when body.brokerageId conflicts with URL parameter', async () => {
+      const res = await request(app)
+        .post(`/api/brokerages/${brokerageA._id}/advisors`)
+        .set('Authorization', `Bearer ${tokenAdminA}`)
+        .send({
+          brokerageId: brokerageB._id.toString(), // Mismatch with URL param
+          name: 'Spoofed Brokerage Advisor',
+          email: 'spoofed@beta-finance.com',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('BROKERAGE_ISOLATION_VIOLATION');
+    });
+
+    it('rejects nested GET when query.brokerageId conflicts with URL parameter', async () => {
+      const res = await request(app)
+        .get(`/api/brokerages/${brokerageA._id}/advisors?brokerageId=${brokerageB._id}`)
+        .set('Authorization', `Bearer ${tokenAdminA}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('BROKERAGE_ISOLATION_VIOLATION');
+    });
+
+    it('supports retrieving nested advisor by ID via GET /api/brokerages/:brokerageId/advisors/:id', async () => {
+      const res = await request(app)
+        .get(`/api/brokerages/${brokerageA._id}/advisors/${advisorA1._id}`)
+        .set('Authorization', `Bearer ${tokenAdminA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.advisor.id).toBe(advisorA1._id.toString());
+    });
+
+    it('returns 404 when querying an advisor belonging to another brokerage through nested URL', async () => {
+      // Even for PLATFORM_ADMIN, an advisor from Brokerage B cannot be fetched through Brokerage A's nested URL
+      const res = await request(app)
+        .get(`/api/brokerages/${brokerageA._id}/advisors/${advisorB1._id}`)
+        .set('Authorization', `Bearer ${tokenPlatformAdmin}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  describe('8. Advisor Lifecycle Hardening (Sessions, Concurrency, and Token Invalidation)', () => {
+    it('immediately invalidates existing access tokens and revokes refresh sessions upon deactivation', async () => {
+      // 1. Advisor logs in and gets active access & refresh token
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: advisorA1.email,
+          password: DEFAULT_PASSWORD,
+          brokerageSlug: 'alpha-mortgages',
+        });
+
+      expect(loginRes.status).toBe(200);
+      const activeAccessToken = loginRes.body.data.accessToken;
+      const cookies: string[] = Array.isArray(loginRes.headers['set-cookie'])
+        ? loginRes.headers['set-cookie']
+        : [];
+
+      // Verify active session exists in DB
+      const sessionBefore = await Session.findOne({
+        userId: advisorA1._id,
+        isRevoked: false,
+      });
+      expect(sessionBefore).not.toBeNull();
+
+      // 2. Brokerage admin deactivates the advisor
+      const patchRes = await request(app)
+        .patch(`/api/advisors/${advisorA1._id}`)
+        .set('Authorization', `Bearer ${tokenAdminA}`)
+        .send({ status: 'INACTIVE' });
+      expect(patchRes.status).toBe(200);
+
+      // 3. Invariant: Database sessions are revoked
+      const activeSessionsAfter = await Session.find({
+        userId: advisorA1._id,
+        isRevoked: false,
+      });
+      expect(activeSessionsAfter).toHaveLength(0);
+
+      // 4. Invariant: Immediate protected HTTP access rejection with existing access token
+      const protectedCallRes = await request(app)
+        .get('/api/leads')
+        .set('Authorization', `Bearer ${activeAccessToken}`);
+      expect(protectedCallRes.status).toBe(401);
+      expect(protectedCallRes.body.error.code).toBe('UNAUTHORIZED');
+
+      // 5. Invariant: Token refresh rejection (session is revoked, user is inactive)
+      const refreshRes = await request(app)
+        .post('/api/auth/refresh')
+        .set('Cookie', cookies);
+      expect(refreshRes.status).toBe(401);
+    });
+
+    it('safely absorbs concurrent duplicate advisor creations under high concurrency', async () => {
+      const email = 'concurrent.advisor@alpha-mortgages.com';
+
+      // Fire 5 simultaneous creation requests with identical email
+      const requests = Array.from({ length: 5 }, () =>
+        request(app)
+          .post('/api/advisors')
+          .set('Authorization', `Bearer ${tokenAdminA}`)
+          .send({
+            name: 'Concurrent Staff',
+            email,
+            password: 'SecurePassword123!',
+          })
+      );
+
+      const responses = await Promise.all(requests);
+
+      // Exactly 1 must succeed with 201 Created
+      const successes = responses.filter((r) => r.status === 201);
+      expect(successes).toHaveLength(1);
+
+      // The other 4 must be absorbed idempotently/safely with 409 Conflict without crashes
+      const conflicts = responses.filter((r) => r.status === 409);
+      expect(conflicts).toHaveLength(4);
+      conflicts.forEach((c) => {
+        expect(c.body.error.code).toBe('CONFLICT');
+      });
+
+      // Verify only 1 User was created in MongoDB
+      const createdCount = await User.countDocuments({
+        brokerageId: brokerageA._id,
+        email,
+      });
+      expect(createdCount).toBe(1);
     });
   });
 });
