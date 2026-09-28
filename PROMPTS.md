@@ -3901,3 +3901,45 @@ COMPLETED
    - 54 targeted tests passing across `brokerage-lifecycle.test.ts`, `brokerage-isolation.test.ts`, and `auth.test.ts`.
    - Monorepo typecheck clean (`npm run typecheck`): 0 errors across `server`, `worker`, and `client`.
    - Production bundle build clean (`npm run build`).
+
+---
+
+## Phase 2 — Prompt 1: Advisor & Team Management Backend
+
+### Scope & Requirements
+- Allow `BROKERAGE_ADMIN` to manage `ADVISOR` accounts within their own brokerage.
+- Support listing advisors for the current brokerage.
+- Support creating/inviting an advisor with validated identity data.
+- Support updating advisor profile/details and `ACTIVE`/`INACTIVE` status.
+- Preserve historical leads, clients, tasks, and assignments when an advisor becomes `INACTIVE`; do not hard-delete advisors.
+- Prevent cross-brokerage access and modification.
+- Prevent `CLIENT`/`ADVISOR` roles from managing advisors.
+- Preserve `PLATFORM_ADMIN`'s existing platform-level access.
+- Reuse the existing User/auth/RBAC architecture rather than introducing a parallel team model.
+- Use safe onboarding credentials/activation behavior consistent with the existing authentication architecture; do not expose password hashes or sensitive credentials in API responses.
+- Handle duplicate email/conflicting identities safely.
+
+### Status
+COMPLETED
+
+### Implementation Summary
+1. **Advisor Validation (`advisor.validators.ts`)**:
+   - Defined `createAdvisorSchema`, `updateAdvisorSchema`, and `listAdvisorsQuerySchema` with Zod.
+   - Enforced trimmed names, normalized lowercase emails, optional phone numbers, and status transitions (`ACTIVE`, `INACTIVE`).
+2. **Advisor Domain Service (`advisor.service.ts`)**:
+   - `createAdvisor`: Validates identity conflicts against global `PLATFORM_ADMIN` and tenant uniqueness on `{ brokerageId: 1, email: 1 }`. Generates safe onboarding credentials without exposing password hashes.
+   - `listAdvisors`: Restricts `BROKERAGE_ADMIN` to own brokerage; supports status filtering, text search, and pagination.
+   - `getAdvisorById`: Retrieves advisor by ID, enforcing anti-IDOR HTTP 404 concealment across brokerages.
+   - `updateAdvisor`: Supports updating advisor profile details and status (`ACTIVE`/`INACTIVE`). Preserves existing leads, client files, and tasks without unlinking assignments.
+3. **Advisor HTTP Controller & Routes (`advisor.controller.ts`, `advisor.routes.ts`, `brokerage.routes.ts`)**:
+   - Protected endpoints with `authenticate`, `requireActiveUser`, and `requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN')`.
+   - Explicitly prohibited hard-deletion (`DELETE /api/advisors/:id` returns HTTP 400 `ADVISOR_DELETION_PROHIBITED`).
+   - Mounted `/api/advisors` with nested compatibility at `/api/brokerages/:brokerageId/advisors`.
+4. **Integration Testing (`advisors.test.ts`)**:
+   - 17 targeted integration tests covering creation, listing, status updates, historical reference preservation, hard-deletion prohibition, RBAC enforcement (`CLIENT` and `ADVISOR` blocked with 403), anti-IDOR 404 concealment, and duplicate identity handling.
+5. **Verification**:
+   - 17/17 tests passing in `advisors.test.ts`.
+   - 53/53 tests passing across targeted isolation/lifecycle suites.
+   - 371/371 backend tests passing across all 20 test files in `server`.
+   - Monorepo typecheck (`npm run typecheck`): 0 errors across `server`, `worker`, and `client`.
+   - Production bundle build (`npm run build`): clean compilation.

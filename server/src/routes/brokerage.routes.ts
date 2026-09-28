@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { brokerageController } from '../controllers/brokerage.controller.js';
+import { advisorController } from '../controllers/advisor.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import {
   requireRoles,
@@ -52,6 +53,25 @@ router.post(
   requireActiveUser,
   requireRoles('PLATFORM_ADMIN'),
   brokerageController.rotateWebhookSecret.bind(brokerageController)
+);
+
+// Advisors nested under brokerage (BROKERAGE_ADMIN of own brokerage, or PLATFORM_ADMIN)
+router.get(
+  '/:brokerageId/advisors',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => void advisorController.listAdvisors(req, res, next)
+);
+
+router.post(
+  '/:brokerageId/advisors',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => void advisorController.createAdvisor(req, res, next)
 );
 
 export const brokerageRouter = router;

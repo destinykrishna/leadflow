@@ -4,4 +4,5 @@ export * from './auth.service.js';
 export * from './brokerage.service.js';
 export * from './lead-ingestion.service.js';
 export * from './lead-pipeline.service.js';
+export * from './advisor.service.js';
 

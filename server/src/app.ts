@@ -12,6 +12,7 @@ import { leadRouter } from './routes/lead.routes.js';
 import { taskRouter } from './routes/task.routes.js';
 import { triggerRouter } from './routes/trigger.routes.js';
 import { emailTemplateRouter } from './routes/email-template.routes.js';
+import { advisorRouter } from './routes/advisor.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { NotFoundError } from './utils/errors.js';
 
@@ -80,6 +81,7 @@ export function createApp(): Express {
   app.use('/api/tasks', taskRouter);
   app.use('/api/triggers', triggerRouter);
   app.use('/api/email-templates', emailTemplateRouter);
+  app.use('/api/advisors', advisorRouter);
 
   // 404 Handler
   app.use((_req, _res, next) => {
