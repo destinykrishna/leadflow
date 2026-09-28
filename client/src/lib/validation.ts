@@ -257,3 +257,46 @@ export const emailTemplateResponseItemSchema = z.object({
 
 export const emailTemplateListResponseSchema = z.array(emailTemplateResponseItemSchema)
 
+/* =========================================================================
+ * Brokerage Schemas (Client-Side)
+ * ========================================================================= */
+
+export const BROKERAGE_PLANS = ['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'] as const
+export const BROKERAGE_STATUSES = ['ACTIVE', 'SUSPENDED', 'TRIAL'] as const
+
+export const createBrokerageAdminFormSchema = z.object({
+  name: z.string().trim().min(2, 'Admin name must be at least 2 characters').max(100),
+  email: z.string().trim().email('Invalid email address format').toLowerCase(),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(100),
+  phone: z.string().trim().optional(),
+})
+
+export const createBrokerageFormSchema = z.object({
+  name: z.string().trim().min(2, 'Brokerage name must be at least 2 characters').max(100),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be alphanumeric with optional hyphens')
+    .max(100)
+    .optional()
+    .or(z.literal('')),
+  plan: z.enum(BROKERAGE_PLANS).default('STARTER'),
+  status: z.enum(BROKERAGE_STATUSES).default('ACTIVE'),
+  admin: createBrokerageAdminFormSchema,
+})
+
+export const updateBrokerageFormSchema = z.object({
+  name: z.string().trim().min(2, 'Brokerage name must be at least 2 characters').max(100).optional(),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be alphanumeric with optional hyphens')
+    .max(100)
+    .optional()
+    .or(z.literal('')),
+  plan: z.enum(BROKERAGE_PLANS).optional(),
+  status: z.enum(BROKERAGE_STATUSES).optional(),
+})
+

@@ -3988,3 +3988,65 @@ COMPLETED
 ### Remaining Gaps
 - None for Phase 2 Prompt 2. All advisor lifecycle, RBAC, tenant isolation, concurrency, and session termination invariants are verified and hardened.
 
+## Phase 3, Prompt 1: Platform Admin Brokerage Management UI
+```
+LeadFlow — Phase 3, Prompt 1: Platform Admin Brokerage Management UI
+
+Read AGENTS.md, README.md, and only the relevant existing frontend auth/role/routing/layout code plus the brokerage APIs implemented in Phases 1–2. Do not reread the entire PROMPTS.md.
+
+Implement the Platform Admin brokerage-management UI.
+
+Scope:
+- Create a real Platform Admin brokerage directory using the existing brokerage API.
+- Show brokerage name, slug, status, plan, and useful user/activity counts only when supported by existing APIs.
+- Add a "Create Brokerage" flow for PLATFORM_ADMIN with the required brokerage and initial Brokerage Admin fields.
+- After successful creation, clearly surface the onboarding information returned by the API, including the brokerage ID and webhook secret/setup information only where the existing API explicitly permits it.
+- Add brokerage status/lifecycle management using the existing update API.
+- Add webhook-secret rotation using the existing API, with an explicit confirmation step and safe handling of the returned secret.
+- Handle loading, empty, validation, conflict, unauthorized, and API-error states.
+- Preserve existing role guards and tenant boundaries.
+- Use the existing LeadFlow design system and frontend primitives. Follow the established mature B2B mortgage-software style.
+- Do not expose technical implementation details to ordinary users.
+- Do not redesign unrelated pages.
+- Do not build Brokerage Admin advisor management yet.
+
+Testing:
+- Do not add frontend tests unless a genuinely critical behavior cannot reasonably be verified otherwise.
+- Run existing relevant frontend tests if useful.
+- Run monorepo typecheck and build.
+
+Documentation:
+- Update AGENTS.md and PROMPTS.md concisely with the Phase 3 Prompt 1 result.
+- Do not rewrite unrelated documentation.
+```
+
+### Status
+COMPLETED
+
+### Decisions & Assumptions
+1. **Directory & Real API Integration**:
+   - Implemented `BrokeragesPage` (`/admin/brokerages`) backed by `useBrokeragesList` querying `GET /api/brokerages` (`PLATFORM_ADMIN` only).
+   - Displayed name, slug, subscription plan badges (`FREE`, `STARTER`, `GROWTH`, `ENTERPRISE`), standing status badges (`ACTIVE`, `TRIAL`, `SUSPENDED`), copyable tenant IDs, created date, and relative activity timestamps.
+   - Built a 4-metric summary KPI strip (`Total Brokerages`, `Active Tenants`, `Trial Accounts`, `Suspended Accounts`) and multi-dimensional filtering (search by name/slug/ID, status dropdown, plan dropdown, instant reset).
+2. **Onboarding Flow & Secret Surfacing**:
+   - Built `CreateBrokerageModal` with client-side Zod validation (`createBrokerageFormSchema`) validating both brokerage attributes and initial admin account details with a secure password generator.
+   - On submission, calls `POST /api/brokerages`. On success, launches `OnboardingSuccessModal` clearly surfacing the generated Brokerage Tenant ID, initial admin login credentials, webhook ingestion endpoint (`/api/leads/webhook/:id`), and the newly generated 24-byte hex webhook secret (`webhookSecret`) with 1-click clipboard copy and clear storage warnings.
+3. **Lifecycle Management & Suspension Safety**:
+   - Built `EditBrokerageModal` using `PATCH /api/brokerages/:id` to update organization name, URL routing slug, subscription tier, and status.
+   - Implemented explicit visual suspension warning explaining that suspending a brokerage immediately revokes access for all tenant users. Handled HTTP 409 slug conflicts cleanly.
+4. **Webhook Secret Rotation**:
+   - Built `RotateSecretModal` using `POST /api/brokerages/:id/webhook-secret/rotate` with an explicit two-step workflow: 1) Confirmation modal detailing immediate invalidation of the previous secret on external lead webhooks; 2) Post-rotation screen safely displaying the new secret with one-click copy and configuration guidance.
+5. **Detailed Inspection Drawer**:
+   - Created `BrokerageDetailDrawer` showing complete credentials, copyable webhook endpoint, active webhook secret (permitted for platform admins via `GET /api/brokerages/:id`), and active team counts queried via existing `GET /api/brokerages/:id/advisors`.
+6. **State Handling & Design System**:
+   - Implemented loading skeleton rows, comprehensive empty states (no directory records vs filter misses), inline form validation errors, API conflict warnings, and error retry states.
+   - Preserved `PLATFORM_ADMIN` role protections and design language (slate canvas, authoritative sapphire primary, zero em-dashes, institutional mortgage software style).
+
+### Verification
+- Monorepo typecheck: `npm run typecheck` passed with 0 errors across `server`, `worker`, and `client`.
+- Production build: `npm run build` completed cleanly in 777ms.
+- Frontend test suite: All 106 existing client tests passed in 6.55s.
+
+### Remaining Gaps
+- Brokerage Admin team/advisor management UI is intentionally deferred to Phase 3 Prompt 2.
+
