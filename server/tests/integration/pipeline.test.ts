@@ -708,4 +708,99 @@ describe('Lead Pipeline Integration Tests', () => {
       expect(res.body.data.lead.assignedTo.email).toBe('elena@berlin-expat.de');
     });
   });
+
+  describe('9. Scalability, Pagination, and Soft-Delete Lead Lifecycle', () => {
+    it('should return server-side paginated leads with true total and totalPages', async () => {
+      const res = await request(app)
+        .get('/api/leads?limit=1&page=1')
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.leads).toHaveLength(1);
+      expect(res.body.data.total).toBe(2);
+      expect(res.body.data.page).toBe(1);
+      expect(res.body.data.limit).toBe(1);
+      expect(res.body.data.totalPages).toBe(2);
+    });
+
+    it('should return hasMore indicators on /api/leads/pipeline when stageLimit is applied', async () => {
+      const res = await request(app)
+        .get('/api/leads/pipeline?stageLimit=1')
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.pipeline).toBeDefined();
+      expect(res.body.data.counts.NEW).toBe(1);
+      expect(res.body.data.counts.QUALIFIED).toBe(1);
+      expect(res.body.data.hasMore).toBeDefined();
+      expect(typeof res.body.data.hasMore.NEW).toBe('boolean');
+    });
+
+    it('should archive a lead via PATCH /api/leads/:id/archive and exclude from active pipeline', async () => {
+      // Archive leadA1
+      const archiveRes = await request(app)
+        .patch(`/api/leads/${leadA1._id}/archive`)
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(archiveRes.status).toBe(200);
+      expect(archiveRes.body.data.lead.isArchived).toBe(true);
+      expect(archiveRes.body.data.lead.archivedAt).toBeDefined();
+
+      // Verify excluded from normal list
+      const listRes = await request(app)
+        .get('/api/leads')
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data.leads.some((l: any) => l._id === leadA1._id.toString())).toBe(false);
+      expect(listRes.body.data.total).toBe(1);
+
+      // Verify excluded from pipeline
+      const pipeRes = await request(app)
+        .get('/api/leads/pipeline')
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(pipeRes.status).toBe(200);
+      expect(pipeRes.body.data.pipeline.NEW).toHaveLength(0);
+      expect(pipeRes.body.data.counts.NEW).toBe(0);
+
+      // Restore / unarchive lead
+      const unarchiveRes = await request(app)
+        .patch(`/api/leads/${leadA1._id}/unarchive`)
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(unarchiveRes.status).toBe(200);
+      expect(unarchiveRes.body.data.lead.isArchived).toBe(false);
+
+      // Verify restored to normal list
+      const restoredListRes = await request(app)
+        .get('/api/leads')
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(restoredListRes.body.data.total).toBe(2);
+    });
+
+    it('should soft-delete a lead via DELETE /api/leads/:id without destroying document record', async () => {
+      const deleteRes = await request(app)
+        .delete(`/api/leads/${leadA2._id}`)
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body.data.lead.isArchived).toBe(true);
+
+      // Raw database lookup confirms document is still intact
+      const rawLead = await Lead.findById(leadA2._id);
+      expect(rawLead).not.toBeNull();
+      expect(rawLead!.isArchived).toBe(true);
+    });
+
+    it('should prevent cross-tenant archiving (anti-IDOR 404)', async () => {
+      // Advisor A tries to archive Lead B1 from Brokerage B
+      const res = await request(app)
+        .patch(`/api/leads/${leadB1._id}/archive`)
+        .set('Authorization', `Bearer ${tokenAdvisorA1}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
 });

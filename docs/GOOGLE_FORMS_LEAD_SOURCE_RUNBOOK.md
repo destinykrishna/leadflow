@@ -231,10 +231,12 @@ function onFormSubmit(e) {
     }
 
     // 1. Extract Full Name & Split into First/Last
-    var rawName = getAnswer(['full name', 'name', 'borrower']) || 'Valued Applicant';
-    var nameParts = String(rawName).trim().split(/\s+/);
-    var firstName = nameParts[0] || 'Valued';
-    var lastName = nameParts.slice(1).join(' ') || 'Applicant';
+    // For single-word names (e.g. "Bhavika"), firstName is the exact name and lastName is safe empty string ""
+    // For multi-word names (e.g. "Bhavika Sharma"), firstName is "Bhavika" and lastName is "Sharma"
+    var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim();
+    var nameParts = rawName ? rawName.split(/\s+/) : [];
+    var firstName = nameParts[0] || 'Valued Applicant';
+    var lastName = nameParts.slice(1).join(' '); // Safe empty string for single-name leads
 
     // 2. Extract Contact Info
     var email = (getAnswer(['email']) || '').toString().trim().toLowerCase();

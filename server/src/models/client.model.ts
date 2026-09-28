@@ -63,7 +63,7 @@ const clientSchema = new Schema<IClientDocument>(
     },
     lastName: {
       type: String,
-      required: [true, 'Last name is required'],
+      default: '',
       trim: true,
       maxlength: [60, 'Last name cannot exceed 60 characters'],
     },

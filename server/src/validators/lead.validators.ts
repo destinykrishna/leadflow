@@ -89,6 +89,9 @@ export const pipelineQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
   page: z.coerce.number().int().min(1).default(1),
+  stageLimit: z.coerce.number().int().min(1).max(100).default(25),
+  includeArchived: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
+  isArchived: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
   sort: z.enum(['createdAt', 'updatedAt', 'score', 'name']).default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
@@ -108,8 +111,8 @@ export const standardLeadPayloadSchema = z.object({
   lastName: z
     .string()
     .trim()
-    .min(1, 'Last name cannot be empty')
-    .max(60, 'Last name cannot exceed 60 characters'),
+    .max(60, 'Last name cannot exceed 60 characters')
+    .default(''),
   email: z
     .string()
     .trim()
@@ -272,11 +275,10 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
 
     if (!firstName && !lastName && fullNameAnswer?.text) {
       const parts = fullNameAnswer.text.trim().split(/\s+/);
-      firstName = parts[0] || 'Unknown';
-      lastName = parts.slice(1).join(' ') || 'Applicant';
+      firstName = parts[0] || '';
+      lastName = parts.slice(1).join(' ');
     } else {
-      if (!firstName) firstName = fullNameAnswer?.text?.trim() || 'Unknown';
-      if (!lastName) lastName = 'Applicant';
+      if (!firstName) firstName = fullNameAnswer?.text?.trim() || '';
     }
 
     // Extract phone

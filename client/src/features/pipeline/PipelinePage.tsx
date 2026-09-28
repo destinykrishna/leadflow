@@ -28,6 +28,7 @@ import {
   useUpdateLeadStage,
   PIPELINE_QUERY_KEY,
 } from './api/pipeline.api'
+import { leadsApi } from '@/features/leads/api/leads.api'
 import { usePipelineSocket } from './hooks/usePipelineSocket'
 import { PipelineHeader } from './components/PipelineHeader'
 import { DroppableColumn } from './components/DroppableColumn'
@@ -47,6 +48,7 @@ export function PipelinePage() {
   const [activeLead, setActiveLead] = React.useState<Lead | null>(null)
   const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(null)
   const [feedback, setFeedback] = React.useState<FeedbackNotice | null>(null)
+  const [loadingStage, setLoadingStage] = React.useState<LeadStatus | null>(null)
 
   const queryClient = useQueryClient()
   const { data, isLoading, isError, error, refetch } = usePipeline()
@@ -91,6 +93,56 @@ export function PipelinePage() {
     }
   }, [])
 
+  const handleLoadMore = React.useCallback(
+    async (stage: LeadStatus) => {
+      if (loadingStage) return
+      setLoadingStage(stage)
+      try {
+        const currentStageLeads = data?.pipeline?.[stage] || []
+        const currentCount = currentStageLeads.length
+        const page = Math.floor(currentCount / 25) + 1
+        const res = await leadsApi.listLeads({
+          stage,
+          page,
+          limit: 25,
+          search: search.trim() || undefined,
+        })
+
+        queryClient.setQueriesData<PipelineGroupedData>(
+          { queryKey: PIPELINE_QUERY_KEY },
+          (old) => {
+            if (!old) return old
+            const existing = old.pipeline[stage] || []
+            const newLeads = res.leads.filter(
+              (nl) => !existing.some((el) => el._id === nl._id),
+            )
+            const combined = [...existing, ...newLeads]
+            const totalStageCount = old.counts[stage] ?? combined.length
+            return {
+              ...old,
+              pipeline: {
+                ...old.pipeline,
+                [stage]: combined,
+              },
+              hasMore: {
+                ...old.hasMore,
+                [stage]: combined.length < totalStageCount,
+              },
+            }
+          },
+        )
+      } catch {
+        setFeedback({
+          type: 'error',
+          text: `Failed to load more leads for stage ${STAGE_DEFINITIONS[stage]?.label || stage}.`,
+        })
+      } finally {
+        setLoadingStage(null)
+      }
+    },
+    [data, loadingStage, queryClient, search],
+  )
+
   // Filter and sort leads across all 7 stages
   const filteredPipeline = React.useMemo(() => {
     if (!data?.pipeline) return null
@@ -112,7 +164,7 @@ export function PipelinePage() {
         if (q) {
           const matchesSearch =
             lead.firstName.toLowerCase().includes(q) ||
-            lead.lastName.toLowerCase().includes(q) ||
+            (lead.lastName || '').toLowerCase().includes(q) ||
             lead.email.toLowerCase().includes(q) ||
             (lead.phone && lead.phone.includes(q)) ||
             (lead.source && lead.source.toLowerCase().includes(q))
@@ -271,7 +323,7 @@ export function PipelinePage() {
 
       setFeedback({
         type: 'success',
-        text: `Successfully moved ${lead.firstName} ${lead.lastName} to ${STAGE_DEFINITIONS[targetStage].label}.`,
+        text: `Successfully moved ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')} to ${STAGE_DEFINITIONS[targetStage].label}.`,
       })
     } catch (err: unknown) {
       // 4. Rollback to snapshot on failure
@@ -289,7 +341,7 @@ export function PipelinePage() {
       if (is409Conflict) {
         setFeedback({
           type: 'error',
-          text: `Stage update conflict: ${lead.firstName} ${lead.lastName} was modified concurrently by another advisor. Refreshing board...`,
+          text: `Stage update conflict: ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')} was modified concurrently by another advisor. Refreshing board...`,
         })
         queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
       } else {
@@ -420,6 +472,10 @@ export function PipelinePage() {
                 key={stage}
                 stage={stage}
                 leads={filteredPipeline?.[stage] || []}
+                totalCount={data?.counts?.[stage]}
+                hasMore={Boolean(data?.hasMore?.[stage])}
+                isLoadingMore={loadingStage === stage}
+                onLoadMore={() => handleLoadMore(stage)}
                 activeLead={activeLead}
                 onLeadClick={(lead) => setSelectedLeadId(lead._id)}
               />

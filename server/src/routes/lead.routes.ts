@@ -118,5 +118,32 @@ router.post(
   leadController.convertLeadToClient.bind(leadController)
 );
 
+// Archive lead (soft-delete, excludes from active pipeline and list queries)
+router.patch(
+  '/:id/archive',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.archiveLead.bind(leadController)
+);
+
+// Unarchive / restore lead
+router.patch(
+  '/:id/unarchive',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.unarchiveLead.bind(leadController)
+);
+
+// HTTP DELETE soft-delete alias (archives the lead, avoiding destructive hard delete)
+router.delete(
+  '/:id',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.archiveLead.bind(leadController)
+);
+
 export const leadRouter = router;
 

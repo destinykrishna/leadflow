@@ -35,6 +35,8 @@ export interface ILead {
   convertedClientId?: Types.ObjectId | null;
   notes?: string;
   customFields?: Record<string, unknown>;
+  isArchived?: boolean;
+  archivedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,7 +61,7 @@ const leadSchema = new Schema<ILeadDocument>(
     },
     lastName: {
       type: String,
-      required: [true, 'Last name is required'],
+      default: '',
       trim: true,
       maxlength: [60, 'Last name cannot exceed 60 characters'],
     },
@@ -118,6 +120,15 @@ const leadSchema = new Schema<ILeadDocument>(
       of: Schema.Types.Mixed,
       default: () => new Map(),
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -140,6 +151,7 @@ leadSchema.index(
 // Compound indexes for pipeline querying, agent filtering, and chronological sorting
 leadSchema.index({ brokerageId: 1, createdAt: -1 });
 leadSchema.index({ brokerageId: 1, status: 1, createdAt: -1 });
+leadSchema.index({ brokerageId: 1, isArchived: 1, status: 1, createdAt: -1 });
 leadSchema.index({ brokerageId: 1, assignedTo: 1, createdAt: -1 });
 leadSchema.index({ brokerageId: 1, assignedTo: 1, status: 1 });
 leadSchema.index({ brokerageId: 1, score: -1 });

@@ -26,7 +26,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
               <User className="h-3.5 w-3.5" />
             </div>
             <span className="text-xs font-semibold text-slate-900 group-hover:text-primary transition-colors truncate">
-              {lead.firstName} {lead.lastName}
+              {[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
             </span>
             {lead.convertedClientId && (
               <Badge variant="success" size="sm" className="text-[9px] py-0 px-1 shrink-0 font-medium">

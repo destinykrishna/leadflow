@@ -54,6 +54,8 @@ export interface Lead {
   convertedClientId?: string | null
   notes?: string
   customFields?: LeadCustomFields
+  isArchived?: boolean
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
   __v?: number
@@ -63,6 +65,7 @@ export interface PipelineGroupedData {
   pipeline: Record<LeadStatus, Lead[]>
   counts: Record<LeadStatus, number>
   total: number
+  hasMore?: Partial<Record<LeadStatus, boolean>>
 }
 
 export interface StageDefinition {

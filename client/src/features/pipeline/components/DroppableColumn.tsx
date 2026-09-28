@@ -14,6 +14,10 @@ interface DroppableColumnProps {
   leads: Lead[]
   activeLead: Lead | null
   onLeadClick?: (lead: Lead) => void
+  totalCount?: number
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 const STAGE_DOT_COLORS: Record<LeadStatus, string> = {
@@ -31,6 +35,10 @@ export function DroppableColumn({
   leads,
   activeLead,
   onLeadClick,
+  totalCount,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: DroppableColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
@@ -81,7 +89,7 @@ export function DroppableColumn({
             {stageDef?.label || stage}
           </h2>
           <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-slate-200/80 px-1.5 text-[10px] font-semibold text-slate-700">
-            {leads.length}
+            {totalCount !== undefined ? totalCount : leads.length}
           </span>
         </div>
 
@@ -125,6 +133,24 @@ export function DroppableColumn({
               onClick={() => onLeadClick?.(lead)}
             />
           ))
+        )}
+
+        {hasMore && (
+          <div className="pt-1 pb-1 text-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onLoadMore?.()
+              }}
+              disabled={isLoadingMore}
+              className="w-full rounded-md border border-border/80 bg-white/90 py-1.5 px-3 text-[11px] font-medium text-slate-600 hover:bg-white hover:text-primary hover:border-primary/40 transition-colors shadow-2xs disabled:opacity-50"
+            >
+              {isLoadingMore
+                ? 'Loading more...'
+                : `Load more (${leads.length} of ${totalCount ?? leads.length})`}
+            </button>
+          </div>
         )}
       </div>
     </div>

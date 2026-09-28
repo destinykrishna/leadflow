@@ -27,6 +27,9 @@ export interface PipelineFilterOptions {
   brokerageId?: string | undefined;
   limit?: number | undefined;
   page?: number | undefined;
+  stageLimit?: number | undefined;
+  includeArchived?: boolean | undefined;
+  isArchived?: boolean | undefined;
   sort?: 'createdAt' | 'updatedAt' | 'score' | 'name' | undefined;
   order?: 'asc' | 'desc' | undefined;
 }
@@ -181,13 +184,13 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
   }
 
   /**
-   * Retrieves pipeline leads strictly scoped to the authenticated user's brokerage.
-   * PLATFORM_ADMIN may query platform-wide or filter by an explicit brokerageId.
+   * Builds standardized query filter enforcing tenant boundaries, active lifecycle,
+   * search terms, and advisor assignments.
    */
-  async findPipelineLeads(
+  buildLeadFilter(
     userContext: AuthUserContext,
     options: PipelineFilterOptions = {}
-  ): Promise<ILeadDocument[]> {
+  ): Record<string, unknown> {
     const queryFilter: Record<string, unknown> = {};
 
     if (userContext.role === 'PLATFORM_ADMIN') {
@@ -199,6 +202,15 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
         throw new BrokerageIsolationError('Brokerage context missing for tenant user');
       }
       queryFilter.brokerageId = new Types.ObjectId(userContext.brokerageId);
+    }
+
+    // Exclude archived leads by default ($ne: true cleanly supports unmigrated documents)
+    if (options.includeArchived) {
+      if (options.isArchived !== undefined) {
+        queryFilter.isArchived = options.isArchived;
+      }
+    } else {
+      queryFilter.isArchived = { $ne: true };
     }
 
     const targetStage = options.stage ?? options.status;
@@ -222,6 +234,19 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
       ];
     }
 
+    return queryFilter;
+  }
+
+  /**
+   * Retrieves pipeline leads strictly scoped to the authenticated user's brokerage.
+   * PLATFORM_ADMIN may query platform-wide or filter by an explicit brokerageId.
+   */
+  async findPipelineLeads(
+    userContext: AuthUserContext,
+    options: PipelineFilterOptions = {}
+  ): Promise<ILeadDocument[]> {
+    const queryFilter = this.buildLeadFilter(userContext, options);
+
     const sortField = options.sort === 'name' ? 'lastName' : (options.sort ?? 'createdAt');
     const sortDirection = options.order === 'asc' ? 1 : -1;
     const sortQuery: Record<string, 1 | -1> = { [sortField]: sortDirection };
@@ -235,6 +260,211 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
       .sort(sortQuery)
       .skip(skip)
       .limit(limit)
+      .populate('assignedTo', '_id name email');
+  }
+
+  /**
+   * Retrieves paginated leads along with the true total count matching filter criteria.
+   * Ensures the Leads table does not load entire brokerage datasets into memory.
+   */
+  async findPipelineLeadsWithCount(
+    userContext: AuthUserContext,
+    options: PipelineFilterOptions = {}
+  ): Promise<{
+    leads: ILeadDocument[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const queryFilter = this.buildLeadFilter(userContext, options);
+
+    const sortField = options.sort === 'name' ? 'lastName' : (options.sort ?? 'createdAt');
+    const sortDirection = options.order === 'asc' ? 1 : -1;
+    const sortQuery: Record<string, 1 | -1> = { [sortField]: sortDirection };
+
+    const limit = Math.min(options.limit ?? 25, 500);
+    const page = Math.max(options.page ?? 1, 1);
+    const skip = (page - 1) * limit;
+
+    const [leads, total] = await Promise.all([
+      this.model
+        .find(queryFilter)
+        .sort(sortQuery)
+        .skip(skip)
+        .limit(limit)
+        .populate('assignedTo', '_id name email'),
+      this.model.countDocuments(queryFilter),
+    ]);
+
+    return {
+      leads,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
+   * Retrieves pipeline grouped across all 7 stages with accurate counts and stage-level limits.
+   * Prevents large terminal stages (WON, LOST) from sending hundreds or thousands of documents at once.
+   */
+  async getPipelineGrouped(
+    userContext: AuthUserContext,
+    options: PipelineFilterOptions = {}
+  ): Promise<{
+    pipeline: Record<LeadStatus, ILeadDocument[]>;
+    counts: Record<LeadStatus, number>;
+    hasMore: Record<LeadStatus, boolean>;
+    total: number;
+  }> {
+    const baseFilter = this.buildLeadFilter(userContext, options);
+
+    const sortField = options.sort === 'name' ? 'lastName' : (options.sort ?? 'createdAt');
+    const sortDirection = options.order === 'asc' ? 1 : -1;
+    const sortQuery: Record<string, 1 | -1> = { [sortField]: sortDirection };
+
+    const stageLimit = options.stageLimit ?? 25;
+
+    const stages: LeadStatus[] = [
+      'NEW',
+      'CONTACTED',
+      'QUALIFIED',
+      'PROPOSAL',
+      'NEGOTIATION',
+      'WON',
+      'LOST',
+    ];
+
+    // 1. Fetch accurate counts per stage using MongoDB aggregation
+    const countsAgg = await this.model.aggregate([
+      { $match: baseFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+
+    const counts: Record<LeadStatus, number> = {
+      NEW: 0,
+      CONTACTED: 0,
+      QUALIFIED: 0,
+      PROPOSAL: 0,
+      NEGOTIATION: 0,
+      WON: 0,
+      LOST: 0,
+    };
+
+    let total = 0;
+    for (const item of countsAgg) {
+      if (item._id in counts) {
+        counts[item._id as LeadStatus] = item.count;
+        total += item.count;
+      }
+    }
+
+    // 2. Query stage documents up to stageLimit in parallel
+    const stageResults = await Promise.all(
+      stages.map((stage) =>
+        this.model
+          .find({ ...baseFilter, status: stage })
+          .sort(sortQuery)
+          .limit(stageLimit)
+          .populate('assignedTo', '_id name email')
+      )
+    );
+
+    const pipeline: Record<LeadStatus, ILeadDocument[]> = {
+      NEW: stageResults[0] ?? [],
+      CONTACTED: stageResults[1] ?? [],
+      QUALIFIED: stageResults[2] ?? [],
+      PROPOSAL: stageResults[3] ?? [],
+      NEGOTIATION: stageResults[4] ?? [],
+      WON: stageResults[5] ?? [],
+      LOST: stageResults[6] ?? [],
+    };
+
+    const hasMore: Record<LeadStatus, boolean> = {
+      NEW: counts.NEW > pipeline.NEW.length,
+      CONTACTED: counts.CONTACTED > pipeline.CONTACTED.length,
+      QUALIFIED: counts.QUALIFIED > pipeline.QUALIFIED.length,
+      PROPOSAL: counts.PROPOSAL > pipeline.PROPOSAL.length,
+      NEGOTIATION: counts.NEGOTIATION > pipeline.NEGOTIATION.length,
+      WON: counts.WON > pipeline.WON.length,
+      LOST: counts.LOST > pipeline.LOST.length,
+    };
+
+    return {
+      pipeline,
+      counts,
+      hasMore,
+      total,
+    };
+  }
+
+  /**
+   * Archives a lead (soft-delete), preserving all historical associations and data.
+   */
+  async archiveLead(
+    userContext: AuthUserContext,
+    id: string | Types.ObjectId
+  ): Promise<ILeadDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    const objectId = id instanceof Types.ObjectId ? id : new Types.ObjectId(id);
+
+    const filter: Record<string, unknown> = { _id: objectId };
+    if (userContext.role !== 'PLATFORM_ADMIN') {
+      if (!userContext.brokerageId) {
+        throw new BrokerageIsolationError('Brokerage context missing for tenant user');
+      }
+      filter.brokerageId = new Types.ObjectId(userContext.brokerageId);
+    }
+
+    return this.model
+      .findOneAndUpdate(
+        filter,
+        {
+          $set: {
+            isArchived: true,
+            archivedAt: new Date(),
+          },
+        },
+        { returnDocument: 'after' }
+      )
+      .populate('assignedTo', '_id name email');
+  }
+
+  /**
+   * Unarchives / restores an archived lead.
+   */
+  async unarchiveLead(
+    userContext: AuthUserContext,
+    id: string | Types.ObjectId
+  ): Promise<ILeadDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    const objectId = id instanceof Types.ObjectId ? id : new Types.ObjectId(id);
+
+    const filter: Record<string, unknown> = { _id: objectId };
+    if (userContext.role !== 'PLATFORM_ADMIN') {
+      if (!userContext.brokerageId) {
+        throw new BrokerageIsolationError('Brokerage context missing for tenant user');
+      }
+      filter.brokerageId = new Types.ObjectId(userContext.brokerageId);
+    }
+
+    return this.model
+      .findOneAndUpdate(
+        filter,
+        {
+          $set: {
+            isArchived: false,
+            archivedAt: null,
+          },
+        },
+        { returnDocument: 'after' }
+      )
       .populate('assignedTo', '_id name email');
   }
 

@@ -87,64 +87,54 @@ export interface PipelineGroupedResponse {
   pipeline: Record<LeadStatus, ILeadDocument[]>;
   counts: Record<LeadStatus, number>;
   total: number;
+  hasMore?: Record<LeadStatus, boolean>;
 }
 
 export interface PipelineListResponse {
   leads: ILeadDocument[];
   total: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
 }
 
 export class LeadPipelineService {
   /**
    * Retrieves leads for the authenticated brokerage.
-   * If groupBy is 'stage' or 'status', returns a Kanban-ready grouped structure.
-   * Otherwise returns a flat array of leads with counts.
+   * If groupBy is 'stage' or 'status', returns a Kanban-ready grouped structure with accurate counts and stage-level limits.
+   * Otherwise returns a paginated flat array of leads with true total counts.
    */
   async listLeads(
     userContext: AuthUserContext,
     query: PipelineQuery
   ): Promise<PipelineGroupedResponse | PipelineListResponse> {
-    const leads = await leadRepository.findPipelineLeads(userContext, query);
-
     if (query.groupBy === 'stage' || query.groupBy === 'status') {
-      const pipeline: Record<LeadStatus, ILeadDocument[]> = {
-        NEW: [],
-        CONTACTED: [],
-        QUALIFIED: [],
-        PROPOSAL: [],
-        NEGOTIATION: [],
-        WON: [],
-        LOST: [],
-      };
-
-      const counts: Record<LeadStatus, number> = {
-        NEW: 0,
-        CONTACTED: 0,
-        QUALIFIED: 0,
-        PROPOSAL: 0,
-        NEGOTIATION: 0,
-        WON: 0,
-        LOST: 0,
-      };
-
-      for (const lead of leads) {
-        if (pipeline[lead.status]) {
-          pipeline[lead.status].push(lead);
-          counts[lead.status]++;
-        }
-      }
-
-      return {
-        pipeline,
-        counts,
-        total: leads.length,
-      };
+      return leadRepository.getPipelineGrouped(userContext, query);
     }
 
-    return {
-      leads,
-      total: leads.length,
-    };
+    return leadRepository.findPipelineLeadsWithCount(userContext, query);
+  }
+
+  /**
+   * Archives a lead (soft-delete), excluding it from active pipeline and list queries.
+   */
+  async archiveLead(userContext: AuthUserContext, leadId: string): Promise<ILeadDocument> {
+    const lead = await leadRepository.archiveLead(userContext, leadId);
+    if (!lead) {
+      throw new NotFoundError('Lead resource not found');
+    }
+    return lead;
+  }
+
+  /**
+   * Restores an archived lead back to active status.
+   */
+  async unarchiveLead(userContext: AuthUserContext, leadId: string): Promise<ILeadDocument> {
+    const lead = await leadRepository.unarchiveLead(userContext, leadId);
+    if (!lead) {
+      throw new NotFoundError('Lead resource not found');
+    }
+    return lead;
   }
 
   /**

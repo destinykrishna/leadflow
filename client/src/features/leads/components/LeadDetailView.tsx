@@ -19,6 +19,7 @@ import {
   Percent,
   RefreshCw,
   XCircle,
+  Archive,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -39,6 +40,8 @@ import {
   useLeadTasks,
   useLeadDocuments,
   useUpdateLeadWorkspaceStage,
+  useArchiveLead,
+  useUnarchiveLead,
 } from '../api/leads.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
@@ -103,6 +106,8 @@ export function LeadDetailView({
   } = useLeadDocuments(lead?._id)
 
   const updateStageMutation = useUpdateLeadWorkspaceStage()
+  const archiveMutation = useArchiveLead()
+  const unarchiveMutation = useUnarchiveLead()
 
   const [isConvertModalOpen, setIsConvertModalOpen] = React.useState(false)
   const [concurrencyNotice, setConcurrencyNotice] = React.useState<string | null>(null)
@@ -318,7 +323,7 @@ export function LeadDetailView({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
-                {lead.firstName} {lead.lastName}
+                {[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
               </h1>
               <Badge variant={stageDef?.badgeVariant || 'neutral'} size="md">
                 {stageDef?.label || lead.status}
@@ -406,6 +411,36 @@ export function LeadDetailView({
               View Client Case
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>
+          )}
+
+          {isStaffRole && (
+            lead.isArchived ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => unarchiveMutation.mutate(lead._id)}
+                disabled={unarchiveMutation.isPending}
+                className="gap-1.5 text-xs h-8 text-amber-700 hover:bg-amber-50 border-amber-300"
+              >
+                Restore Lead
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm(`Archive inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}?`)) {
+                    archiveMutation.mutate(lead._id)
+                  }
+                }}
+                disabled={archiveMutation.isPending}
+                className="gap-1.5 text-xs h-8 text-slate-600 hover:text-amber-700 hover:border-amber-300"
+                title="Archive Lead (excludes from active pipeline)"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                Archive
+              </Button>
+            )
           )}
         </div>
       </div>
@@ -603,7 +638,7 @@ export function LeadDetailView({
               <div>
                 <span className="text-muted-foreground block mb-0.5">Full Name</span>
                 <span className="font-semibold text-slate-900 text-sm">
-                  {lead.firstName} {lead.lastName}
+                  {[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
                 </span>
               </div>
 

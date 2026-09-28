@@ -167,6 +167,58 @@ export class LeadController {
       next(error);
     }
   }
+
+  /**
+   * Archives a lead (soft-delete). Excludes the lead from active pipeline and list views.
+   */
+  async archiveLead(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const lead = await leadPipelineService.archiveLead(req.user, parsedParam.data.id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Lead archived successfully',
+        data: { lead },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Restores an archived lead back to active status.
+   */
+  async unarchiveLead(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const lead = await leadPipelineService.unarchiveLead(req.user, parsedParam.data.id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Lead restored successfully',
+        data: { lead },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const leadController = new LeadController();

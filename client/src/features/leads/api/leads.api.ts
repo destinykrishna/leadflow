@@ -45,9 +45,12 @@ export interface ConvertLeadResponseData {
 
 export interface LeadsQueryParams {
   status?: LeadStatus
+  stage?: LeadStatus
   search?: string
   page?: number
   limit?: number
+  includeArchived?: boolean
+  isArchived?: boolean
 }
 
 export const leadsApi = {
@@ -56,11 +59,25 @@ export const leadsApi = {
     return response.data.data!.lead
   },
 
-  listLeads: async (params?: LeadsQueryParams): Promise<{ leads: Lead[]; total: number }> => {
-    const response = await api.get<ApiResponse<{ leads: Lead[]; total: number }>>('/leads', {
+  listLeads: async (
+    params?: LeadsQueryParams,
+  ): Promise<{ leads: Lead[]; total: number; page?: number; limit?: number; totalPages?: number }> => {
+    const response = await api.get<
+      ApiResponse<{ leads: Lead[]; total: number; page?: number; limit?: number; totalPages?: number }>
+    >('/leads', {
       params,
     })
     return response.data.data || { leads: [], total: 0 }
+  },
+
+  archiveLead: async (id: string): Promise<Lead> => {
+    const response = await api.patch<ApiResponse<{ lead: Lead }>>(`/leads/${id}/archive`)
+    return response.data.data!.lead
+  },
+
+  unarchiveLead: async (id: string): Promise<Lead> => {
+    const response = await api.patch<ApiResponse<{ lead: Lead }>>(`/leads/${id}/unarchive`)
+    return response.data.data!.lead
   },
 
   getLeadTasks: async (leadId: string): Promise<Task[]> => {
@@ -172,6 +189,32 @@ export function useUpdateLeadWorkspaceStage() {
       queryClient.setQueryData(LEAD_QUERY_KEY(variables.id), data.lead)
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(variables.id) })
       queryClient.invalidateQueries({ queryKey: LEAD_TASKS_KEY(variables.id) })
+      queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
+    },
+  })
+}
+
+export function useArchiveLead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.archiveLead(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(id) })
+      queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
+    },
+  })
+}
+
+export function useUnarchiveLead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.unarchiveLead(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(id) })
       queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
     },

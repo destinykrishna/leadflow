@@ -8,6 +8,8 @@ import {
   ArrowRight,
   ExternalLink,
   RotateCw,
+  Archive,
+  RotateCcw,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -23,33 +25,43 @@ import {
   type Lead,
   type LeadStatus,
 } from '@/types/pipeline.types'
-import { useLeadsList } from './api/leads.api'
+import { useLeadsList, useArchiveLead, useUnarchiveLead } from './api/leads.api'
 
 export function LeadsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [selectedStatus, setSelectedStatus] = React.useState<string>('ALL')
+  const [viewScope, setViewScope] = React.useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
+  const [page, setPage] = React.useState(1)
+  const limit = 25
+
+  // Debounce search input to avoid spamming server queries
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const isArchivedView = viewScope === 'ARCHIVED'
 
   const { data, isLoading, isError, error, refetch, isFetching } = useLeadsList({
     status: selectedStatus !== 'ALL' ? (selectedStatus as LeadStatus) : undefined,
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
+    page,
+    limit,
+    includeArchived: isArchivedView ? true : undefined,
+    isArchived: isArchivedView ? true : undefined,
   })
 
-  const leads = data?.leads || []
+  const archiveMutation = useArchiveLead()
+  const unarchiveMutation = useUnarchiveLead()
 
-  // Filter leads in memory if search query entered
-  const filteredLeads = React.useMemo(() => {
-    if (!search.trim()) return leads
-    const q = search.toLowerCase().trim()
-    return leads.filter(
-      (l) =>
-        l.firstName.toLowerCase().includes(q) ||
-        l.lastName.toLowerCase().includes(q) ||
-        l.email.toLowerCase().includes(q) ||
-        (l.phone && l.phone.includes(q)) ||
-        (l.source && l.source.toLowerCase().includes(q)),
-    )
-  }, [leads, search])
+  const leads = data?.leads || []
+  const total = data?.total || 0
+  const totalPages = data?.totalPages || Math.ceil(total / limit) || 1
 
   return (
     <div className="space-y-4">
@@ -62,7 +74,7 @@ export function LeadsPage() {
               Lead Inquiries
             </h1>
             <Badge variant="neutral" size="sm">
-              {filteredLeads.length} Total
+              {total} Total
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -94,36 +106,85 @@ export function LeadsPage() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <Input
-            type="text"
-            placeholder="Search by borrower name, email, phone, or source..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 text-xs h-9 bg-white"
-          />
+      {/* View Scope Tabs, Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Toggle between Active and Archived */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-border/60 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setViewScope('ACTIVE')
+              setPage(1)
+            }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              !isArchivedView
+                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Active Inquiries
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setViewScope('ARCHIVED')
+              setPage(1)
+            }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all ${
+              isArchivedView
+                ? 'bg-white text-amber-900 shadow-2xs font-semibold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Archive className="h-3.5 w-3.5 text-amber-600" />
+            <span>Archived</span>
+          </button>
         </div>
 
-        {/* Status Dropdown Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="h-3.5 w-3.5 text-slate-400" />
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="rounded-md border border-border bg-white px-3 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
-          >
-            <option value="ALL">All Stages</option>
-            {ORDERED_STAGES.map((s) => (
-              <option key={s} value={s}>
-                {STAGE_DEFINITIONS[s]?.label || s}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:justify-end">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Search by borrower name, email, phone, or source..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 text-xs h-9 bg-white"
+            />
+          </div>
+
+          {/* Status Dropdown Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-3.5 w-3.5 text-slate-400" />
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-md border border-border bg-white px-3 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+            >
+              <option value="ALL">All Stages</option>
+              {ORDERED_STAGES.map((s) => (
+                <option key={s} value={s}>
+                  {STAGE_DEFINITIONS[s]?.label || s}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
+
+      {isArchivedView && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 bg-amber-50/70 border border-amber-200/80 rounded-lg text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <Archive className="h-4 w-4 text-amber-700 shrink-0" />
+            <span>
+              <strong>Archived Storage:</strong> These inquiries have been soft-deleted or archived and excluded from the active pipeline board. You can restore any lead inquiry to active status at any time.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Leads Table / List */}
       {isLoading ? (
@@ -138,14 +199,22 @@ export function LeadsPage() {
           message={error instanceof Error ? error.message : 'Error fetching inquiries from server.'}
           onRetry={refetch}
         />
-      ) : filteredLeads.length === 0 ? (
+      ) : leads.length === 0 ? (
         <EmptyState
-          icon={<Users className="h-8 w-8 text-slate-400" />}
-          title={search ? 'No Matching Inquiries' : 'No Inbound Leads'}
+          icon={isArchivedView ? <Archive className="h-8 w-8 text-amber-500" /> : <Users className="h-8 w-8 text-slate-400" />}
+          title={
+            isArchivedView
+              ? (search ? 'No Matching Archived Inquiries' : 'No Archived Inquiries')
+              : (search ? 'No Matching Inquiries' : 'No Inbound Leads')
+          }
           description={
-            search
-              ? `No inquiries found matching "${search}". Try clearing your search filters.`
-              : 'Prospects who submit financing inquiries through webhook forms will appear here.'
+            isArchivedView
+              ? (search
+                  ? `No archived inquiries found matching "${search}".`
+                  : 'Inquiries that you archive or soft-delete from the pipeline will be safely stored here.')
+              : (search
+                  ? `No inquiries found matching "${search}". Try clearing your search filters.`
+                  : 'Prospects who submit financing inquiries through webhook forms will appear here.')
           }
           className="py-12"
         />
@@ -166,7 +235,7 @@ export function LeadsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {filteredLeads.map((lead: Lead) => {
+                {leads.map((lead: Lead) => {
                   const stageDef = STAGE_DEFINITIONS[lead.status]
                   const loanAmount = Number(lead.customFields?.loanAmount) || 0
                   const isConverted = Boolean(lead.convertedClientId)
@@ -195,7 +264,7 @@ export function LeadsPage() {
                           <div>
                             <div className="flex items-center gap-1.5 font-semibold text-slate-900 group-hover:text-primary transition-colors">
                               <span>
-                                {lead.firstName} {lead.lastName}
+                                {[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
                               </span>
                               {isConverted && (
                                 <Badge variant="success" size="sm" className="text-[9px] py-0 px-1">
@@ -205,6 +274,11 @@ export function LeadsPage() {
                               {isAlreadyKnown && (
                                 <Badge variant="warning" size="sm" className="text-[9px] py-0 px-1">
                                   Known
+                                </Badge>
+                              )}
+                              {lead.isArchived && (
+                                <Badge variant="neutral" size="sm" className="text-[9px] py-0 px-1 border-amber-300 bg-amber-50 text-amber-800">
+                                  Archived
                                 </Badge>
                               )}
                             </div>
@@ -267,24 +341,89 @@ export function LeadsPage() {
 
                       {/* Action */}
                       <td className="py-3 px-4 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/app/leads/${lead._id}`)
-                          }}
-                          className="h-7 w-7 p-0 text-slate-400 group-hover:text-primary transition-colors"
-                          title="Open Lead Workspace"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/app/leads/${lead._id}`)
+                            }}
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-primary transition-colors"
+                            title="Open Lead Workspace"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                          {lead.isArchived ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                unarchiveMutation.mutate(lead._id)
+                              }}
+                              disabled={unarchiveMutation.isPending}
+                              className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-100/60 transition-colors"
+                              title="Restore Lead to Pipeline"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (window.confirm(`Archive inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}?`)) {
+                                  archiveMutation.mutate(lead._id)
+                                }
+                              }}
+                              disabled={archiveMutation.isPending}
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-amber-600 transition-colors"
+                              title="Archive Lead"
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Subtle Server-Side Pagination Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/80 px-4 py-3 bg-slate-50/50">
+            <div className="text-xs text-muted-foreground">
+              Showing <span className="font-semibold text-slate-800">{total === 0 ? 0 : (page - 1) * limit + 1}</span> to{' '}
+              <span className="font-semibold text-slate-800">{Math.min(page * limit, total)}</span> of{' '}
+              <span className="font-semibold text-slate-800">{total}</span> inquiries
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page <= 1 || isFetching}
+                className="h-8 text-xs px-3 text-slate-700"
+              >
+                Previous
+              </Button>
+              <span className="text-xs font-medium text-slate-600 px-1">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                disabled={page >= totalPages || isFetching}
+                className="h-8 text-xs px-3 text-slate-700"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </Card>
       )}
