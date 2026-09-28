@@ -3787,3 +3787,117 @@ COMPLETED
    - Zero new frontend tests created; 106 existing client unit tests passing.
    - Monorepo typecheck clean (`npm run typecheck`): 0 errors across server, worker, and client.
    - Production bundle build (`npm run build`): clean build.
+
+## Phase 1 — Prompt 1: Brokerage Lifecycle
+```
+Phase 1 — Prompt 1: Brokerage Lifecycle
+
+Read AGENTS.md, README.md, PROMPTS.md, assignment.md, relevant architecture/domain docs, and the existing brokerage/user/auth/RBAC code before changing anything.
+
+Implement the backend foundation for the LeadFlow brokerage onboarding lifecycle.
+
+Scope:
+- Allow PLATFORM_ADMIN to create a brokerage.
+- Automatically generate a secure brokerage webhook secret using the existing architecture.
+- Create the initial BROKERAGE_ADMIN account atomically with the brokerage.
+- Validate brokerage/admin input and handle duplicate/conflicting identities safely.
+- Return only safe onboarding data; never expose password hashes or unrelated secrets.
+- Preserve the existing tenant-isolation, JWT/session, RBAC, and webhook architecture.
+- Add the minimum necessary brokerage status/details needed for lifecycle management.
+- Add appropriate platform-admin authorization and anti-IDOR protections.
+- Do not build the frontend yet.
+- Do not redesign existing architecture or refactor unrelated code.
+
+Testing:
+- Add only critical backend tests for brokerage creation, authorization, atomicity/conflict handling, and tenant/security invariants. Do not create exhaustive tests.
+
+After implementation:
+- Run relevant backend tests, typecheck, and build.
+- Update AGENTS.md, README.md, and PROMPTS.md with the completed Phase 1 Prompt 1 decisions/status.
+- Report files changed, verification results, and any remaining gaps.
+- Stop.
+```
+
+### Status
+COMPLETED
+
+### Implementation Details
+1. **Brokerage Onboarding Service (`BrokerageService`)**:
+   - Implemented `createBrokerage` in `server/src/services/brokerage.service.ts` allowing `PLATFORM_ADMIN` to create a brokerage and atomically provision its initial `BROKERAGE_ADMIN` user account.
+   - Automatically generates a 24-byte hex webhook secret (`webhookSecret`) using Node.js `crypto.randomBytes(24).toString('hex')`.
+   - Incorporates compensating rollback: if admin account creation fails for any reason after the brokerage document is inserted, the orphaned brokerage document is immediately cleaned up.
+   - Enforces conflict detection: rejects duplicate brokerage slugs with HTTP 409 `ConflictError`, and rejects admin accounts conflicting with global `PLATFORM_ADMIN` identities.
+   - Returns only safe onboarding data: `id`, `name`, `slug`, `plan`, `status`, `webhookSecret`, `createdAt`, `updatedAt`, and admin `id`, `name`, `email`, `role`, `status`, `phone`, `brokerageId`, `createdAt` — completely suppressing `passwordHash` and internal secrets.
+2. **Brokerage Lifecycle Management & Rotation**:
+   - Implemented `updateBrokerage` supporting lifecycle updates to `status` (`ACTIVE`, `SUSPENDED`, `TRIAL`), `plan` (`FREE`, `STARTER`, `GROWTH`, `ENTERPRISE`), `name`, and `slug`.
+   - Implemented `rotateWebhookSecret` generating a fresh 24-byte hex secret.
+   - Preserved existing `listBrokerages` and `getBrokerageById`.
+3. **Zod Validation & RBAC Middleware**:
+   - Created `createBrokerageSchema` and `updateBrokerageSchema` in `server/src/validators/brokerage.validators.ts`, supporting both nested `admin` objects and flat fields (`adminName`, `adminEmail`, etc.).
+   - Exposed endpoints in `server/src/routes/brokerage.routes.ts`:
+     - `POST /api/brokerages`: `authenticate`, `requireActiveUser`, `requireRoles('PLATFORM_ADMIN')`.
+     - `PATCH /api/brokerages/:brokerageId`: `authenticate`, `requireActiveUser`, `requireRoles('PLATFORM_ADMIN')`.
+     - `POST /api/brokerages/:brokerageId/webhook-secret/rotate`: `authenticate`, `requireActiveUser`, `requireRoles('PLATFORM_ADMIN')`.
+   - Enforced anti-IDOR HTTP 404 concealment for non-existent or malformed ObjectIds.
+4. **Critical Backend Testing**:
+   - Added 10 critical integration tests in `server/tests/integration/brokerage-lifecycle.test.ts` covering brokerage creation, admin provisioning and login verification, 403 authorization guards for non-platform roles, 409 slug conflicts, 409 conflicting platform admin emails, 400 validation errors, lifecycle status/plan updates, webhook secret rotation, and anti-IDOR 404 handling.
+   - 349 backend tests passing across 19 files with zero failures.
+   - 106 frontend unit tests passing.
+   - Monorepo typecheck clean (`npm run typecheck`): 0 errors across server, worker, and client.
+   - Production bundle build clean (`npm run build`).
+
+## Phase 1 — Prompt 2: Brokerage Onboarding Hardening
+```
+Phase 1 — Prompt 2: Brokerage Onboarding Hardening
+
+Continue from the completed Phase 1 Prompt 1 implementation. Do not redo or redesign it.
+
+Read AGENTS.md, the relevant brokerage/auth/RBAC code, the new brokerage lifecycle files, and only the latest Phase 1 Prompt 1 context in PROMPTS.md. Do not reread the entire PROMPTS.md.
+
+Perform a focused security and architecture review of the new brokerage onboarding flow.
+
+Verify:
+- PLATFORM_ADMIN-only brokerage creation/update/secret rotation.
+- Atomic brokerage + initial BROKERAGE_ADMIN provisioning and conflict handling.
+- No password hashes or webhook secrets are leaked through unintended API responses/logging.
+- Webhook secret generation/rotation remains compatible with existing lead ingestion.
+- Brokerage status changes do not accidentally bypass existing tenant/auth behavior.
+- Existing tenant isolation and RBAC remain intact.
+- No unnecessary new architecture or refactoring is introduced.
+
+Fix only concrete issues you find.
+
+Testing:
+- Add tests only if a critical security/business invariant is currently untested.
+- Do not add exhaustive or redundant tests.
+- Run targeted tests, typecheck, and build.
+
+Update AGENTS.md and PROMPTS.md only with concise Phase 1 Prompt 2 results.
+
+Report:
+1. Findings
+2. Fixes
+3. Verification
+4. Remaining gaps
+
+Stop after this.
+```
+
+### Status
+COMPLETED
+
+### Findings & Fixes
+1. **Unintended Webhook Secret Leakage**:
+   - *Finding*: `GET /api/brokerages/:id` returned raw Mongoose documents including `webhookSecret` to any authenticated tenant role (`ADVISOR`, `BROKERAGE_ADMIN`, `CLIENT`). Additionally, `GET /api/brokerages` exposed webhook secrets of all tenants in bulk listing responses.
+   - *Fix*: Hardened `getBrokerageById` in `brokerage.controller.ts` so `webhookSecret` is strictly stripped for non-platform admin roles (`delete (brokerageObj as any).webhookSecret`). Updated `listBrokerages` with `.select('-webhookSecret')` to prevent bulk secret disclosure.
+2. **Immediate Brokerage Suspension Enforcement**:
+   - *Finding*: While login, token refresh, Socket.IO connections, and webhook ingestion properly checked `brokerage.status === 'ACTIVE'`, existing access tokens remained usable on general HTTP routes until token expiry (up to 15m) when a brokerage was suspended by `PLATFORM_ADMIN`.
+   - *Fix*: Enhanced `authenticate` middleware in `auth.middleware.ts` to verify active brokerage standing for tenant-scoped users, immediately rejecting API requests with HTTP 401 `UnauthorizedError` if their brokerage status is `SUSPENDED` or inactive.
+3. **Concurrency & Slug Edge Cases**:
+   - *Finding*: Non-alphanumeric brokerage names could result in empty slug base in `slugify`, and concurrent slug modifications in `updateBrokerage` lacked explicit E11000 duplicate key absorption.
+   - *Fix*: Added robust `'brokerage'` slug fallback and wrapped `brokerage.save()` with try/catch to convert MongoDB code 11000 into HTTP 409 `ConflictError`.
+4. **Verification**:
+   - Added 5 new targeted integration tests in `brokerage-lifecycle.test.ts` (15 total tests in suite).
+   - 54 targeted tests passing across `brokerage-lifecycle.test.ts`, `brokerage-isolation.test.ts`, and `auth.test.ts`.
+   - Monorepo typecheck clean (`npm run typecheck`): 0 errors across `server`, `worker`, and `client`.
+   - Production bundle build clean (`npm run build`).

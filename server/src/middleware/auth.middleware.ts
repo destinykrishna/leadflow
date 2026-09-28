@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { tokenService } from '../services/token.service.js';
 import { User, type UserRole, type UserStatus } from '../models/user.model.js';
+import { Brokerage } from '../models/brokerage.model.js';
 import { UnauthorizedError } from '../utils/errors.js';
 
 export interface AuthUserContext {
@@ -49,6 +50,14 @@ export async function authenticate(
     const user = await User.findById(payload.userId);
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedError('User account is inactive or not found');
+    }
+
+    // For brokerage-scoped users, verify the brokerage exists and is active
+    if (user.role !== 'PLATFORM_ADMIN' && user.brokerageId) {
+      const brokerage = await Brokerage.findById(user.brokerageId);
+      if (!brokerage || brokerage.status !== 'ACTIVE') {
+        throw new UnauthorizedError('Brokerage account is inactive or suspended');
+      }
     }
 
     req.user = {

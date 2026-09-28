@@ -27,6 +27,7 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 ### 🏢 Strict Multi-Tenant Brokerage Isolation
 - **Domain-First Multi-Tenancy**: Data model structured around `Brokerage` entities (shared database, shared collection with indexed tenant discrimination).
 - **Automated Query Scoping**: Centralized `ScopedRepository` pattern binds all reads and writes to `{ brokerageId }` from verified server context.
+- **Brokerage Onboarding Lifecycle**: Automated, atomic onboarding (`POST /api/brokerages`) restricted to `PLATFORM_ADMIN` that provisions a new `Brokerage` together with its initial `BROKERAGE_ADMIN` account, generates a 24-byte hex webhook secret, provides compensating rollback against orphaned records, protects against duplicate slug/identity conflicts, and supports lifecycle management (`PATCH /api/brokerages/:id` and webhook secret rotation).
 - **Anti-IDOR Defense**: Guessed resource IDs from neighboring tenants resolve to `null` and return HTTP 404 (`NotFoundError`), completely preventing cross-tenant existence enumeration.
 - **Client Case Isolation**: Portal clients can only view and manage their own profile and uploaded documents, preventing lateral access across borrower cases within the same brokerage.
 
