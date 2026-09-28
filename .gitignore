@@ -44,3 +44,16 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Brag video outputs & heavy media
+brag-output/
+brag-output-*/
+*.mp4
+*.webm
+*.ogg
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+.agents/skills/brag/

@@ -47,6 +47,7 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Anti-Enumeration Guard**: Unauthenticated probes fail immediately with uniform HTTP 401 responses, disclosing zero information about brokerage existence or account standing.
 - **Deterministic Deduplication**: Enforces scoped unique identity on `{ brokerageId: 1, email: 1 }`. Duplicate submissions return HTTP 200 idempotently without creating duplicate records.
 - **"Already Known" Person Detection**: Matches incoming leads against existing `Client` profiles in the brokerage, linking client IDs and preserving advisor assignments.
+- **Single-Name Lead Preservation**: Naturally preserves single-word submitted names (e.g. "Bhavika") by populating `firstName` with the submitted name and leaving `lastName` safely empty (`""`), avoiding invented surnames like "Applicant" or "Unknown" across validation, models, client conversions, and UI views.
 - **Tenant-Aware Ingestion Rate Limiting**: 1,000 requests/minute per verified brokerage placed after authentication. Protects brokerages from noisy neighbors sharing external webhook IPs (e.g. Google Apps Script or Zapier egress).
 
 ### 📊 Realtime Lead Pipeline & Optimistic Concurrency
@@ -55,6 +56,8 @@ LeadFlow is built to streamline lead ingestion, client conversion, and document 
 - **Zero-Infrastructure Optimistic Concurrency**: Prevents lost updates using native MongoDB conditional updates matching exact status and `__v` versioning. Concurrent updates return HTTP 409 `ConflictError` cleanly without locking.
 - **Socket.IO Realtime Broadcasting**: Live pipeline stage updates broadcast to verified brokerage rooms (`brokerage:<brokerageId>`) and `platform:admins` post-commit.
 - **Tenant-Isolated WebSocket Security**: Handshake authentication enforces JWT verification, database active-user status, and active-brokerage checks. Clients are strictly excluded from internal brokerage pipeline rooms, and client room manipulation attempts are blocked. Zero sensitive PII exposed in socket event payloads.
+- **Lead Lifecycle & Non-Destructive Archiving**: Non-destructive lead lifecycle management with indexed soft-delete (`isArchived: boolean`, `archivedAt: Date | null`) supported by `PATCH /api/leads/:id/archive`, `PATCH /api/leads/:id/unarchive`, and `DELETE /api/leads/:id`, strictly excluding archived records from normal active pipelines and inquiry lists while preserving client conversion relationships and audit references.
+- **Scalable Stage-Aware Kanban & Server Pagination**: Eliminates terminal stage payload bloat via `getPipelineGrouped`, calculating exact stage counts via MongoDB aggregation and querying stage slices up to `stageLimit` (default 25) in parallel across index `{ brokerageId: 1, isArchived: 1, status: 1, createdAt: -1 }`. Features an intuitive, subtle "Load more" button per column, true server-side pagination on `GET /api/leads` (`findPipelineLeadsWithCount`), and polished thin rounded scrollbars.
 
 ### 🔄 Client Conversion & Case Foundation
 - **Server-Side Conversion Eligibility**: Enforces that only qualified leads (`QUALIFIED`, `PROPOSAL`, `NEGOTIATION`, `WON`) can be converted into active cases; raw inquiries (`NEW`, `CONTACTED`) and dead inquiries (`LOST`) are rejected with HTTP 400.
