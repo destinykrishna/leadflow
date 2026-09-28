@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { getSocket } from '@/lib/socket'
+import { getSocket, connectSocket } from '@/lib/socket'
 import { useSystemHealth } from './api/health.api'
 import { useBrokeragesList } from './api/brokerages.api'
 
@@ -53,24 +53,66 @@ export function HealthPage() {
       return false
     }
   })
+  const [transportName, setTransportName] = React.useState<string>(() => {
+    try {
+      const socket = getSocket()
+      return socket.connected ? (socket as any).io?.engine?.transport?.name || 'websocket' : 'none'
+    } catch {
+      return 'none'
+    }
+  })
 
   React.useEffect(() => {
     let socket: ReturnType<typeof getSocket> | null = null
     try {
-      socket = getSocket()
-      const onConnect = () => setSocketConnected(true)
-      const onDisconnect = () => setSocketConnected(false)
+      // Connect to the socket server
+      socket = connectSocket()
+
+      const updateState = () => {
+        const connected = Boolean(socket?.connected)
+        setSocketConnected(connected)
+        if (connected) {
+          const transport = (socket as any)?.io?.engine?.transport?.name || 'websocket'
+          setTransportName(transport)
+        } else {
+          setTransportName('none')
+        }
+      }
+
+      const onConnect = () => {
+        updateState()
+        const engine = (socket as any)?.io?.engine
+        if (engine) {
+          engine.on('upgrade', (transport: any) => {
+            setTransportName(transport?.name || 'websocket')
+          })
+        }
+      }
+
+      const onDisconnect = () => {
+        setSocketConnected(false)
+        setTransportName('none')
+      }
+
+      const onConnectError = () => {
+        setSocketConnected(false)
+        setTransportName('none')
+      }
 
       socket.on('connect', onConnect)
       socket.on('disconnect', onDisconnect)
-      setSocketConnected(socket.connected)
+      socket.on('connect_error', onConnectError)
+
+      updateState()
 
       return () => {
         socket?.off('connect', onConnect)
         socket?.off('disconnect', onDisconnect)
+        socket?.off('connect_error', onConnectError)
       }
     } catch {
       setSocketConnected(false)
+      setTransportName('none')
     }
   }, [])
 
@@ -168,16 +210,18 @@ export function HealthPage() {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-slate-900">
-              {socketConnected ? 'Connected' : 'Connecting'}
+              {socketConnected ? 'Connected' : 'Disconnected'}
             </span>
             <span
               className={`inline-block h-2 w-2 rounded-full ${
-                socketConnected ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+                socketConnected ? 'bg-emerald-500' : 'bg-slate-400'
               }`}
             />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Socket.IO channel on <code className="font-mono text-slate-700">/socket.io</code>
+            {socketConnected
+              ? `Channel: /socket.io (${transportName})`
+              : 'Socket channel offline'}
           </p>
         </Card>
 
@@ -251,11 +295,11 @@ export function HealthPage() {
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="font-mono text-[11px] text-slate-600">
-                {socketConnected ? 'Transport: websocket' : 'Polling fallback'}
+                {socketConnected ? `Transport: ${transportName}` : 'Status: Offline'}
               </span>
               <Badge variant={socketConnected ? 'success' : 'neutral'} size="sm">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
-                {socketConnected ? 'Connected' : 'Connecting'}
+                {socketConnected ? 'Connected' : 'Disconnected'}
               </Badge>
             </div>
           </div>

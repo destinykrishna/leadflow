@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { api, setAccessToken } from '@/lib/api'
+import { disconnectSocket } from '@/lib/socket'
 import { queryClient } from '@/lib/query-client'
 import type { ApiResponse } from '@/types/api.types'
 import type { AuthResponseData, AuthUser, LoginCredentials } from '@/types/auth.types'
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.post('/auth/logout')
     } finally {
+      disconnectSocket()
       setAccessToken(null)
       setUser(null)
       queryClient.clear()

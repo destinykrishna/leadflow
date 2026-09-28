@@ -4159,3 +4159,34 @@ COMPLETED
 ### Remaining Gaps
 - None. The end-to-end onboarding, team management, and lead source lifecycle is fully integrated, verified against real contracts, and production ready.
 
+## Targeted System Health & Audit Logs Fix
+
+```markdown
+LeadFlow — Targeted System Health & Audit Logs Fix
+
+Fix two concrete issues:
+1. System Health WebSocket: Investigate why Platform Admin Health page showed Connecting / Polling fallback. Fix root cause without redesigning Socket.IO. Show Connected only when actual connection exists.
+2. Audit Logs: Inspect whether real persistence model/API exists. Connect if exists, keep honest empty state if not.
+```
+
+### Status
+COMPLETED
+
+### Decisions & Root Cause Analysis
+1. **System Health WebSocket Connection**:
+   - **Root Cause**: `HealthPage.tsx` was calling `getSocket()`, which was instantiated with `autoConnect: false`. Unlike `useSocketEvent` (which calls `connectSocket()`), `HealthPage.tsx` never called `connectSocket()` or `socket.connect()`. Furthermore, the UI conditionally rendered static text `Polling fallback` and `Connecting` whenever `socketConnected` was false, creating a deceptive state.
+   - **Fix in `client/src/lib/socket.ts`**: Configured `transports: ['websocket', 'polling']` to prioritize WebSocket connections. Updated `connectSocket()` to dynamically assign `socket.auth = { token }` using the latest in-memory access token prior to calling `socket.connect()`.
+   - **Fix in `client/vite.config.ts`**: Added `changeOrigin: true` to the `/socket.io` proxy configuration for consistent host/origin header rewriting during polling and WebSocket upgrades.
+   - **Fix in `client/src/features/auth/AuthContext.tsx`**: Added `disconnectSocket()` to `logout` cleanup.
+   - **Fix in `client/src/features/admin/HealthPage.tsx`**: Mounted `connectSocket()`, tracked real connection standing (`socket.connected`), and dynamically inspected engine transport name (`(socket as any).io?.engine?.transport?.name`). The UI now displays `Connected` strictly when an actual connection exists (with transport e.g. `websocket`), and displays `Disconnected` / `Offline` when disconnected.
+2. **Audit Logs Persistence Audit**:
+   - Inspected backend database schemas (`server/src/models/*`) and route controllers (`server/src/routes/*`).
+   - Confirmed no audit log model (`AuditLog` / `AuditEntry`) or API endpoint currently exists on the server.
+   - In accordance with the prompt's instructions ("If they do not exist, do NOT build a new audit system in this prompt. Keep the honest empty state"), `AuditPage.tsx` retains its clean, transparent empty state without inventing mock events.
+
+### Verification
+- **Socket Handshake Verification**: Verified live Socket.IO connection via Vite proxy (`http://localhost:5173/socket.io`) with authenticated Platform Admin JWT, confirming instant connection with `Transport: websocket`.
+- **Monorepo Typecheck**: `npm run typecheck` passed with **0 errors** across `server`, `worker`, and `client`.
+- **Frontend Test Suite**: `npm --prefix client test -- --run` passed with **106/106 tests passing** in 6.20s.
+- **Production Build**: `npm run build` completed successfully in **745ms** (`dist/` generated).
+

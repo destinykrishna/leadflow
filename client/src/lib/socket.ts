@@ -14,6 +14,7 @@ export function getSocket(): Socket {
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      transports: ['websocket', 'polling'],
       auth: (cb) => {
         const token = getAccessToken()
         cb({ token })
@@ -25,6 +26,10 @@ export function getSocket(): Socket {
 
 export function connectSocket(): Socket {
   const socket = getSocket()
+  const token = getAccessToken()
+  if (token) {
+    socket.auth = { token }
+  }
   if (!socket.connected) {
     socket.connect()
   }
