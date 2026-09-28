@@ -43,6 +43,7 @@ import {
   useArchiveLead,
   useUnarchiveLead,
 } from '../api/leads.api'
+import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
 
@@ -943,17 +944,14 @@ export function LeadDetailView({
                       >
                         {doc.status}
                       </Badge>
-                      {doc.fileUrl && (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded p-1 text-primary hover:bg-primary/10 transition-colors"
-                          title="View Document File"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void openDocumentSecurely(doc)}
+                        className="rounded p-1 text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                        title="View Document File securely"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}

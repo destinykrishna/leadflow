@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import {
   renderTemplatePreview,
+  sanitizeTemplateHtml,
   SAMPLE_TEMPLATE_CONTEXT,
 } from '../lib/templatePreview'
 
@@ -37,6 +38,9 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
 
   const renderedSubject = renderTemplatePreview(template.subject)
   const renderedBody = renderTemplatePreview(template.body)
+  const sanitizedBodyHtml = React.useMemo(() => {
+    return sanitizeTemplateHtml(renderedBody.replace(/\n/g, '<br />'))
+  }, [renderedBody])
 
   const handleCopyBody = () => {
     navigator.clipboard.writeText(viewMode === 'rendered' ? renderedBody : template.body)
@@ -170,7 +174,7 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
               {viewMode === 'rendered' ? (
                 <div
                   className="prose prose-sm max-w-none text-slate-800"
-                  dangerouslySetInnerHTML={{ __html: renderedBody.replace(/\n/g, '<br />') }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedBodyHtml }}
                 />
               ) : (
                 <pre className="font-mono text-xs text-slate-700 whitespace-pre-wrap bg-slate-50 p-3 rounded-md border border-slate-200">

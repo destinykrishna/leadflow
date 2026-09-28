@@ -2,6 +2,7 @@
  * Template Preview and Variable Interpolation Engine
  * Provides realistic Indian mortgage borrower context and safe client-side placeholder resolution.
  */
+import DOMPurify from 'dompurify'
 
 export interface TemplateContextData {
   lead: {
@@ -220,4 +221,52 @@ export function extractPlaceholders(text: string): string[] {
     matches.map((m) => m.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '')),
   )
   return Array.from(unique)
+}
+
+/**
+ * Sanitizes HTML markup using DOMPurify before previewing or rendering in the DOM.
+ * Defends against Stored XSS by stripping executable scripts, event handlers
+ * (onerror, onload, onmouseover, etc.), iframe/object embeds, and javascript: URIs.
+ * Whitelists common formatting and email markup elements.
+ */
+export function sanitizeTemplateHtml(html: string): string {
+  if (!html) return ''
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p',
+      'br',
+      'strong',
+      'b',
+      'em',
+      'i',
+      'u',
+      's',
+      'strike',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'span',
+      'div',
+      'blockquote',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'td',
+      'th',
+      'a',
+      'hr',
+      'code',
+      'pre',
+    ],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'title'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    ADD_ATTR: ['target', 'rel'],
+  })
 }

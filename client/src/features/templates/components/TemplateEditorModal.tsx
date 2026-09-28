@@ -15,6 +15,7 @@ import type { IEmailTemplate } from '@/types/template.types'
 import {
   AVAILABLE_TEMPLATE_VARIABLES,
   renderTemplatePreview,
+  sanitizeTemplateHtml,
   extractPlaceholders,
 } from '../lib/templatePreview'
 import {
@@ -303,7 +304,9 @@ export function TemplateEditorModal({
                   <div
                     className="prose prose-xs max-w-none text-slate-700"
                     dangerouslySetInnerHTML={{
-                      __html: renderTemplatePreview(body).replace(/\n/g, '<br />') || '<em>(No body entered)</em>',
+                      __html: sanitizeTemplateHtml(
+                        renderTemplatePreview(body).replace(/\n/g, '<br />') || '<em>(No body entered)</em>'
+                      ),
                     }}
                   />
                 </div>

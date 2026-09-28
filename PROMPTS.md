@@ -4190,3 +4190,82 @@ COMPLETED
 - **Frontend Test Suite**: `npm --prefix client test -- --run` passed with **106/106 tests passing** in 6.20s.
 - **Production Build**: `npm run build` completed successfully in **745ms** (`dist/` generated).
 
+## LeadFlow — Comprehensive Security Audit (Audit Only)
+
+```markdown
+LeadFlow — Comprehensive Security Audit (Audit Only)
+
+Use the installed security-auditor skill for this task.
+Audit 13 key areas across server, client, worker, auth, RBAC, tenancy, webhooks, Socket.IO, documents, queues, and automation.
+Perform manual security review without modifying application code, tests, schemas, or configs.
+```
+
+### Status
+COMPLETED (Audit Only)
+
+### Summary of Findings
+- **Confirmed Vulnerabilities**: 5 total (0 Critical, 2 High, 2 Medium, 1 Low).
+  - High: Stored XSS in email template preview via unsanitized `dangerouslySetInnerHTML`.
+  - High: Permanent unauthenticated CDN URLs for sensitive borrower financial PII.
+  - Medium: Missing timestamp/nonce validation on webhook lead ingestion enabling replay.
+  - Medium: Missing `trust proxy` in Express creating rate-limiting bypass or global DoS behind reverse proxies.
+  - Low/Medium: Missing MIME magic-byte verification on document uploads (header-only validation).
+- **Security Hardening Opportunities**: 5 identified (Socket.IO post-auth revocation disconnect, production fallback secret enforcement in `env.ts`, role scoping on `GET /api/brokerages/:id`, forced password change on first login, strict production CORS origins).
+- **Application Changes**: 0 code modifications made (Audit Only per instructions). Full comprehensive security report presented.
+
+## Security Remediation Prompt 1: XSS + Document Access
+
+```markdown
+LeadFlow — Security Remediation Prompt 1: XSS + Document Access
+
+Remediate ONLY confirmed findings from security audit:
+- VULN-01: Stored XSS in email-template preview/editor
+- VULN-02: Unauthenticated permanent direct access to borrower financial documents
+```
+
+### Status
+COMPLETED
+
+### Decisions & Root Cause Analysis
+
+1. **VULN-01: Stored XSS in Email Template Preview & Editor**:
+   - **Root Cause**: `EmailPreviewModal.tsx` and `TemplateEditorModal.tsx` directly injected interpolated template bodies into `dangerouslySetInnerHTML={{ __html: renderedBody.replace(/\n/g, '<br />') }}` without DOM sanitization. If an attacker configured a template with malicious HTML/script tags or event handlers (e.g. `<img src=x onerror=alert(1)>`, `<script>`, `javascript:` URLs), any advisor or brokerage admin opening the preview or editor would execute the arbitrary script in their authenticated browser session.
+   - **Remediation**:
+     - Installed `dompurify` and `@types/dompurify` in the client application.
+     - Implemented `sanitizeTemplateHtml(html: string)` in `client/src/features/templates/lib/templatePreview.ts` using DOMPurify with an explicit, secure whitelist of HTML tags (`p`, `br`, `strong`, `b`, `em`, `i`, `u`, `a`, `ul`, `ol`, `li`, `span`, `div`, `h1`-`h6`, `table`, `thead`, `tbody`, `tr`, `th`, `td`, `hr`, `blockquote`), whitelisted safe attributes (`href`, `title`, `class`, `target`, `rel`), automatic enforcement of `rel="noopener noreferrer"` on external links, and strict stripping of all script tags, object/embed tags, iframes, inline event handlers (`onerror`, `onload`, `onclick`), and `javascript:` URIs.
+     - Integrated `sanitizeTemplateHtml` in both `EmailPreviewModal.tsx` and `TemplateEditorModal.tsx` prior to rendering in `dangerouslySetInnerHTML`.
+     - Preserved all template placeholder interpolation (`{{borrower.firstName}}`, `{{loan.amount}}`, etc.), custom styling, and layout behavior.
+     - Added 7 focused frontend sanitization regression tests in `client/src/tests/template-sanitization.test.ts`.
+
+2. **VULN-02: Unauthenticated Permanent Direct Access to Borrower Financial Documents**:
+   - **Root Cause**: When documents were uploaded, raw ImageKit CDN URLs (`https://ik.imagekit.io/.../file.pdf`) were persisted directly into MongoDB (`Document.fileUrl`) and exposed directly in API responses (`GET /api/documents` and `GET /api/documents/:id`). These raw CDN URLs were permanently accessible to any unauthenticated party who obtained or guessed the link, exposing confidential borrower PII and financial records (tax returns, salary slips, bank statements).
+   - **Remediation**:
+     - Extended `IStorageService` and `ImageKitStorageService` in `server/src/services/storage.service.ts` with `generateSignedUrl(fileUrlOrPath, options)`. In production, this uses ImageKit SDK `buildSrc({ signed: true, expiresIn: 300 })` generating cryptographic short-lived signed URLs (`ik-t` timestamp and `ik-s` signature). In test/mock mode, it generates cryptographically signed URLs using HMAC-SHA1 to verify expiration behavior without requiring external network connectivity.
+     - Implemented `documentService.getDocumentDownloadUrl(caller, id)` in `server/src/services/document.service.ts` enforcing the complete LeadFlow authorization lifecycle before generating signed URLs:
+       1. Authenticated user check (`authenticate` middleware)
+       2. Active user standing and active brokerage standing (`requireActiveUser` & `requireActiveBrokerage`)
+       3. Tenant isolation (`withBrokerageScope(caller.brokerageId, { _id: id })`)
+       4. Anti-IDOR 404 concealment (non-existent or other-brokerage documents return HTTP 404 `NotFoundError` with zero existence leakage)
+       5. Client case & document ownership rules: `CLIENT` role users can only access documents where `doc.clientId.equals(client._id)` or `doc.uploadedBy.equals(caller.id)`, blocking lateral access between clients within the same brokerage (HTTP 403 `ForbiddenError`)
+       6. Short-lived signed URL generation (300-second / 5-minute lifespan).
+     - Enhanced `documentService.getDocumentById` to automatically include `downloadUrl` alongside document metadata for authorized callers.
+     - Added dedicated controller method `getDownloadUrl` in `server/src/controllers/document.controller.ts` supporting both JSON response (`{ success: true, data: { downloadUrl, expiresIn: 300 } }`) and temporary HTTP 307 redirect (`?redirect=true`).
+     - Mounted `GET /api/documents/:id/download` route in `server/src/routes/document.routes.ts` protected by `authenticate` and `requireActiveUser`.
+     - Updated client-side document actions (`openDocumentSecurely` and synchronous clipboard copy) in `client/src/features/documents/api/documents.api.ts`, `DocumentsPage.tsx`, `ClientDocumentsPage.tsx`, `PortalDocumentSummary.tsx`, `LeadDetailView.tsx`, and `ClientDetailView.tsx` to obtain authorized download URLs securely.
+     - Added 6 focused backend security integration tests in `server/tests/integration/documents.test.ts` verifying authentication, role rules, tenant boundaries, anti-IDOR 404 concealment, and client ownership isolation.
+
+### Verification Results
+
+- **Client Tests**: `npm --prefix client test -- --run` passed with **113/113 tests passing** across 14 test files (including 7 new XSS sanitization tests).
+- **Server Tests**: `npm --prefix server test -- --run` passed with **383/383 tests passing** across 20 test files (including 6 new document download security tests).
+- **Monorepo Typecheck**: `npm run typecheck` passed with **0 errors** across `server`, `worker`, and `client`.
+- **Monorepo Production Build**: `npm run build` completed successfully in **1.31s** (`dist/` generated).
+- **Security Invariant Verification**:
+  - Malicious template HTML/scripts neutralized: `<script>` tags removed, `onerror` handlers stripped, `javascript:` URLs stripped.
+  - Authorized users (advisors, brokerage admins, document owners) can obtain/access documents via time-limited signed URLs.
+  - Unauthorized users and cross-brokerage users cannot access documents (HTTP 404 anti-IDOR concealment).
+  - Clients cannot access another client's documents within the same brokerage (HTTP 403 Forbidden).
+  - Raw permanent ImageKit URL is no longer exposed as the standard client access path.
+
+
+

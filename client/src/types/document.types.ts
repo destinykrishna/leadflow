@@ -30,6 +30,7 @@ export interface DocumentItem {
   type: DocumentType
   status: DocumentStatus
   fileUrl: string
+  downloadUrl?: string
   fileKey?: string
   fileId?: string
   mimeType?: string

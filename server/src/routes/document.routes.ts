@@ -31,4 +31,12 @@ router.get(
   documentController.getDocumentById.bind(documentController)
 );
 
+// Authorized document access/download (returns short-lived signed URL or redirects, enforcing tenant & client ownership)
+router.get(
+  '/:id/download',
+  authenticate,
+  requireActiveUser,
+  documentController.getDownloadUrl.bind(documentController)
+);
+
 export const documentRouter = router;

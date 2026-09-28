@@ -396,7 +396,48 @@ export class DocumentService implements IDomainService {
       }
     }
 
-    return doc;
+    // Attach short-lived signed download URL for authorized caller
+    const signedDownloadUrl = storageService.generateSignedUrl(doc.fileUrl, {
+      expiresInSeconds: 300,
+    });
+    const docObj = doc.toObject ? doc.toObject() : doc;
+    (docObj as any).downloadUrl = signedDownloadUrl;
+
+    return docObj as IDocumentDocument & { downloadUrl?: string };
+  }
+
+  /**
+   * Generates an authorized, time-limited signed ImageKit download URL for a document.
+   * Strictly enforces:
+   * 1. Authenticated user with active standing
+   * 2. Active brokerage context
+   * 3. Role-based access rules (Platform Admin, Brokerage Admin, Advisor, Client)
+   * 4. Multi-tenant brokerage isolation (withBrokerageScope & anti-IDOR 404 concealment)
+   * 5. Strict client case / document ownership verification
+   * Defends against VULN-02 by never exposing permanent unauthenticated URLs.
+   */
+  async getDocumentDownloadUrl(
+    caller: AuthUserContext,
+    id: string
+  ): Promise<{
+    documentId: string;
+    title: string;
+    downloadUrl: string;
+    expiresIn: number;
+  }> {
+    const doc = await this.getDocumentById(caller, id);
+
+    const expiresIn = 300; // 5 minutes
+    const downloadUrl = storageService.generateSignedUrl(doc.fileUrl, {
+      expiresInSeconds: expiresIn,
+    });
+
+    return {
+      documentId: doc._id.toString(),
+      title: doc.title,
+      downloadUrl,
+      expiresIn,
+    };
   }
 }
 

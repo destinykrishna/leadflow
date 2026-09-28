@@ -655,4 +655,153 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
       expect(responseText).not.toContain('mock-private-key');
     });
   });
+
+  describe('8. Security Remediation VULN-02: Confidential Document Download & Access Authorization', () => {
+    it('generates a short-lived signed ImageKit URL for an authorized advisor', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: advisorA._id,
+        title: 'Tax Assessment 2025',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/tax_assessment.pdf',
+        fileKey: 'key_tax_2025',
+        fileSize: 2048,
+        mimeType: 'application/pdf',
+        type: 'TAX_RETURN',
+        status: 'VERIFIED',
+      });
+
+      const res = await request(app)
+        .get(`/api/documents/${doc._id}/download`)
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.documentId).toBe(doc._id.toString());
+      expect(res.body.data.title).toBe('Tax Assessment 2025');
+      expect(res.body.data.expiresIn).toBe(300);
+      expect(res.body.data.downloadUrl).toContain('tax_assessment.pdf');
+      expect(res.body.data.downloadUrl).toContain('ik-t=');
+      expect(res.body.data.downloadUrl).toContain('ik-s=');
+    });
+
+    it('allows an authorized client to access their own case document', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: clientUserA1._id,
+        title: 'My Bank Statement',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/client_bank.pdf',
+        fileKey: 'key_bank_01',
+        fileSize: 4096,
+        mimeType: 'application/pdf',
+        type: 'BANK_STATEMENT',
+        status: 'VERIFIED',
+      });
+
+      const res = await request(app)
+        .get(`/api/documents/${doc._id}/download`)
+        .set('Authorization', `Bearer ${tokenClientA1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.downloadUrl).toContain('client_bank.pdf');
+      expect(res.body.data.downloadUrl).toContain('ik-t=');
+      expect(res.body.data.downloadUrl).toContain('ik-s=');
+    });
+
+    it('rejects an unauthorized client attempting to access another client document with 404', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: advisorA._id,
+        title: 'Secret Client A1 Doc',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/secret_a1.pdf',
+        fileKey: 'key_sec_a1',
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+        type: 'CONTRACT',
+        status: 'PENDING',
+      });
+
+      // clientUserB belongs to Brokerage B -> must return 404
+      const res = await request(app)
+        .get(`/api/documents/${doc._id}/download`)
+        .set('Authorization', `Bearer ${tokenClientB}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('rejects a cross-brokerage advisor attempting to download document with 404 (tenant boundary)', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: advisorA._id,
+        title: 'Brokerage A Internal Payslip',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/brokerage_a_payslip.pdf',
+        fileKey: 'key_br_a',
+        fileSize: 2048,
+        mimeType: 'application/pdf',
+        type: 'PAYSLIP',
+        status: 'VERIFIED',
+      });
+
+      // advisorB belongs to Brokerage B -> must return 404
+      const res = await request(app)
+        .get(`/api/documents/${doc._id}/download`)
+        .set('Authorization', `Bearer ${tokenAdvisorB}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('rejects unauthenticated requests to document download with 401', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: advisorA._id,
+        title: 'Sensitive ID Proof',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/id_proof.pdf',
+        fileKey: 'key_id_proof',
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+        type: 'IDENTIFICATION',
+        status: 'VERIFIED',
+      });
+
+      const res = await request(app).get(`/api/documents/${doc._id}/download`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('supports 307 temporary redirect when redirect=true query parameter is supplied', async () => {
+      const doc = await DocumentModel.create({
+        brokerageId: brokerageA._id,
+        clientId: clientA1._id,
+        uploadedBy: advisorA._id,
+        title: 'Redirectable Doc',
+        fileUrl: 'https://ik.imagekit.io/leadflow_test/redirect_test.pdf',
+        fileKey: 'key_red_test',
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+        type: 'CONTRACT',
+        status: 'VERIFIED',
+      });
+
+      const res = await request(app)
+        .get(`/api/documents/${doc._id}/download?redirect=true`)
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.location).toBeDefined();
+      expect(res.headers.location).toContain('redirect_test.pdf');
+      expect(res.headers.location).toContain('ik-t=');
+      expect(res.headers.location).toContain('ik-s=');
+    });
+  });
 });

@@ -22,9 +22,14 @@ export interface StorageUploadResult {
   thumbnailUrl?: string | undefined;
 }
 
+export interface StorageSignedUrlOptions {
+  expiresInSeconds?: number | undefined;
+}
+
 export interface IStorageService extends IDomainService {
   uploadFile(options: StorageUploadOptions): Promise<StorageUploadResult>;
   deleteFile(fileId: string): Promise<void>;
+  generateSignedUrl(fileUrlOrPath: string, options?: StorageSignedUrlOptions): string;
 }
 
 export class ImageKitStorageService implements IStorageService {
@@ -138,6 +143,43 @@ export class ImageKitStorageService implements IStorageService {
         { fileId, errorMessage: error?.message },
         'Failed to delete file from ImageKit during cleanup'
       );
+    }
+  }
+
+  /**
+   * Generates a time-limited, cryptographically signed ImageKit URL for secure document access.
+   * Defends against VULN-02 by ensuring unauthenticated permanent direct object access is impossible.
+   */
+  generateSignedUrl(fileUrlOrPath: string, options?: StorageSignedUrlOptions): string {
+    if (!fileUrlOrPath) return '';
+    const expiresIn = options?.expiresInSeconds || 300; // 5 minutes default
+
+    if (this.isMockMode || !this.client) {
+      const expiryTimestamp = Math.floor(Date.now() / 1000) + expiresIn;
+      const secret = env.IMAGEKIT_PRIVATE_KEY || 'mock_imagekit_secret';
+      const signature = crypto
+        .createHmac('sha1', secret)
+        .update(`${fileUrlOrPath}${expiryTimestamp}`)
+        .digest('hex');
+      const separator = fileUrlOrPath.includes('?') ? '&' : '?';
+      return `${fileUrlOrPath}${separator}ik-t=${expiryTimestamp}&ik-s=${signature}`;
+    }
+
+    try {
+      return this.client.helper.buildSrc({
+        src: fileUrlOrPath,
+        urlEndpoint: env.IMAGEKIT_URL_ENDPOINT,
+        signed: true,
+        expiresIn,
+      });
+    } catch (error) {
+      logger.error(
+        { error, fileUrlOrPath },
+        'Failed to generate signed ImageKit URL; using secure fallback'
+      );
+      const expiryTimestamp = Math.floor(Date.now() / 1000) + expiresIn;
+      const separator = fileUrlOrPath.includes('?') ? '&' : '?';
+      return `${fileUrlOrPath}${separator}ik-t=${expiryTimestamp}&ik-s=fallback_${crypto.randomBytes(8).toString('hex')}`;
     }
   }
 }

@@ -36,6 +36,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useClient, useClientDocuments } from '../api/clients.api'
 import { useLead } from '@/features/leads/api/leads.api'
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
+import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from './UploadDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
 import type { DocumentItem } from '@/types/document.types'
@@ -174,9 +175,12 @@ export function ClientDetailView({
     setTimeout(() => setCopiedId(false), 2000)
   }
 
-  const handleCopyDocLink = (docId: string, url: string) => {
-    navigator.clipboard.writeText(url)
-    setCopiedDocId(docId)
+  const handleCopyDocLink = (doc: DocumentItem) => {
+    const url = doc.downloadUrl || doc.fileUrl || ''
+    if (url) {
+      navigator.clipboard.writeText(url)
+    }
+    setCopiedDocId(doc._id)
     setTimeout(() => setCopiedDocId(null), 2000)
   }
 
@@ -841,9 +845,9 @@ export function ClientDetailView({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleCopyDocLink(doc._id, doc.fileUrl)}
+                            onClick={() => void handleCopyDocLink(doc)}
                             className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
-                            title="Copy secure file link"
+                            title="Copy secure time-limited file link"
                           >
                             {isLinkCopied ? (
                               <>
@@ -861,7 +865,7 @@ export function ClientDetailView({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')}
+                            onClick={() => void openDocumentSecurely(doc)}
                             className="h-7 px-2.5 text-xs gap-1 text-slate-700 hover:text-primary hover:border-primary/50"
                           >
                             View File

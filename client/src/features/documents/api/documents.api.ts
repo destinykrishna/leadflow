@@ -34,6 +34,13 @@ export const documentsApi = {
     return response.data.data?.document || null
   },
 
+  getDownloadUrl: async (id: string): Promise<string> => {
+    const response = await api.get<ApiResponse<{ downloadUrl: string; expiresIn: number }>>(
+      `/documents/${id}/download`
+    )
+    return response.data.data?.downloadUrl || ''
+  },
+
   uploadDocument: async ({
     file,
     type,
@@ -110,4 +117,45 @@ export function useUploadDocument() {
       }
     },
   })
+}
+
+/**
+ * Opens a document securely in a new browser tab by obtaining an authorized,
+ * short-lived signed ImageKit URL from the backend.
+ * Defends against VULN-02 by never relying on permanent unauthenticated CDN URLs.
+ */
+export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<void> {
+  try {
+    let url = doc.downloadUrl
+    if (!url) {
+      url = await documentsApi.getDownloadUrl(doc._id)
+    }
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  } catch (error) {
+    console.error('Failed to obtain secure document download URL', error)
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
+}
+
+/**
+ * Copies a secure, time-limited document access link to clipboard.
+ */
+export async function copySecureDocumentLink(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<string> {
+  let url = doc.downloadUrl
+  if (!url) {
+    try {
+      url = await documentsApi.getDownloadUrl(doc._id)
+    } catch {
+      url = doc.fileUrl
+    }
+  }
+  const linkToCopy = url || doc.fileUrl || ''
+  if (linkToCopy) {
+    await navigator.clipboard.writeText(linkToCopy)
+  }
+  return linkToCopy
 }

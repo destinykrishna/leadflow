@@ -85,6 +85,31 @@ export class DocumentController {
       next(error);
     }
   }
+
+  /**
+   * Generates a time-limited signed ImageKit URL for secure document download/access.
+   * - Enforces authentication, active standing, tenant isolation, and client case ownership.
+   * - Cross-tenant or unauthorized client returns 404 (IDOR-immune).
+   * - Supports JSON response or 307 temporary redirect via ?redirect=true query.
+   */
+  async getDownloadUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = typeof req.params.id === 'string' ? req.params.id : '';
+      const result = await documentService.getDocumentDownloadUrl(req.user!, id);
+
+      if (req.query.redirect === 'true') {
+        res.redirect(307, result.downloadUrl);
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const documentController = new DocumentController();

@@ -10,6 +10,7 @@ import {
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/lib/format'
+import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import type { DocumentItem, DocumentStatus, DocumentType } from '@/types/document.types'
 
 export interface PortalDocumentSummaryProps {
@@ -169,18 +170,15 @@ export function PortalDocumentSummary({
                     {statusConfig.label}
                   </span>
 
-                  {doc.fileUrl && (
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                      title="View file"
-                    >
-                      <span>View</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void openDocumentSecurely(doc)}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium cursor-pointer"
+                    title="View file securely"
+                  >
+                    <span>View</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
             )

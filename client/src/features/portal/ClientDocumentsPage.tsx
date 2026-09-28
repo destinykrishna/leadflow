@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { formatDate } from '@/lib/format'
 import { useMyCase, useClientDocuments } from '@/features/clients/api/clients.api'
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
+import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from '@/features/clients/components/UploadDocumentModal'
 import type { DocumentItem, DocumentStatus, DocumentType } from '@/types/document.types'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
@@ -780,18 +781,15 @@ export function ClientDocumentsPage() {
                         {statusConfig.label}
                       </Badge>
 
-                      {doc.fileUrl && (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs"
-                          title="Open document securely in new tab"
-                        >
-                          <span>View Document</span>
-                          <ExternalLink className="h-3 w-3 text-slate-400" />
-                        </a>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void openDocumentSecurely(doc)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                        title="Open document securely with time-limited authorization"
+                      >
+                        <span>View Document</span>
+                        <ExternalLink className="h-3 w-3 text-slate-400" />
+                      </button>
                     </div>
                   </div>
                 </div>

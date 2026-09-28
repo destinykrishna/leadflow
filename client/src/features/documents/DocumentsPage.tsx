@@ -21,7 +21,10 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { formatRelativeTime, formatDate } from '@/lib/format'
-import { useDocuments } from './api/documents.api'
+import {
+  useDocuments,
+  openDocumentSecurely,
+} from './api/documents.api'
 import { useDocumentSocket } from './hooks/useDocumentSocket'
 import {
   DOCUMENT_TYPES,
@@ -68,9 +71,12 @@ export function DocumentsPage() {
   // 2. Real-time updates via Socket.IO
   useDocumentSocket({ enabled: true })
 
-  const handleCopyLink = (docId: string, url: string) => {
-    navigator.clipboard.writeText(url)
-    setCopiedDocId(docId)
+  const handleCopyLink = (doc: DocumentItem) => {
+    const url = doc.downloadUrl || doc.fileUrl || ''
+    if (url) {
+      navigator.clipboard.writeText(url)
+    }
+    setCopiedDocId(doc._id)
     setTimeout(() => setCopiedDocId(null), 2000)
   }
 
@@ -427,9 +433,9 @@ export function DocumentsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleCopyLink(doc._id, doc.fileUrl)}
+                      onClick={() => void handleCopyLink(doc)}
                       className="h-8 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
-                      title="Copy file URL"
+                      title="Copy secure time-limited file URL"
                     >
                       {isLinkCopied ? (
                         <>
@@ -447,7 +453,7 @@ export function DocumentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')}
+                      onClick={() => void openDocumentSecurely(doc)}
                       className="h-8 px-3 text-xs gap-1 text-slate-700 hover:text-primary hover:border-primary/50 shadow-2xs"
                     >
                       View File
