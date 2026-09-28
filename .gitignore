@@ -57,3 +57,6 @@ brag-output-*/
 *.aac
 *.flac
 .agents/skills/brag/
+
+# Interview and personal preparation notes
+INTERVIEW_GUIDE.md
