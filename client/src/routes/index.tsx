@@ -16,6 +16,7 @@ import { DocumentsPage } from '@/features/documents/DocumentsPage'
 import { TasksPage } from '@/features/tasks/TasksPage'
 import { TemplatesPage } from '@/features/templates/TemplatesPage'
 import { TriggersPage } from '@/features/triggers/TriggersPage'
+import { TeamPage } from '@/features/team/TeamPage'
 
 // Client Portal features (Borrowers)
 import { ClientCasePage } from '@/features/portal/ClientCasePage'
@@ -57,6 +58,8 @@ function RouteTitleSync() {
       document.title = 'Templates · LeadFlow'
     } else if (pathname === '/app/triggers') {
       document.title = 'Triggers · LeadFlow'
+    } else if (pathname === '/app/team' || pathname === '/app/advisors') {
+      document.title = 'Advisors & Team · LeadFlow'
     } else if (pathname === '/portal/case') {
       document.title = 'My Case · LeadFlow'
     } else if (pathname === '/portal/documents') {
@@ -102,6 +105,12 @@ export function AppRoutes() {
           <Route path="/app/tasks" element={<TasksPage />} />
           <Route path="/app/templates" element={<TemplatesPage />} />
           <Route path="/app/triggers" element={<TriggersPage />} />
+
+          {/* Brokerage Admin Only */}
+          <Route element={<ProtectedRoute allowedRoles={['BROKERAGE_ADMIN']} />}>
+            <Route path="/app/team" element={<TeamPage />} />
+            <Route path="/app/advisors" element={<Navigate to="/app/team" replace />} />
+          </Route>
         </Route>
       </Route>
 

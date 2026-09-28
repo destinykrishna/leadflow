@@ -121,6 +121,15 @@ export function Sidebar({
       },
     ]
 
+    if (user.role === 'BROKERAGE_ADMIN') {
+      sections.push({
+        heading: 'Management',
+        items: [
+          { label: 'Advisors & Team', to: '/app/team', icon: UserCheck, shortcut: 'G M' },
+        ],
+      })
+    }
+
     return sections
   }
 

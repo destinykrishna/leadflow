@@ -218,6 +218,18 @@ export function CommandPalette({
           action: () => nav('/app/triggers'),
         },
       )
+
+      if (user?.role === 'BROKERAGE_ADMIN') {
+        items.push({
+          id: 'nav-team',
+          label: 'Advisors & Lead Sources',
+          category: 'Navigation',
+          icon: UserCheck,
+          shortcut: ['G', 'M'],
+          keywords: 'advisors team members staff lead source google forms webhook ingestion',
+          action: () => nav('/app/team'),
+        })
+      }
     }
 
     // Actions category

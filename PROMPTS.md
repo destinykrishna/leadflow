@@ -4048,5 +4048,77 @@ COMPLETED
 - Frontend test suite: All 106 existing client tests passed in 6.55s.
 
 ### Remaining Gaps
-- Brokerage Admin team/advisor management UI is intentionally deferred to Phase 3 Prompt 2.
+- None for Phase 3 Prompt 1.
+
+## Phase 3, Prompt 2: Brokerage Admin Team & Lead Source UI
+```
+LeadFlow — Phase 3, Prompt 2: Brokerage Admin Team & Lead Source UI
+
+Continue from the completed Phase 3 Prompt 1 implementation.
+
+Read AGENTS.md, README.md, and only the relevant existing frontend role/routing/layout code plus the advisor and brokerage APIs implemented in Phases 1–2.
+
+Use the installed `design-taste-frontend` skill for the UI/UX implementation. Reuse existing shadcn primitives and React Bits only where they add meaningful value. Do not introduce unnecessary dependencies or animations.
+
+Implement the Brokerage Admin team-management experience.
+
+Scope:
+- Add a Brokerage Admin Advisors/Team page using the existing advisor APIs.
+- Show advisors belonging only to the current brokerage.
+- Display name, email, phone when available, status, and useful workload/assignment information only when supported by existing APIs.
+- Add advisor creation/onboarding flow using the existing API.
+- Support editing advisor profile details and ACTIVE/INACTIVE status.
+- Make deactivation clearly distinguishable from deletion; do not provide hard-delete behavior.
+- Handle loading, empty, search/filter, validation, conflict, unauthorized, and API-error states.
+- Add a Lead Source / Google Forms setup section for BROKERAGE_ADMIN using the existing brokerage ID, webhook endpoint, and secret returned by the backend.
+- Explain setup in business terms: copy the webhook URL and secret into the Google Apps Script configuration. Do not expose unrelated technical/security internals.
+- Allow copying the required integration values with clear confidentiality guidance.
+- Preserve existing role guards and tenant isolation.
+- Do not modify backend behavior unless a concrete API mismatch blocks the UI.
+- Do not redesign unrelated pages.
+
+UX:
+- Use the existing LeadFlow visual language and `design-taste-frontend` guidance.
+- Keep the experience professional B2B mortgage software, not an admin-console/AI aesthetic.
+- Avoid excessive cards, pills, gradients, technical badges, and decorative UI.
+- Use Indian mortgage terminology where applicable.
+
+Testing:
+- Do not add new frontend tests unless a genuinely critical behavior cannot reasonably be verified otherwise.
+- Run existing frontend tests if useful.
+- Run monorepo typecheck and build.
+
+Documentation:
+- Update AGENTS.md and PROMPTS.md concisely with the Phase 3 Prompt 2 result.
+- Do not rewrite unrelated documentation.
+```
+
+### Status
+COMPLETED
+
+### Decisions & Assumptions
+1. **Advisors & Team Directory**:
+   - Implemented `TeamPage` at `/app/team` (aliased at `/app/advisors`) protected by `ProtectedRoute allowedRoles={['BROKERAGE_ADMIN']}` and integrated with `Sidebar.tsx` navigation under `Management` (`G M`) and `CommandPalette.tsx`.
+   - Populated with `useAdvisorsList` querying `GET /api/advisors`, automatically isolated to the authenticated caller's brokerage.
+   - Displayed name, email with one-click copy, contact phone, status badge (`ACTIVE` emerald vs `INACTIVE` neutral), joined date, and active workload counts computed from live pipeline summary data (`X Active Leads`).
+   - Built a 4-card summary KPI strip (`Total Advisors`, `Active Advisors`, `Inactive Accounts`, `Active Pipeline Leads`) and filter bar (instant search by name/email/phone, status dropdown, filter reset).
+2. **Advisor Creation & Onboarding**:
+   - Built `CreateAdvisorModal` with client-side Zod validation (`createAdvisorFormSchema`) and password generator.
+   - Calls `POST /api/advisors`. On success, launches `AdvisorCreatedSuccessModal` allowing the admin to copy login email, temporary password, and onboarding details to share with the advisor.
+3. **Profile Editing & Deactivation vs Deletion**:
+   - Built `EditAdvisorModal` (`PATCH /api/advisors/:id`) supporting name and phone edits alongside an active/inactive status toggle.
+   - Built `DeactivateAdvisorConfirmModal` explicitly distinguishing deactivation from deletion: explains that setting an advisor to `INACTIVE` immediately invalidates active sessions and halts assignments while fully preserving all historical leads, cases, tasks, and audit logs. Zero hard-delete behavior provided, honoring backend `ADVISOR_DELETION_PROHIBITED`.
+4. **Google Forms Lead Source Setup**:
+   - Resolved API mismatch in `brokerage.controller.ts` line 67: permitted `BROKERAGE_ADMIN` to receive the `webhookSecret` for their own brokerage (while still strictly withholding it from `ADVISOR` and `CLIENT` roles).
+   - Built `LeadSourceSetupCard` explaining the Google Forms integration in clean business terms: surfaces Organization ID, Webhook Ingestion URL, and Webhook Secret with show/hide toggle and 1-click copy.
+   - Included clear confidentiality guidance, a 4-step Google Apps Script configuration guide (`LEADFLOW_WEBHOOK_URL`, `LEADFLOW_WEBHOOK_SECRET`, `onFormSubmit`), and recommended form question titles.
+
+### Verification
+- Monorepo typecheck: `npm run typecheck` passed with 0 errors across `server`, `worker`, and `client`.
+- Production build: `npm run build` completed cleanly in 616ms.
+- Frontend test suite: All 106 existing client tests passed in 6.17s.
+- Backend integration tests: 23 advisor tests and 15 brokerage lifecycle tests passed cleanly.
+
+### Remaining Gaps
+- None. Brokerage Admin team management and Google Forms lead source integration are fully functional, typed, and verified.
 

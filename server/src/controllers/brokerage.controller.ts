@@ -64,7 +64,7 @@ export class BrokerageController {
       authorizationService.assertBrokerageAccess(req.user!, brokerage._id);
 
       const brokerageObj = brokerage.toObject();
-      if (req.user?.role !== 'PLATFORM_ADMIN') {
+      if (req.user?.role !== 'PLATFORM_ADMIN' && req.user?.role !== 'BROKERAGE_ADMIN') {
         delete (brokerageObj as any).webhookSecret;
       }
 

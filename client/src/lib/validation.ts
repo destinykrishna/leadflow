@@ -300,3 +300,25 @@ export const updateBrokerageFormSchema = z.object({
   status: z.enum(BROKERAGE_STATUSES).optional(),
 })
 
+/* =========================================================================
+ * Advisor Schemas (Client-Side)
+ * ========================================================================= */
+
+export const createAdvisorFormSchema = z.object({
+  name: z.string().trim().min(2, 'Advisor name must be at least 2 characters').max(100),
+  email: z.string().trim().email('Invalid email address format').toLowerCase(),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(100)
+    .optional()
+    .or(z.literal('')),
+  phone: z.string().trim().optional(),
+})
+
+export const updateAdvisorFormSchema = z.object({
+  name: z.string().trim().min(2, 'Advisor name must be at least 2 characters').max(100).optional(),
+  phone: z.string().trim().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+})
+
