@@ -4387,6 +4387,56 @@ COMPLETED
 - **Monorepo Production Build**:
   - `npm run build` completed successfully in **1.10s** (`dist/` generated).
 
+---
+
+## LeadFlow — Automation Execution Feedback
+
+### Implementation Summary
+- **Backend Automation Events Channel (`server/src/queues/automation-events.ts`)**:
+  - Implemented `emitAutomationEvent` broadcasting to `brokerage:${brokerageId}` and `platform:admins` via Socket.IO, plus Redis pub/sub (`leadflow:events:automation_status`) to bridge standalone BullMQ workers (`worker/`).
+  - Added Redis pub/sub subscriber in `server.ts` to forward cross-process worker events to tenant Socket.IO rooms.
+- **Trigger Service Integration (`server/src/services/trigger.service.ts`)**:
+  - On automated task creation: resolves assignee name and emits `'automation:task_created'` with message: `"Task created and assigned to [advisor]."`.
+  - On email queueing: resolves recipient and emits `'automation:email_queued'` with message: `"Email queued to [recipient]."`.
+- **Email Worker Provider Delivery Verification (`server/src/queues/email.worker.ts`)**:
+  - Confirmed dispatch: emits `'automation:email_sent'` with message: `"Email sent to [recipient]."` strictly after provider returns a valid `messageId`.
+  - Failure/exhausted retries: emits `'automation:email_failed'` with message: `"Email delivery failed to [recipient]."`.
+- **Frontend Realtime Feedback (`client/src/`)**:
+  - Created `Toast.tsx` (`ToastProvider`, `useToast` hook) with institutional fintech styling and defensive context fallback.
+  - Implemented `useAutomationSocket` hook listening for automation events, displaying toasts, and automatically invalidating TanStack Query caches for `['tasks']` and `['lead-tasks']`.
+  - Mounted `ToastProvider` in `App.tsx` and activated `useAutomationSocket()` in `AppLayout.tsx`.
+- **Focused Regression Tests (`client/src/tests/automation-feedback.test.tsx`)**:
+  - 4 tests covering task creation feedback, email queued feedback, confirmed email sent feedback, and failure notifications.
+
+### Verification Results
+- **Frontend Tests**: 129 / 129 passed across 16 test files.
+- **Backend Tests**: 443 / 443 passed across 23 test files.
+- **TypeScript**: 0 errors across monorepo (`tsc --noEmit`).
+- **Production Build**: Clean client build in 1.19s.
+
+---
+
+## LeadFlow — Fix Password Visibility Toggle
+
+### Implementation Summary
+- **Input Component (`client/src/components/ui/Input.tsx`)**:
+  - Removed `pointer-events-none` from `endIcon` wrapper container, allowing buttons and toggles to receive click events while preserving input padding (`pr-9`) and vertical centering.
+- **Sign In Page (`client/src/features/auth/LoginPage.tsx`)**:
+  - Added `showPassword` state and `Eye`/`EyeOff` toggle button in `endIcon` with accessible `aria-label={showPassword ? 'Hide password' : 'Show password'}`.
+  - Dynamically toggles input between `type="password"` and `type="text"`.
+  - Preserves user-entered input and demo preset credentials during toggling.
+- **Consistency Across Credential Forms (`client/src/features/leads/components/ConvertLeadModal.tsx`)**:
+  - Added the same `showPassword` and `Eye`/`EyeOff` toggle button to the optional borrower portal password field during lead conversion.
+- **Focused Regression Tests (`client/src/tests/password-toggle.test.tsx`)**:
+  - 2 unit/regression tests validating masked/unmasked toggle behavior, aria-labels, value retention, demo preset switching, and `Input` primitive `endIcon` click handling.
+
+### Verification Results
+- **Frontend Tests**: 131 / 131 passed across 17 test files.
+- **TypeScript**: 0 errors across monorepo (`tsc --noEmit`).
+- **Production Build**: Clean client build in 835ms.
+
+
+
 
 
 

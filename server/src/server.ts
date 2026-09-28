@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import { connectDatabase, registerDatabaseShutdownHook } from './config/database.js';
 import { initSocketServer } from './sockets/index.js';
 import { setupDocumentEventsSubscriber } from './queues/document-events.js';
+import { setupAutomationEventsSubscriber } from './queues/automation-events.js';
 import { logger } from './utils/logger.js';
 
 const httpServer = http.createServer(app);
@@ -14,6 +15,7 @@ async function startServer(): Promise<void> {
     await connectDatabase();
     registerDatabaseShutdownHook();
     setupDocumentEventsSubscriber();
+    setupAutomationEventsSubscriber();
 
     httpServer.listen(env.PORT, () => {
       logger.info(

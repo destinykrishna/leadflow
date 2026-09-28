@@ -183,7 +183,7 @@ async function runQA() {
 
     // Upload document for own case
     const formData = new FormData();
-    const dummyBlob = new Blob(['Dummy payslip file content for QA verification'], { type: 'application/pdf' });
+    const dummyBlob = new Blob(['%PDF-1.4\n%Test PDF file content for QA verification\n%%EOF'], { type: 'application/pdf' });
     formData.append('file', dummyBlob, 'qa-payslip.pdf');
     formData.append('clientId', ownCase._id);
     formData.append('type', 'PAYSLIP');

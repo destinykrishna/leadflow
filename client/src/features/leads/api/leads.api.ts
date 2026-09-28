@@ -220,3 +220,29 @@ export function useUnarchiveLead() {
     },
   })
 }
+
+export function useAssignAdvisor() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      leadId,
+      advisorId,
+    }: {
+      leadId: string
+      advisorId: string
+    }): Promise<Lead> => {
+      const response = await api.patch<ApiResponse<{ lead: Lead }>>(
+        `/leads/${leadId}/assign`,
+        { advisorId },
+      )
+      return response.data.data!.lead
+    },
+    onSuccess: (updatedLead) => {
+      queryClient.setQueryData(LEAD_QUERY_KEY(updatedLead._id), updatedLead)
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(updatedLead._id) })
+      queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
+    },
+  })
+}

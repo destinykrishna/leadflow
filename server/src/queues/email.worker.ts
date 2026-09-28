@@ -7,6 +7,7 @@ import { isDatabaseConnected } from '../config/database.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import { EMAIL_DELIVERY_QUEUE_NAME, type EmailJobPayload } from './email.queue.js';
 import { emailService } from '../services/email.service.js';
+import { emitAutomationEvent } from './automation-events.js';
 import { maskEmail } from '../utils/mask.js';
 import { logger } from '../utils/logger.js';
 
@@ -145,6 +146,22 @@ export async function processEmailJob(
       }
     );
 
+    const recipientDisplay = payload.recipientName
+      ? `${payload.recipientName} (${maskedRecipient})`
+      : maskedRecipient;
+
+    emitAutomationEvent({
+      event: 'automation:email_sent',
+      payload: {
+        brokerageId: payload.brokerageId,
+        leadId: payload.leadId,
+        jobId: job.id ?? '',
+        recipient: recipientDisplay,
+        messageId: sendResult.messageId,
+        message: `Email sent to ${recipientDisplay}.`,
+      },
+    });
+
     return {
       jobId: job.id ?? '',
       leadId: payload.leadId,
@@ -163,6 +180,22 @@ export async function processEmailJob(
       (error as Error)?.name === 'MongoServerSelectionError';
 
     if (!isDbUnavailable && (isUnrecoverable || isExhausted)) {
+      const recipientDisplay = payload.recipientName
+        ? `${payload.recipientName} (${maskedRecipient})`
+        : maskedRecipient;
+
+      emitAutomationEvent({
+        event: 'automation:email_failed',
+        payload: {
+          brokerageId: payload.brokerageId,
+          leadId: payload.leadId,
+          jobId: job.id ?? '',
+          recipient: recipientDisplay,
+          error: (error as Error).message || 'Delivery failed',
+          message: `Email delivery failed to ${recipientDisplay}.`,
+        },
+      });
+
       await TriggerExecution.findOneAndUpdate(
         withBrokerageScope(payload.brokerageId, {
           idempotencyKey: payload.idempotencyKey,

@@ -22,10 +22,10 @@ interface EmailPreviewModalProps {
   isOpen: boolean
   onClose: () => void
   template: {
-    name: string
+    name?: string
     slug?: string
-    subject: string
-    body: string
+    subject?: string
+    body?: string
     variables?: string[]
   } | null
 }
@@ -34,18 +34,52 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
   const [viewMode, setViewMode] = React.useState<'rendered' | 'raw'>('rendered')
   const [copied, setCopied] = React.useState(false)
 
-  if (!template) return null
+  // Reset view mode and copy state when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setViewMode('rendered')
+      setCopied(false)
+    }
+  }, [isOpen])
 
-  const renderedSubject = renderTemplatePreview(template.subject)
-  const renderedBody = renderTemplatePreview(template.body)
+  const rawSubject = template?.subject || ''
+  const rawBody = template?.body || ''
+
+  const renderedSubject = React.useMemo(() => {
+    try {
+      return renderTemplatePreview(rawSubject)
+    } catch {
+      return rawSubject || '(Subject preview unavailable)'
+    }
+  }, [rawSubject])
+
+  const renderedBody = React.useMemo(() => {
+    try {
+      return renderTemplatePreview(rawBody)
+    } catch {
+      return rawBody || '(Body preview unavailable)'
+    }
+  }, [rawBody])
+
   const sanitizedBodyHtml = React.useMemo(() => {
-    return sanitizeTemplateHtml(renderedBody.replace(/\n/g, '<br />'))
+    try {
+      const formatted = (renderedBody || '').replace(/\n/g, '<br />')
+      return sanitizeTemplateHtml(formatted)
+    } catch {
+      return ''
+    }
   }, [renderedBody])
 
+  // Rules of Hooks: All hooks called unconditionally before this early exit.
+  if (!isOpen || !template) return null
+
   const handleCopyBody = () => {
-    navigator.clipboard.writeText(viewMode === 'rendered' ? renderedBody : template.body)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const textToCopy = viewMode === 'rendered' ? renderedBody : rawBody
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(textToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (
@@ -64,7 +98,7 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
               </div>
               <div>
                 <Dialog.Title className="text-base font-bold text-slate-900 leading-tight">
-                  {template.name}
+                  {template.name || 'Email Template Preview'}
                 </Dialog.Title>
                 <div className="flex items-center gap-2 mt-1">
                   {template.slug && (
@@ -164,7 +198,7 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
               <div className="flex items-center gap-2 pt-1 border-t border-slate-200/80">
                 <span className="font-semibold text-slate-500 w-16 shrink-0">Subject:</span>
                 <span className="text-slate-900 font-bold">
-                  {viewMode === 'rendered' ? renderedSubject : template.subject}
+                  {(viewMode === 'rendered' ? renderedSubject : template.subject) || '(No Subject)'}
                 </span>
               </div>
             </div>
@@ -172,13 +206,19 @@ export function EmailPreviewModal({ isOpen, onClose, template }: EmailPreviewMod
             {/* Email Body Content */}
             <div className="rounded-lg border border-border bg-white p-5 text-sm leading-relaxed shadow-2xs min-h-[160px]">
               {viewMode === 'rendered' ? (
-                <div
-                  className="prose prose-sm max-w-none text-slate-800"
-                  dangerouslySetInnerHTML={{ __html: sanitizedBodyHtml }}
-                />
+                sanitizedBodyHtml ? (
+                  <div
+                    className="prose prose-sm max-w-none text-slate-800"
+                    dangerouslySetInnerHTML={{ __html: sanitizedBodyHtml }}
+                  />
+                ) : (
+                  <div className="text-xs text-muted-foreground italic p-4 text-center">
+                    No preview content available
+                  </div>
+                )
               ) : (
                 <pre className="font-mono text-xs text-slate-700 whitespace-pre-wrap bg-slate-50 p-3 rounded-md border border-slate-200">
-                  {template.body}
+                  {template.body || '(Empty email body)'}
                 </pre>
               )}
             </div>

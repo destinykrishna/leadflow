@@ -12,6 +12,7 @@ import type { ILeadDocument, LeadStatus } from '../models/lead.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { renderTemplate, buildTemplateContext } from '../utils/template.js';
 import { enqueueEmailJob } from '../queues/email.queue.js';
+import { emitAutomationEvent } from '../queues/automation-events.js';
 import { logger } from '../utils/logger.js';
 import { maskEmail } from '../utils/mask.js';
 
@@ -333,6 +334,29 @@ export class TriggerService {
       },
     });
 
+    // Resolve assignee's human-readable name for clear user feedback
+    let assignedName = 'assigned advisor';
+    if (advisor && advisor._id.equals(assigneeId)) {
+      assignedName = advisor.name;
+    } else {
+      const assignedUser = await User.findById(assigneeId).select('name');
+      if (assignedUser?.name) {
+        assignedName = assignedUser.name;
+      }
+    }
+
+    emitAutomationEvent({
+      event: 'automation:task_created',
+      payload: {
+        brokerageId: brokerageIdStr,
+        leadId: lead._id.toString(),
+        taskId: taskDoc._id.toString(),
+        taskTitle: renderedTitle,
+        assignedToName: assignedName,
+        message: `Task created and assigned to ${assignedName}.`,
+      },
+    });
+
     logger.info(
       {
         taskId: taskDoc._id.toString(),
@@ -453,6 +477,21 @@ export class TriggerService {
         },
       });
     }
+
+    const recipientDisplay = recipientName
+      ? `${recipientName} (${maskEmail(recipientEmail)})`
+      : maskEmail(recipientEmail);
+
+    emitAutomationEvent({
+      event: 'automation:email_queued',
+      payload: {
+        brokerageId: brokerageIdStr,
+        leadId: lead._id.toString(),
+        triggerId: trigger._id.toString(),
+        recipient: recipientDisplay,
+        message: `Email queued to ${recipientDisplay}.`,
+      },
+    });
 
     logger.info(
       {

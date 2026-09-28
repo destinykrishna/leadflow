@@ -6,9 +6,12 @@ import { CommandPalette } from '@/components/common/CommandPalette'
 import { KeyboardShortcutsModal } from '@/components/common/KeyboardShortcutsModal'
 import { ProfileSettingsModal } from '@/components/common/ProfileSettingsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useAutomationSocket } from '@/features/triggers/hooks/useAutomationSocket'
 import { cn } from '@/lib/utils'
 
 export function AppLayout() {
+  useAutomationSocket()
+
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false)

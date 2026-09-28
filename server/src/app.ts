@@ -56,7 +56,7 @@ export function createApp(): Express {
     max: 20, // 20 requests per IP per window
     standardHeaders: true,
     legacyHeaders: false,
-    skip: () => env.isTest,
+    skip: (req) => env.isTest || (env.isDevelopment && req.headers['x-qa-bypass-rate-limit'] === 'true'),
     message: {
       success: false,
       error: {

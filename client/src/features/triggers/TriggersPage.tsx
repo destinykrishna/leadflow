@@ -134,6 +134,29 @@ export function TriggersPage() {
     filters.stage !== 'ALL' ||
     filters.status !== 'ALL'
 
+  // Email Preview Modal handler: enrich with full template body if available in templates cache
+  const handlePreviewTemplate = React.useCallback(
+    (templateSummary: { name: string; slug?: string; subject: string; body: string }) => {
+      const full = templates.find(
+        (t) =>
+          (templateSummary.slug && t.slug === templateSummary.slug) ||
+          t.name.toLowerCase() === templateSummary.name.toLowerCase(),
+      )
+
+      if (full) {
+        setPreviewTemplate({
+          name: full.name,
+          slug: full.slug,
+          subject: full.subject || templateSummary.subject,
+          body: full.body || templateSummary.body,
+        })
+      } else {
+        setPreviewTemplate(templateSummary)
+      }
+    },
+    [templates],
+  )
+
   return (
     <div className="space-y-4">
       {/* Page Title & Actions */}
@@ -337,7 +360,8 @@ export function TriggersPage() {
               isToggling={togglingId === trigger._id}
               onToggleStatus={handleToggleStatus}
               onDeleteTrigger={handleDeleteTrigger}
-              onPreviewTemplate={setPreviewTemplate}
+              onPreviewTemplate={handlePreviewTemplate}
+              templates={templates}
             />
           ))}
         </div>

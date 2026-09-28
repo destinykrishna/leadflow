@@ -1,8 +1,12 @@
+import { Types } from 'mongoose';
 import type { AuthUserContext } from '../middleware/auth.middleware.js';
 import { LEAD_STATUSES, type ILeadDocument, type LeadStatus } from '../models/lead.model.js';
+import { Lead } from '../models/lead.model.js';
+import { User } from '../models/user.model.js';
 import { leadRepository } from '../repositories/lead.repository.js';
+import { withBrokerageScope } from '../repositories/base.repository.js';
 import type { PipelineQuery } from '../validators/lead.validators.js';
-import { NotFoundError, ValidationError, ConflictError } from '../utils/errors.js';
+import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { triggerService } from './trigger.service.js';
 import { logger } from '../utils/logger.js';
 
@@ -230,6 +234,109 @@ export class LeadPipelineService {
       previousStage: result.previousStage!,
       currentStage: result.currentStage!,
     };
+  }
+
+  /**
+   * Assigns or reassigns an ACTIVE ADVISOR from the same brokerage to a lead.
+   * Only BROKERAGE_ADMIN and PLATFORM_ADMIN may call this.
+   * Validates:
+   *  - Lead exists and belongs to caller's brokerage (anti-IDOR).
+   *  - Target advisor exists, has role=ADVISOR, status=ACTIVE, same brokerageId.
+   *  - Rejects CLIENT, PLATFORM_ADMIN, BROKERAGE_ADMIN, or cross-tenant targets.
+   * Emits realtime `lead:assigned` event after successful DB write.
+   */
+  async assignAdvisor(
+    userContext: AuthUserContext,
+    leadId: string,
+    advisorId: string
+  ): Promise<ILeadDocument> {
+    if (userContext.role !== 'PLATFORM_ADMIN' && userContext.role !== 'BROKERAGE_ADMIN') {
+      throw new ForbiddenError(
+        'Only Brokerage Admins and Platform Admins can assign leads to advisors'
+      );
+    }
+
+    if (!Types.ObjectId.isValid(leadId)) {
+      throw new NotFoundError('Lead resource not found');
+    }
+    if (!Types.ObjectId.isValid(advisorId)) {
+      throw new ValidationError('Invalid advisorId format');
+    }
+
+    const brokerageIdStr =
+      userContext.role === 'PLATFORM_ADMIN' ? null : userContext.brokerageId;
+
+    // 1. Resolve lead with tenant isolation (anti-IDOR: cross-tenant returns 404)
+    const lead = await leadRepository.findLeadById(userContext, leadId);
+    if (!lead) {
+      throw new NotFoundError('Lead resource not found');
+    }
+
+    const leadBrokerageId = lead.brokerageId.toString();
+
+    // 2. Resolve and validate target advisor
+    const advisor = await User.findOne(
+      withBrokerageScope(leadBrokerageId, {
+        _id: new Types.ObjectId(advisorId),
+        role: 'ADVISOR',
+      })
+    );
+
+    if (!advisor) {
+      // Distinguish cross-brokerage tampering from not-found for clear error messaging
+      const anyAdvisor = await User.findById(new Types.ObjectId(advisorId));
+      if (anyAdvisor && anyAdvisor.brokerageId?.toString() !== leadBrokerageId) {
+        throw new ValidationError('Cannot assign an advisor from another brokerage to this lead');
+      }
+      throw new NotFoundError('Advisor not found in this brokerage');
+    }
+
+    if (advisor.status !== 'ACTIVE') {
+      throw new ValidationError(
+        `Advisor ${advisor.name} is ${advisor.status.toLowerCase()} and cannot be assigned new leads`
+      );
+    }
+
+    // 3. Atomic update
+    const updatedLead = await Lead.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(leadId),
+        brokerageId: lead.brokerageId,
+      },
+      { $set: { assignedTo: advisor._id } },
+      { returnDocument: 'after' }
+    ).populate('assignedTo', '_id name email');
+
+    if (!updatedLead) {
+      throw new NotFoundError('Lead resource not found');
+    }
+
+    // 4. Realtime broadcast
+    const io = getSocketServer();
+    if (io) {
+      const payload = {
+        leadId: updatedLead._id.toString(),
+        brokerageId: leadBrokerageId,
+        advisorId: advisor._id.toString(),
+        advisorName: advisor.name,
+        timestamp: new Date().toISOString(),
+        updatedBy: { id: userContext.id, name: userContext.name, role: userContext.role },
+      };
+      io.to(`brokerage:${leadBrokerageId}`).emit('lead:assigned', payload);
+      io.to('platform:admins').emit('lead:assigned', payload);
+    }
+
+    logger.info(
+      {
+        leadId,
+        advisorId: advisor._id.toString(),
+        brokerageId: leadBrokerageId,
+        assignedBy: userContext.id,
+      },
+      'Lead advisor assignment updated'
+    );
+
+    return updatedLead;
   }
 }
 

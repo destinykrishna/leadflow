@@ -19,6 +19,7 @@ interface TriggerItemCardProps {
   onToggleStatus: (trigger: IPipelineTrigger) => void
   onDeleteTrigger?: (id: string) => void
   onPreviewTemplate?: (template: { name: string; slug?: string; subject: string; body: string }) => void
+  templates?: Array<{ _id: string; name: string; slug: string; subject: string; body: string }>
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -39,6 +40,7 @@ export function TriggerItemCard({
   onToggleStatus,
   onDeleteTrigger,
   onPreviewTemplate,
+  templates,
 }: TriggerItemCardProps) {
   const isTask = trigger.actionType === 'CREATE_TASK'
   const isEmail = trigger.actionType === 'SEND_EMAIL'
@@ -48,16 +50,28 @@ export function TriggerItemCard({
       ? (trigger.actionConfig.templateId as IPopulatedEmailTemplate)
       : null
 
+  // Resolve template from populated subdocument or match against loaded templates list
+  const matchedTemplate =
+    populatedTemplate ||
+    (typeof trigger.actionConfig?.templateId === 'string' && templates
+      ? templates.find((t) => t._id === trigger.actionConfig?.templateId) || null
+      : null)
+
   const fromStageLabel = trigger.fromStage ? STAGE_LABELS[trigger.fromStage] || trigger.fromStage : 'Any Stage'
   const toStageLabel = STAGE_LABELS[trigger.toStage] || trigger.toStage
 
   const handlePreviewClick = () => {
-    if (populatedTemplate && onPreviewTemplate) {
+    if (matchedTemplate && onPreviewTemplate) {
+      const fullTemplate = templates?.find((t) => t._id === matchedTemplate._id)
       onPreviewTemplate({
-        name: populatedTemplate.name,
-        slug: populatedTemplate.slug,
-        subject: populatedTemplate.subject || 'Automated Mortgage Notification',
-        body: 'Automated email dispatch for stage transition: ' + toStageLabel,
+        name: matchedTemplate.name || 'Email Template',
+        slug: matchedTemplate.slug,
+        subject: fullTemplate?.subject || matchedTemplate.subject || 'Automated Mortgage Notification',
+        body:
+          fullTemplate?.body ||
+          ('body' in matchedTemplate && typeof matchedTemplate.body === 'string' && matchedTemplate.body
+            ? matchedTemplate.body
+            : 'Automated email dispatch for stage transition: ' + toStageLabel),
       })
     }
   }
@@ -152,7 +166,7 @@ export function TriggerItemCard({
                 <div className="flex items-center gap-1.5">
                   <span className="font-semibold text-slate-700">Template:</span>
                   <span className="text-slate-900 font-medium">
-                    {populatedTemplate?.name || 'Assigned Template'}
+                    {matchedTemplate?.name || 'Assigned Template'}
                   </span>
                 </div>
                 {trigger.actionConfig?.recipientType && (
@@ -163,7 +177,7 @@ export function TriggerItemCard({
                     </span>
                   </div>
                 )}
-                {populatedTemplate && onPreviewTemplate && (
+                {matchedTemplate && onPreviewTemplate && (
                   <Button
                     type="button"
                     variant="ghost"

@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatCurrency, formatRelativeTime, formatDate } from '@/lib/format'
+import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/hooks/useAuth'
 import {
   STAGE_DEFINITIONS,
@@ -42,7 +43,9 @@ import {
   useUpdateLeadWorkspaceStage,
   useArchiveLead,
   useUnarchiveLead,
+  useAssignAdvisor,
 } from '../api/leads.api'
+import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
@@ -109,7 +112,16 @@ export function LeadDetailView({
   const updateStageMutation = useUpdateLeadWorkspaceStage()
   const archiveMutation = useArchiveLead()
   const unarchiveMutation = useUnarchiveLead()
+  const assignAdvisorMutation = useAssignAdvisor()
 
+  // Fetch ACTIVE advisors for the assignment dropdown (BROKERAGE_ADMIN only)
+  const isBrokerageAdmin = user?.role === 'BROKERAGE_ADMIN'
+  const { data: advisorsData } = useAdvisorsList(
+    isBrokerageAdmin ? { status: 'ACTIVE' } : undefined
+  )
+  const activeAdvisors = advisorsData?.advisors ?? []
+
+  const { showToast } = useToast()
   const [isConvertModalOpen, setIsConvertModalOpen] = React.useState(false)
   const [concurrencyNotice, setConcurrencyNotice] = React.useState<string | null>(null)
   const [copiedEmail, setCopiedEmail] = React.useState(false)
@@ -144,6 +156,11 @@ export function LeadDetailView({
         id: lead._id,
         stage: targetStage,
         version: lead.__v,
+      })
+      showToast({
+        type: 'success',
+        title: 'Stage Updated',
+        message: `Lead transitioned to ${STAGE_DEFINITIONS[targetStage]?.label || targetStage}.`,
       })
       refetchLead()
       refetchTasks()
@@ -1148,23 +1165,96 @@ export function LeadDetailView({
               </h2>
             </div>
 
-            {assignedAdvisor ? (
-              <div className="flex items-center gap-3 text-xs">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
-                  {assignedAdvisor.name.charAt(0)}
+            {/* Read-only display for non-admin roles */}
+            {!isBrokerageAdmin ? (
+              assignedAdvisor ? (
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                    {assignedAdvisor.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-semibold text-slate-900 block truncate">
+                      {assignedAdvisor.name}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground truncate block">
+                      {assignedAdvisor.email}
+                    </span>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <span className="font-semibold text-slate-900 block truncate">
-                    {assignedAdvisor.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground truncate block">
-                    {assignedAdvisor.email}
-                  </span>
+              ) : (
+                <div className="rounded-lg bg-slate-50 p-3 text-center text-xs text-muted-foreground">
+                  Unassigned Inquiry
                 </div>
-              </div>
+              )
             ) : (
-              <div className="rounded-lg bg-slate-50 p-3 text-center text-xs text-muted-foreground">
-                Unassigned Inquiry
+              /* Interactive assignment dropdown for BROKERAGE_ADMIN */
+              <div className="space-y-3">
+                {assignedAdvisor && (
+                  <div className="flex items-center gap-2.5 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-bold text-[11px]">
+                      {assignedAdvisor.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-slate-900 truncate block">{assignedAdvisor.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{assignedAdvisor.email}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`advisor-select-${lead._id}`}
+                    className="text-[11px] font-semibold text-slate-600 block"
+                  >
+                    {assignedAdvisor ? 'Reassign to:' : 'Assign advisor:'}
+                  </label>
+                  <select
+                    id={`advisor-select-${lead._id}`}
+                    className="w-full rounded-lg border border-border/80 bg-white px-2.5 py-2 text-xs text-slate-800 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50 cursor-pointer"
+                    defaultValue=""
+                    disabled={assignAdvisorMutation.isPending || activeAdvisors.length === 0}
+                    onChange={(e) => {
+                      const selectedId = e.target.value
+                      if (!selectedId) return
+                      assignAdvisorMutation.mutate(
+                        { leadId: lead._id, advisorId: selectedId },
+                        {
+                          onError: () => {
+                            // Reset select to default on error
+                            e.target.value = ''
+                          },
+                        }
+                      )
+                      // Reset select to placeholder after issuing mutation
+                      e.target.value = ''
+                    }}
+                  >
+                    <option value="" disabled>
+                      {activeAdvisors.length === 0
+                        ? 'No active advisors'
+                        : assignedAdvisor
+                        ? '— Select to reassign —'
+                        : '— Select an advisor —'}
+                    </option>
+                    {activeAdvisors.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {assignAdvisorMutation.isPending && (
+                  <p className="text-[10px] text-primary animate-pulse">Assigning…</p>
+                )}
+                {assignAdvisorMutation.isError && (
+                  <p className="text-[10px] text-rose-600">
+                    Assignment failed — {(assignAdvisorMutation.error as Error)?.message ?? 'Unknown error'}
+                  </p>
+                )}
+                {assignAdvisorMutation.isSuccess && (
+                  <p className="text-[10px] text-emerald-600">Advisor assigned ✓</p>
+                )}
               </div>
             )}
           </Card>

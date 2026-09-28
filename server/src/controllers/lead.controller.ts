@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { Types } from 'mongoose';
 import { leadPipelineService } from '../services/lead-pipeline.service.js';
 import { clientService } from '../services/client.service.js';
 import {
@@ -213,6 +214,41 @@ export class LeadController {
       res.status(200).json({
         success: true,
         message: 'Lead restored successfully',
+        data: { lead },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  /**
+   * Assigns or reassigns an ACTIVE ADVISOR from the same brokerage to a lead.
+   * Restricted to BROKERAGE_ADMIN and PLATFORM_ADMIN.
+   */
+  async assignAdvisor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const { advisorId } = req.body as { advisorId?: unknown };
+      if (!advisorId || typeof advisorId !== 'string' || !Types.ObjectId.isValid(advisorId)) {
+        throw new ValidationError('advisorId must be a valid ObjectId');
+      }
+
+      const lead = await leadPipelineService.assignAdvisor(
+        req.user,
+        parsedParam.data.id,
+        advisorId
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Advisor assigned to lead successfully',
         data: { lead },
       });
     } catch (error) {

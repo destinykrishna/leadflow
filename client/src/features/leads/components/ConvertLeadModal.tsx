@@ -13,6 +13,8 @@ import {
   Layers,
   HelpCircle,
   Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import {
   Dialog,
@@ -82,6 +84,7 @@ export function ConvertLeadModal({
 
   const [clientType, setClientType] = React.useState<ClientType>('BUYER')
   const [password, setPassword] = React.useState('')
+  const [showPassword, setShowPassword] = React.useState(false)
   const [notes, setNotes] = React.useState('')
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [conversionResult, setConversionResult] =
@@ -93,6 +96,7 @@ export function ConvertLeadModal({
     if (isOpen) {
       setClientType('BUYER')
       setPassword('')
+      setShowPassword(false)
       setNotes('')
       setErrorMessage(null)
       setConversionResult(null)
@@ -296,11 +300,21 @@ export function ConvertLeadModal({
                   Portal Password (Optional)
                 </label>
                 <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Auto-generated if left blank"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="text-xs h-9"
+                  endIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  }
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Leave empty to generate a cryptographically secure temporary password.

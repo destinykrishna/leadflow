@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Lock, Mail, Building, ArrowRight, AlertCircle } from 'lucide-react'
+import { Lock, Mail, Building, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -73,6 +73,7 @@ export function LoginPage() {
 
   const [email, setEmail] = React.useState('admin@apexfinance.in')
   const [password, setPassword] = React.useState('Password123!')
+  const [showPassword, setShowPassword] = React.useState(false)
   const [brokerageSlug, setBrokerageSlug] = React.useState('apex-home-finance')
   const [isLoading, setIsLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -213,13 +214,23 @@ export function LoginPage() {
 
               <Input
                 label="Password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
                 autoComplete="current-password"
                 startIcon={<Lock className="h-4 w-4" />}
+                endIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
               />
 
               <Input

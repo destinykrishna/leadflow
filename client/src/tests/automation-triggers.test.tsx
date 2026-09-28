@@ -12,6 +12,7 @@ import {
   SAMPLE_TEMPLATE_CONTEXT,
 } from '@/features/templates/lib/templatePreview'
 import { TriggerItemCard } from '@/features/triggers/components/TriggerItemCard'
+import { EmailPreviewModal } from '@/features/templates/components/EmailPreviewModal'
 import type { IPipelineTrigger } from '@/types/trigger.types'
 
 describe('Phase 5 — Prompt 2: Automation & Email Tests', () => {
@@ -196,6 +197,116 @@ describe('Phase 5 — Prompt 2: Automation & Email Tests', () => {
 
       // Informative admin-configured badge is shown
       expect(screen.getByText('Brokerage Admin configured')).toBeInTheDocument()
+    })
+  })
+
+  describe('4. Email Automation Preview & Modal Stability (Regression Test)', () => {
+    const mockEmailTrigger: IPipelineTrigger = {
+      _id: 'trigger-email-1',
+      brokerageId: 'brokerage-1',
+      name: 'Send Proposal Email',
+      fromStage: 'QUALIFIED',
+      toStage: 'PROPOSAL',
+      actionType: 'SEND_EMAIL',
+      actionConfig: {
+        templateId: {
+          _id: 'tpl-1',
+          name: 'Proposal Notification',
+          slug: 'proposal-notification',
+          subject: 'Your Home Loan Proposal: {{lead.fullName}}',
+        },
+        recipientType: 'LEAD',
+      },
+      isActive: true,
+      createdAt: '2026-03-26T00:00:00.000Z',
+      updatedAt: '2026-03-26T00:00:00.000Z',
+    }
+
+    it('renders Preview Email button and invokes onPreviewTemplate on click', () => {
+      const onPreview = vi.fn()
+
+      render(
+        <TriggerItemCard
+          trigger={mockEmailTrigger}
+          canMutate={true}
+          onToggleStatus={vi.fn()}
+          onPreviewTemplate={onPreview}
+        />,
+      )
+
+      const previewBtn = screen.getByRole('button', { name: /Preview Email/i })
+      expect(previewBtn).toBeInTheDocument()
+      fireEvent.click(previewBtn)
+
+      expect(onPreview).toHaveBeenCalledTimes(1)
+      expect(onPreview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Proposal Notification',
+          slug: 'proposal-notification',
+        }),
+      )
+    })
+
+    it('renders EmailPreviewModal safely across state transitions without React hook errors', () => {
+      const onClose = vi.fn()
+
+      // 1. Initial closed state (template is null) — previously caused early return before useMemo
+      const { rerender } = render(
+        <EmailPreviewModal
+          isOpen={false}
+          onClose={onClose}
+          template={null}
+        />,
+      )
+
+      expect(screen.queryByText('Email Template Preview')).not.toBeInTheDocument()
+
+      // 2. Open state with valid template — hook count must match initial render exactly
+      rerender(
+        <EmailPreviewModal
+          isOpen={true}
+          onClose={onClose}
+          template={{
+            name: 'Proposal Notification',
+            slug: 'proposal-notification',
+            subject: 'Dear {{lead.firstName}}, your proposal is ready',
+            body: '<p>Hello {{lead.firstName}}, welcome to {{brokerage.name}}.</p>',
+          }}
+        />,
+      )
+
+      expect(screen.getByText('Proposal Notification')).toBeInTheDocument()
+      expect(screen.getByText(/Dear Rahul, your proposal is ready/i)).toBeInTheDocument()
+
+      // 3. Return to closed state
+      rerender(
+        <EmailPreviewModal
+          isOpen={false}
+          onClose={onClose}
+          template={null}
+        />,
+      )
+
+      expect(screen.queryByText('Proposal Notification')).not.toBeInTheDocument()
+    })
+
+    it('gracefully handles missing or invalid preview fields without crashing', () => {
+      render(
+        <EmailPreviewModal
+          isOpen={true}
+          onClose={vi.fn()}
+          template={{
+            name: '',
+            subject: '',
+            body: '',
+          }}
+        />,
+      )
+
+      // Renders with safe default fallbacks instead of crashing
+      expect(screen.getByText('Email Template Preview')).toBeInTheDocument()
+      expect(screen.getByText('(No Subject)')).toBeInTheDocument()
+      expect(screen.getByText('No preview content available')).toBeInTheDocument()
     })
   })
 })

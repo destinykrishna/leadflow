@@ -91,6 +91,15 @@ router.get(
   leadController.getLeadById.bind(leadController)
 );
 
+// Assign / reassign lead to an ACTIVE ADVISOR in the same brokerage (admin only)
+router.patch(
+  '/:id/assign',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  leadController.assignAdvisor.bind(leadController)
+);
+
 // Move lead stage (enforces state machine transitions, anti-IDOR, optimistic concurrency)
 router.patch(
   '/:id/stage',
@@ -99,6 +108,7 @@ router.patch(
   requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
   leadController.updateLeadStage.bind(leadController)
 );
+
 
 // Alias endpoint for stage update
 router.patch(
