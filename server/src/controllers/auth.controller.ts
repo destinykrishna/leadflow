@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
-import { loginSchema } from '../validators/auth.validators.js';
+import { loginSchema, changePasswordSchema } from '../validators/auth.validators.js';
 import { setRefreshTokenCookie, clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE_NAME } from '../utils/cookie.js';
 import { UnauthorizedError } from '../utils/errors.js';
 
@@ -95,6 +95,33 @@ export class AuthController {
         success: true,
         data: {
           user: req.user,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Handles user password change and clears temporary credential / mustChangePassword status (HARD-04).
+   * Automatically clears active refresh token cookie as sessions have been revoked.
+   */
+  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const input = changePasswordSchema.parse(req.body);
+      const updatedUser = await authService.changePassword(req.user.id, input);
+
+      clearRefreshTokenCookie(res);
+
+      res.status(200).json({
+        success: true,
+        message: 'Password changed successfully',
+        data: {
+          user: updatedUser,
         },
       });
     } catch (error) {

@@ -79,10 +79,12 @@ LeadFlow features a high-throughput, multi-tenant lead ingestion engine. Incomin
 Where `:brokerageId` is the 24-character hexadecimal MongoDB `ObjectId` of the target active brokerage.
 
 ### 2.2 Authentication Mechanism
-Requests must authenticate via the target brokerage's configured `webhookSecret`. LeadFlow verifies credentials in constant time (`crypto.timingSafeEqual`) to prevent timing attacks.
+Requests must authenticate via the target brokerage's configured `webhookSecret`. LeadFlow verifies credentials in constant time (`crypto.timingSafeEqual`) to prevent timing attacks and enforces replay protection via timestamp freshness validation (5-minute window).
 
 Supported authentication headers:
-- `x-webhook-secret: <YOUR_BROKERAGE_WEBHOOK_SECRET>` *(Recommended for Google Apps Script)*
+- `x-webhook-secret: <YOUR_BROKERAGE_WEBHOOK_SECRET>` *(Standard static secret for Google Apps Script)*
+- `x-webhook-timestamp: <UNIX_TIMESTAMP_SECONDS>` *(Replay defense: rejects timestamps older than 5 minutes or in the future)*
+- `x-signature-sha256: sha256=<HMAC_HEX_DIGEST>` *(Cryptographic signature computed over `<timestamp>.<rawPayload>`)*
 - `Authorization: Bearer <YOUR_BROKERAGE_WEBHOOK_SECRET>`
 
 *(Unauthenticated probes return HTTP 401 with a uniform message to conceal tenant existence).*
@@ -282,11 +284,13 @@ function onFormSubmit(e) {
     };
 
     // 6. Deliver to LeadFlow Webhook Endpoint
+    var timestamp = Math.floor(Date.now() / 1000).toString();
     var options = {
       method: 'post',
       contentType: 'application/json',
       headers: {
-        'x-webhook-secret': config.webhookSecret
+        'x-webhook-secret': config.webhookSecret,
+        'x-webhook-timestamp': timestamp
       },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true

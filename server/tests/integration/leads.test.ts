@@ -825,4 +825,180 @@ describe('External Lead Ingestion Integration Tests', () => {
       expect(res2.body.data.id).toBe(res1.body.data.id);
     });
   });
+
+  describe('7. Security Remediation VULN-03: Webhook Replay Protection & Timestamp Freshness', () => {
+    it('accepts a valid fresh signed request with x-webhook-timestamp and HMAC-SHA256 signature', async () => {
+      const nowSec = Math.floor(Date.now() / 1000).toString();
+      const payload = {
+        firstName: 'Signed',
+        lastName: 'Fresh',
+        email: `signed.fresh.${Date.now()}@example.de`,
+        source: 'WEBSITE',
+      };
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto
+        .createHmac('sha256', SECRET_A)
+        .update(Buffer.concat([Buffer.from(`${nowSec}.`), Buffer.from(rawBody, 'utf8')]))
+        .digest('hex');
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', nowSec)
+        .set('x-signature-sha256', `sha256=${signature}`)
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.email).toBe(payload.email.toLowerCase());
+    });
+
+    it('rejects an expired timestamp (> 5 minutes old) with 401 Unauthorized to prevent replay attacks', async () => {
+      // 6 minutes in the past
+      const expiredSec = (Math.floor(Date.now() / 1000) - 360).toString();
+      const payload = {
+        firstName: 'Expired',
+        lastName: 'Replay',
+        email: `expired.replay.${Date.now()}@example.de`,
+      };
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto
+        .createHmac('sha256', SECRET_A)
+        .update(Buffer.concat([Buffer.from(`${expiredSec}.`), Buffer.from(rawBody, 'utf8')]))
+        .digest('hex');
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', expiredSec)
+        .set('x-signature-sha256', `sha256=${signature}`)
+        .send(payload);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+      expect(res.body.error.message).toContain('expired');
+    });
+
+    it('rejects a future timestamp (> 1 minute into future) with 401 Unauthorized', async () => {
+      // 2 minutes in the future
+      const futureSec = (Math.floor(Date.now() / 1000) + 120).toString();
+      const payload = {
+        firstName: 'Future',
+        lastName: 'Time',
+        email: `future.time.${Date.now()}@example.de`,
+      };
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto
+        .createHmac('sha256', SECRET_A)
+        .update(Buffer.concat([Buffer.from(`${futureSec}.`), Buffer.from(rawBody, 'utf8')]))
+        .digest('hex');
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', futureSec)
+        .set('x-signature-sha256', `sha256=${signature}`)
+        .send(payload);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+      expect(res.body.error.message).toContain('future');
+    });
+
+    it('rejects a malformed timestamp with 401 Unauthorized', async () => {
+      const payload = {
+        firstName: 'Malformed',
+        lastName: 'Timestamp',
+        email: `malformed.ts.${Date.now()}@example.de`,
+      };
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', 'not-a-valid-unix-or-iso-timestamp')
+        .set('x-signature-sha256', 'sha256=abcdef1234567890')
+        .send(payload);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+      expect(res.body.error.message).toContain('timestamp');
+    });
+
+    it('rejects a valid signature when header specifies a mismatched timestamp', async () => {
+      const timestamp1 = Math.floor(Date.now() / 1000).toString();
+      const timestamp2 = (Math.floor(Date.now() / 1000) - 10).toString(); // also fresh, but different
+      const payload = {
+        firstName: 'Tampered',
+        lastName: 'Timestamp',
+        email: `tampered.ts.${Date.now()}@example.de`,
+      };
+      const rawBody = JSON.stringify(payload);
+      // Signed with timestamp1
+      const signature = crypto
+        .createHmac('sha256', SECRET_A)
+        .update(Buffer.concat([Buffer.from(`${timestamp1}.`), Buffer.from(rawBody, 'utf8')]))
+        .digest('hex');
+
+      // Request sends timestamp2 in header
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', timestamp2)
+        .set('x-signature-sha256', `sha256=${signature}`)
+        .send(payload);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('rejects replaying a 10-minute old signed request as-is', async () => {
+      const tenMinutesAgo = (Math.floor(Date.now() / 1000) - 600).toString();
+      const payload = {
+        firstName: 'Old',
+        lastName: 'Lead',
+        email: `old.lead.${Date.now()}@example.de`,
+      };
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto
+        .createHmac('sha256', SECRET_A)
+        .update(Buffer.concat([Buffer.from(`${tenMinutesAgo}.`), Buffer.from(rawBody, 'utf8')]))
+        .digest('hex');
+
+      // An attacker replays this captured request verbatim
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-timestamp', tenMinutesAgo)
+        .set('x-signature-sha256', `sha256=${signature}`)
+        .send(payload);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+      expect(res.body.error.message).toContain('expired');
+    });
+
+    it('preserves existing valid ingestion behavior using static x-webhook-secret for Google Forms', async () => {
+      const payload = {
+        firstName: 'Google',
+        lastName: 'FormsUser',
+        email: `google.forms.${Date.now()}@example.de`,
+        source: 'WEBSITE',
+        customFields: { provider: 'GOOGLE_FORMS' },
+      };
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('Content-Type', 'application/json')
+        .set('x-webhook-secret', SECRET_A)
+        .send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.email).toBe(payload.email.toLowerCase());
+    });
+  });
 });

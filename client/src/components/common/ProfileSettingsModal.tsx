@@ -61,7 +61,7 @@ export function ProfileSettingsModal({
       const res = await api.get<ApiResponse<BrokerageResponse>>(`/brokerages/${user.brokerageId}`)
       return res.data.data?.brokerage ?? null
     },
-    enabled: open && Boolean(user?.brokerageId),
+    enabled: open && Boolean(user?.brokerageId) && user?.role !== 'CLIENT',
     staleTime: 5 * 60 * 1000,
   })
 

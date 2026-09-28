@@ -2,8 +2,8 @@ import { Types } from 'mongoose';
 import { User, type IUserDocument } from '../models/user.model.js';
 import { Brokerage } from '../models/brokerage.model.js';
 import { Session } from '../models/session.model.js';
-import { hashToken, verifyPassword } from '../utils/password.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { hashToken, hashPassword, verifyPassword } from '../utils/password.js';
+import { UnauthorizedError, ValidationError } from '../utils/errors.js';
 import { tokenService } from './token.service.js';
 import type { IDomainService } from './base.service.js';
 import type { LoginInput } from '../validators/auth.validators.js';
@@ -15,6 +15,7 @@ export interface SanitizedUser {
   role: string;
   status: string;
   brokerageId: string | null;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthSessionResult {
@@ -43,6 +44,7 @@ export class AuthService implements IDomainService {
       role: user.role,
       status: user.status,
       brokerageId: user.brokerageId ? user.brokerageId.toString() : null,
+      mustChangePassword: Boolean(user.mustChangePassword),
     };
   }
 
@@ -263,6 +265,40 @@ export class AuthService implements IDomainService {
       { userId: validUserId, isRevoked: false },
       { isRevoked: true, revokedAt: new Date() }
     );
+  }
+
+  /**
+   * Securely changes password for authenticated user and clears mustChangePassword flag.
+   * Immediately revokes all active sessions so stale sessions/tokens cannot be reused (HARD-04).
+   */
+  async changePassword(
+    userId: string | Types.ObjectId,
+    input: { currentPassword?: string; newPassword: string }
+  ): Promise<SanitizedUser> {
+    const validUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+    const user = await User.findById(validUserId);
+    if (!user || user.status !== 'ACTIVE') {
+      throw new UnauthorizedError('User account not found or inactive');
+    }
+
+    if (!input.currentPassword) {
+      throw new ValidationError('Current password is required');
+    }
+
+    const isCurrentValid = await verifyPassword(input.currentPassword, user.passwordHash);
+    if (!isCurrentValid) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    // Hash and store new password
+    user.passwordHash = await hashPassword(input.newPassword);
+    user.mustChangePassword = false;
+    await user.save();
+
+    // Revoke all existing sessions so previous tokens are invalidated
+    await this.revokeAllUserSessions(user._id);
+
+    return this.sanitizeUser(user);
   }
 }
 

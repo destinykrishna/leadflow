@@ -198,6 +198,7 @@ export class ClientService implements IDomainService {
           passwordHash,
           role: 'CLIENT',
           status: 'ACTIVE',
+          mustChangePassword: true,
         };
         if (lead.phone) {
           userPayload.phone = lead.phone;

@@ -28,11 +28,13 @@ router.get(
   brokerageController.listBrokerages.bind(brokerageController)
 );
 
-// Scoped to own brokerage (or PLATFORM_ADMIN)
+// Scoped to own brokerage operational staff (PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR)
+// CLIENT role is strictly forbidden (403) from accessing internal brokerage metadata (HARD-03)
 router.get(
   '/:brokerageId',
   authenticate,
   requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
   requireSameBrokerage('brokerageId'),
   brokerageController.getBrokerageById.bind(brokerageController)
 );

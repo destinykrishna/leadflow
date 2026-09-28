@@ -19,6 +19,7 @@ export interface IUser {
   role: UserRole;
   status: UserStatus;
   phone?: string;
+  mustChangePassword?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,6 +77,10 @@ const userSchema = new Schema<IUserDocument>(
     phone: {
       type: String,
       trim: true,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
     },
   },
   {

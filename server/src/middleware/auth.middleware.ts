@@ -11,6 +11,7 @@ export interface AuthUserContext {
   role: UserRole;
   status: UserStatus;
   brokerageId: string | null;
+  mustChangePassword?: boolean;
 }
 
 declare global {
@@ -67,6 +68,7 @@ export async function authenticate(
       role: user.role,
       status: user.status,
       brokerageId: user.brokerageId ? user.brokerageId.toString() : null,
+      mustChangePassword: Boolean(user.mustChangePassword),
     };
 
     next();

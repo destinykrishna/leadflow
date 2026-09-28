@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { env } from './config/env.js';
+import { env, resolveTrustProxy, resolveCorsOrigin } from './config/env.js';
 import { authRouter } from './routes/auth.routes.js';
 import { brokerageRouter } from './routes/brokerage.routes.js';
 import { clientRouter } from './routes/client.routes.js';
@@ -19,13 +19,18 @@ import { NotFoundError } from './utils/errors.js';
 export function createApp(): Express {
   const app = express();
 
+  // Configure reverse proxy trust based on environment configuration
+  // Defaults to 1 (trust immediate reverse proxy, e.g. Nginx, Docker network, Cloudflare, ALB)
+  // Defends against IP spoofing by ignoring client-supplied forged X-Forwarded-For headers
+  app.set('trust proxy', resolveTrustProxy(env.TRUST_PROXY));
+
   // Security headers
   app.use(helmet());
 
   // CORS configuration for SPA client with credentials (cookies)
   app.use(
     cors({
-      origin: env.CORS_ORIGIN,
+      origin: resolveCorsOrigin(env.CORS_ORIGIN),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

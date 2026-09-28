@@ -23,6 +23,7 @@ import type { AuthUserContext } from '../middleware/auth.middleware.js';
 import {
   isAllowedMimeType,
   MAX_FILE_SIZE_BYTES,
+  validateFileSignature,
   type DocumentQuery,
 } from '../validators/document.validators.js';
 import type { IDomainService } from './base.service.js';
@@ -41,7 +42,7 @@ export class DocumentService implements IDomainService {
 
   /**
    * Orchestrates secure document upload:
-   * 1. Validates file presence, MIME type, size limit, and document type.
+   * 1. Validates file presence, MIME type, size limit, binary magic bytes, and document type.
    * 2. Resolves tenant boundary and verifies client/case ownership (rejecting unauthorized client-to-client uploads).
    * 3. Uploads file to ImageKit under a server-controlled folder hierarchy.
    * 4. Persists the Document record in MongoDB.
@@ -61,6 +62,9 @@ export class DocumentService implements IDomainService {
         `Unsupported file format: ${input.file.mimetype}. Allowed formats: PDF, JPEG, PNG, WEBP, TIFF`
       );
     }
+
+    // Binary magic byte validation: verify binary signature matches declared MIME and allowed formats
+    validateFileSignature(input.file.buffer, input.file.mimetype, input.file.originalname);
 
     if (input.file.size > MAX_FILE_SIZE_BYTES) {
       throw new ValidationError(

@@ -2,9 +2,11 @@ import { Types } from 'mongoose';
 import crypto from 'node:crypto';
 import { Brokerage, type IBrokerageDocument } from '../models/brokerage.model.js';
 import { User, type IUserDocument } from '../models/user.model.js';
+import { Session } from '../models/session.model.js';
 import { hashPassword } from '../utils/password.js';
 import { ConflictError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import { disconnectBrokerageSockets } from '../sockets/socket.server.js';
 import type { IDomainService } from './base.service.js';
 import type {
   CreateBrokerageInput,
@@ -132,6 +134,7 @@ export class BrokerageService implements IDomainService {
         passwordHash,
         role: 'BROKERAGE_ADMIN',
         status: 'ACTIVE',
+        mustChangePassword: true,
       };
       if (adminPhone) {
         adminPayload.phone = adminPhone;
@@ -215,6 +218,16 @@ export class BrokerageService implements IDomainService {
     }
     if (input.status) {
       brokerage.status = input.status;
+      if (input.status === 'SUSPENDED') {
+        // Invalidate all active sessions for users belonging to this brokerage
+        await Session.updateMany(
+          { brokerageId: brokerage._id, isRevoked: false },
+          { isRevoked: true, revokedAt: new Date() }
+        );
+
+        // Immediately disconnect all active Socket.IO connections (HARD-01)
+        await disconnectBrokerageSockets(brokerage._id.toString());
+      }
     }
 
     try {

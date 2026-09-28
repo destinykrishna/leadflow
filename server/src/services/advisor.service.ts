@@ -12,6 +12,7 @@ import {
   ForbiddenError,
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import { disconnectUserSockets } from '../sockets/socket.server.js';
 import type { AuthUserContext } from '../middleware/auth.middleware.js';
 import type { IDomainService } from './base.service.js';
 import type {
@@ -28,6 +29,7 @@ export interface SafeAdvisorResult {
   status: string;
   phone?: string | undefined;
   brokerageId: string;
+  mustChangePassword?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +58,7 @@ export class AdvisorService implements IDomainService {
       status: user.status,
       phone: user.phone,
       brokerageId: user.brokerageId ? user.brokerageId.toString() : '',
+      mustChangePassword: Boolean(user.mustChangePassword),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -142,6 +145,7 @@ export class AdvisorService implements IDomainService {
         passwordHash,
         role: 'ADVISOR',
         status: 'ACTIVE',
+        mustChangePassword: true,
       };
       if (input.phone) {
         userPayload.phone = input.phone.trim();
@@ -346,6 +350,9 @@ export class AdvisorService implements IDomainService {
           { userId: advisor._id, isRevoked: false },
           { isRevoked: true, revokedAt: new Date() }
         );
+
+        // Immediately disconnect all active Socket.IO connections (HARD-01)
+        await disconnectUserSockets(advisor._id.toString());
       }
     }
 

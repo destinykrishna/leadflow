@@ -43,13 +43,114 @@ const envSchema = z.object({
   PENDING_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(15000),
   STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(300000),
   RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+  TRUST_PROXY: z.string().default('1'),
 });
+
+export const DEV_DEFAULT_SECRETS = {
+  JWT_SECRET: 'leadflow-jwt-super-secret-access-token-key-min32chars!',
+  JWT_REFRESH_SECRET: 'leadflow-jwt-super-secret-refresh-token-key-min32chars!',
+  COOKIE_SECRET: 'leadflow-secure-cookie-secret-key-development',
+  IMAGEKIT_PUBLIC_KEY: 'public_mock_imagekit_key',
+  IMAGEKIT_PRIVATE_KEY: 'private_mock_imagekit_key',
+} as const;
+
+/**
+ * Validates security invariants when running in production mode:
+ * - HARD-02: Fails startup if JWT, refresh-token, cookie, or ImageKit secrets use default development values
+ * - HARD-05: Requires explicit HTTPS CORS origin, rejecting localhost/127.0.0.1/wildcard defaults
+ */
+export function validateProductionSecurity(data: z.infer<typeof envSchema>): void {
+  if (data.NODE_ENV !== 'production') {
+    return;
+  }
+
+  // 1. HARD-02: Production secret enforcement
+  const secretViolations: string[] = [];
+  if (data.JWT_SECRET === DEV_DEFAULT_SECRETS.JWT_SECRET) {
+    secretViolations.push('JWT_SECRET');
+  }
+  if (data.JWT_REFRESH_SECRET === DEV_DEFAULT_SECRETS.JWT_REFRESH_SECRET) {
+    secretViolations.push('JWT_REFRESH_SECRET');
+  }
+  if (data.COOKIE_SECRET === DEV_DEFAULT_SECRETS.COOKIE_SECRET) {
+    secretViolations.push('COOKIE_SECRET');
+  }
+  if (data.IMAGEKIT_PRIVATE_KEY === DEV_DEFAULT_SECRETS.IMAGEKIT_PRIVATE_KEY) {
+    secretViolations.push('IMAGEKIT_PRIVATE_KEY');
+  }
+  if (data.IMAGEKIT_PUBLIC_KEY === DEV_DEFAULT_SECRETS.IMAGEKIT_PUBLIC_KEY) {
+    secretViolations.push('IMAGEKIT_PUBLIC_KEY');
+  }
+
+  if (secretViolations.length > 0) {
+    throw new Error(
+      `Production startup aborted: Insecure development/default secret detected for [${secretViolations.join(', ')}]. Provide dedicated, cryptographically strong secrets in production.`
+    );
+  }
+
+  // 2. HARD-05: Production CORS origin validation
+  const origins = data.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+  if (origins.length === 0) {
+    throw new Error(
+      'Production startup aborted: CORS_ORIGIN is required in production. Must specify explicit HTTPS origin(s).'
+    );
+  }
+
+  for (const origin of origins) {
+    const lower = origin.toLowerCase();
+    if (
+      lower.includes('localhost') ||
+      lower.includes('127.0.0.1') ||
+      lower.includes('0.0.0.0') ||
+      lower === '*'
+    ) {
+      throw new Error(
+        'Production startup aborted: Insecure CORS_ORIGIN detected in production. Localhost, 127.0.0.1, 0.0.0.0, and wildcard * are prohibited in production.'
+      );
+    }
+
+    if (!origin.startsWith('https://')) {
+      throw new Error(
+        'Production startup aborted: Insecure CORS_ORIGIN detected in production. Production origins must use HTTPS.'
+      );
+    }
+  }
+}
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   console.error('Invalid environment variables:', parsed.error.format());
   throw new Error('Invalid environment configuration');
+}
+
+// Enforce production security rules
+validateProductionSecurity(parsed.data);
+
+/**
+ * Resolves Express 'trust proxy' setting from string representation:
+ * - 'true' -> true (trust all proxies)
+ * - 'false' -> false (disabled)
+ * - '1' or integer -> number of hops to trust from the front (standard reverse proxy)
+ * - 'loopback' / CIDR / subnet -> trusted subnet string
+ */
+export function resolveTrustProxy(value: string): boolean | number | string {
+  const trimmed = value.trim();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  const num = Number(trimmed);
+  if (!Number.isNaN(num) && Number.isInteger(num) && num >= 0) {
+    return num;
+  }
+  return trimmed;
+}
+
+/**
+ * Resolves CORS origin configuration from string (supporting comma-separated origins).
+ */
+export function resolveCorsOrigin(corsOrigin: string): string | string[] {
+  const list = corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
+  return list.length === 1 ? list[0]! : list;
 }
 
 export const env = {
@@ -60,3 +161,4 @@ export const env = {
 };
 
 export type Env = typeof env;
+

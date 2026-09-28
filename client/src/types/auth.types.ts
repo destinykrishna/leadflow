@@ -9,6 +9,7 @@ export interface AuthUser {
   role: UserRole
   status: UserStatus
   brokerageId: string | null
+  mustChangePassword?: boolean
 }
 
 export interface LoginCredentials {

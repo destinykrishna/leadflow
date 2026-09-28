@@ -8,5 +8,6 @@ router.post('/login', authController.login.bind(authController));
 router.post('/refresh', authController.refresh.bind(authController));
 router.post('/logout', authController.logout.bind(authController));
 router.get('/me', authenticate, authController.me.bind(authController));
+router.post('/change-password', authenticate, authController.changePassword.bind(authController));
 
 export const authRouter = router;

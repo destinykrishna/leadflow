@@ -36,6 +36,14 @@ export function registerSocketHandlers(io: Server): void {
       socket.join(`client:${user.id}`);
     }
 
+    // Direct user-specific room for targeted revocation and direct notifications
+    socket.join(`user:${user.id}`);
+
+    // Brokerage-wide room encompassing all roles within the tenant for whole-tenant revocation
+    if (user.brokerageId) {
+      socket.join(`tenant-all:${user.brokerageId}`);
+    }
+
     // 2. Reject client-supplied room manipulation attempts
     socket.on('join', (_data: unknown) => {
       socket.emit('error', {

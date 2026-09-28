@@ -4,6 +4,7 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE_BYTES,
   isAllowedMimeType,
+  validateFileSignature,
 } from '../validators/document.validators.js';
 import { ValidationError } from '../utils/errors.js';
 
@@ -31,7 +32,8 @@ const multerInstance = multer({
 
 /**
  * Express middleware for single document file upload under field 'file'.
- * Safely transforms Multer-specific errors into standard LeadFlow ApplicationErrors.
+ * Safely transforms Multer-specific errors into standard LeadFlow ApplicationErrors
+ * and validates file binary magic bytes before passing request to downstream handlers.
  */
 export function handleFileUpload(req: Request, res: Response, next: NextFunction): void {
   const upload = multerInstance.single('file');
@@ -55,6 +57,17 @@ export function handleFileUpload(req: Request, res: Response, next: NextFunction
       }
       return next(err);
     }
+
+    // Binary magic byte validation: reject HTML/executables disguised as allowed MIME types
+    if (req.file && req.file.buffer) {
+      try {
+        validateFileSignature(req.file.buffer, req.file.mimetype, req.file.originalname);
+      } catch (validationErr) {
+        return next(validationErr);
+      }
+    }
+
     next();
   });
 }
+

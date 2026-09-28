@@ -804,4 +804,156 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
       expect(res.headers.location).toContain('ik-s=');
     });
   });
+
+  describe('9. Security Remediation VULN-05: Document Binary Magic-Byte Validation', () => {
+    // Valid sample buffers
+    const validPdf = Buffer.from('%PDF-1.7\nSample mortgage approval document');
+    const validPng = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+    const validJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+    const validWebp = Buffer.concat([
+      Buffer.from('RIFF', 'ascii'),
+      Buffer.from([0x20, 0x00, 0x00, 0x00]),
+      Buffer.from('WEBP', 'ascii'),
+      Buffer.from('VP8 ', 'ascii'),
+    ]);
+    const validTiff = Buffer.from([0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00]);
+
+    it('accepts a valid PDF with matching %PDF- magic bytes and .pdf extension', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validPdf, 'legit_mortgage.pdf')
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'CONTRACT');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.mimeType).toBe('application/pdf');
+    });
+
+    it('accepts a valid PNG with matching \\x89PNG magic bytes and .png extension', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validPng, 'id_card_scan.png')
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'IDENTIFICATION');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.mimeType).toBe('image/png');
+    });
+
+    it('accepts a valid JPEG with matching FF D8 FF magic bytes and .jpg extension', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validJpeg, 'photo_id.jpg')
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'IDENTIFICATION');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.mimeType).toBe('image/jpeg');
+    });
+
+    it('accepts a valid WEBP with matching RIFF/WEBP magic bytes and .webp extension', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validWebp, 'property_photo.webp')
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'OTHER');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.mimeType).toBe('image/webp');
+    });
+
+    it('accepts a valid TIFF with matching II*\\0 magic bytes and .tif extension', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validTiff, 'notary_deed.tif')
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'CONTRACT');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.document.mimeType).toBe('image/tiff');
+    });
+
+    it('rejects spoofed MIME type (JPEG binary buffer disguised as application/pdf) with 400', async () => {
+      // JPEG content sent with .pdf filename and application/pdf Content-Type
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validJpeg, {
+          filename: 'spoofed_document.pdf',
+          contentType: 'application/pdf',
+        })
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'CONTRACT');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('does not match actual file signature');
+    });
+
+    it('rejects wrong extension and content combination (PDF binary with .png extension) with 400', async () => {
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', validPdf, {
+          filename: 'contract.png',
+          contentType: 'image/png',
+        })
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'CONTRACT');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects malicious HTML/script content disguised as PDF before ImageKit persistence', async () => {
+      const maliciousHtml = Buffer.from('<!DOCTYPE html><html><head><script>alert("XSS")</script></head><body>Malicious payload</body></html>');
+
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', maliciousHtml, {
+          filename: 'salary_statement.pdf',
+          contentType: 'application/pdf',
+        })
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'PAYSLIP');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('Binary signature does not match allowed types');
+    });
+
+    it('rejects malicious executable payload disguised as JPEG with 400', async () => {
+      // Windows PE executable header: "MZ..."
+      const maliciousExe = Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00]);
+
+      const res = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', maliciousExe, {
+          filename: 'borrower_photo.jpg',
+          contentType: 'image/jpeg',
+        })
+        .field('clientId', clientA1._id.toString())
+        .field('type', 'IDENTIFICATION');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('Binary signature does not match allowed types');
+    });
+  });
 });

@@ -4267,5 +4267,127 @@ COMPLETED
   - Clients cannot access another client's documents within the same brokerage (HTTP 403 Forbidden).
   - Raw permanent ImageKit URL is no longer exposed as the standard client access path.
 
+## Security Remediation Prompt 2: Webhook, Proxy & Upload Hardening
+
+```markdown
+LeadFlow — Security Remediation Prompt 2: Webhook, Proxy & Upload Hardening
+
+Remediate ONLY confirmed findings from security audit:
+- VULN-03: Webhook replay protection
+- VULN-04: Reverse-proxy IP / authentication rate-limit configuration
+- VULN-05: Missing file magic-byte validation
+```
+
+### Status
+COMPLETED
+
+### Decisions & Root Cause Analysis
+
+1. **VULN-03: Webhook Replay Protection**:
+   - **Root Cause**: Webhook authentication validated static secrets or HMAC signatures computed exclusively over raw body buffers without timestamp freshness checks or nonce validation. A malicious network observer or compromised intermediary could capture a legitimate webhook payload with its authentication headers and replay it indefinitely to re-trigger ingestion workflows or attempt DoS.
+   - **Remediation**:
+     - Added `validateWebhookTimestamp(rawTimestamp: string)` in `server/src/middleware/webhook-auth.middleware.ts`. Enforces a strict 5-minute freshness window (`now - timestamp <= 300,000ms`) and a 1-minute future clock-skew tolerance (`timestamp - now <= 60,000ms`). Supports Unix epoch seconds, milliseconds, and ISO-8601 strings. Rejects expired, future, or malformed timestamps with HTTP 401 `UnauthorizedError`.
+     - Embedded the timestamp into the HMAC-SHA256 signature calculation (`Buffer.concat([Buffer.from(rawTimestamp + '.'), rawBuffer])` and colon delimiter fallback). If an attacker alters the timestamp header to evade expiration, the HMAC signature verification fails immediately.
+     - Preserved backward compatibility: static `x-webhook-secret` (used by Google Apps Script / Google Forms) continues to work seamlessly without breakage; if `x-webhook-timestamp` is provided alongside the secret, freshness is strictly enforced. Third-party Typeform signatures without timestamp headers remain supported for legacy webhooks.
+     - Updated `docs/GOOGLE_FORMS_LEAD_SOURCE_RUNBOOK.md` demonstrating `x-webhook-timestamp` generation in Apps Script.
+     - Added 7 focused integration tests in `server/tests/integration/leads.test.ts`.
+
+2. **VULN-04: Reverse-Proxy IP / Authentication Rate-Limit Configuration**:
+   - **Root Cause**: Express `app.set('trust proxy', ...)` was not configured. By default in Express, `req.ip` falls back to the immediate TCP connection's socket address (`req.socket.remoteAddress`). When deployed behind reverse proxies (Nginx, Docker bridge networks, AWS ALB, Cloudflare, Render), all incoming client requests appear to originate from the proxy's internal IP. Consequently: 1) all users share a single rate-limiting bucket in `authLimiter`, enabling trivial DoS against all users, and 2) if an operator naively enabled `trust proxy: true`, clients could spoof arbitrary IPs via client-injected `X-Forwarded-For` headers to bypass rate limits.
+   - **Remediation**:
+     - Added `TRUST_PROXY: z.string().default('1')` to `server/src/config/env.ts` with helper `resolveTrustProxy(val)` supporting integer hop counts (e.g. `'1'`, `'2'`), boolean values, and subnet strings (e.g. `'loopback'`).
+     - Configured `app.set('trust proxy', resolveTrustProxy(env.TRUST_PROXY))` in `server/src/app.ts`.
+     - Setting `trust proxy` to `1` trusts exactly 1 proxy hop from the edge, correctly extracting the genuine client IP from `X-Forwarded-For` while defending against client-injected IP spoofing (the right-most client IP before the reverse proxy is used, and prior injected IPs are ignored).
+     - Verified local development fallback when no proxy header is present (`req.ip` returns loopback socket address).
+     - Added 7 focused tests in `server/tests/integration/proxy-rate-limit.test.ts`.
+
+3. **VULN-05: Missing File Magic-Byte Validation**:
+   - **Root Cause**: The upload middleware relied solely on Multer's header-based `file.mimetype` and file extension. An attacker could upload an executable binary (`.exe`, ELF), malicious shell script, or HTML payload containing cross-site scripting by spoofing `Content-Type: application/pdf` and naming the file `contract.pdf`. The server trusted this metadata and forwarded the unverified binary to ImageKit object storage.
+   - **Remediation**:
+     - Implemented binary magic-byte detection `detectMimeTypeFromBytes(buffer)` in `server/src/validators/document.validators.ts`, inspecting byte headers for:
+       - `application/pdf`: `%PDF-` (`0x25, 0x50, 0x44, 0x46, 0x2D`)
+       - `image/png`: `\x89PNG\r\n\x1a\n` (`0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A`) with utf-8 literal buffer tolerance
+       - `image/jpeg`: `0xFF, 0xD8, 0xFF`
+       - `image/webp`: `RIFF` at 0..3 and `WEBP` at 8..11
+       - `image/tiff`: `0x49, 0x49, 0x2A, 0x00` (little-endian) and `0x4D, 0x4D, 0x00, 0x2A` (big-endian)
+     - Implemented `validateFileSignature(buffer, declaredMime, fileName)` verifying:
+       1. Binary magic bytes match one of the 5 allowed MIME types (rejecting HTML, executables, scripts, or corrupted files with HTTP 400 `ValidationError`).
+       2. Declared MIME type strictly matches the detected binary MIME type.
+       3. File extension (e.g. `.pdf`, `.png`, `.jpg`, `.webp`, `.tif`) matches the detected binary format.
+     - Integrated `validateFileSignature` into Multer's `handleFileUpload` middleware (`upload.middleware.ts`) and `DocumentService.uploadDocument` before ImageKit storage persistence.
+     - Added 9 focused integration tests in `server/tests/integration/documents.test.ts`.
+
+### Verification Results
+
+- **Backend Test Suite**:
+  - `npm --prefix server test`
+  - **406 / 406 tests passed** across 21 test files (23 new security tests added across VULN-03, VULN-04, and VULN-05).
+- **Client Test Suite**:
+  - `npm --prefix client test -- --run`
+  - **113 / 113 tests passed** across 14 test files.
+- **Monorepo Typecheck**:
+  - `npm run typecheck` passed with **0 errors** across `server`, `worker`, and `client`.
+- **Monorepo Production Build**:
+  - `npm run build` completed successfully in **824ms** (`dist/` generated).
+- **Security Invariant Verification**:
+  - Webhook timestamp validation rejects expired requests (> 5 min), future requests (> 1 min), malformed timestamps, and mismatched timestamp signatures.
+  - Google Forms lead ingestion with static secret remains 100% operational.
+  - Express reverse-proxy configuration derives client IP securely without blind trust of injected `X-Forwarded-For` headers.
+  - Spoofed document uploads (HTML/executables disguised as PDF/JPEG) are rejected with HTTP 400 before ImageKit upload or database persistence.
+  - Legitimate document uploads (PDF, JPEG, PNG, WEBP, TIFF) continue to function normally.
+
+## Final Security Hardening — HARD-01 through HARD-05
+
+### Implemented Hardening Items
+
+1. **HARD-01: Socket.IO Revocation on User Deactivation & Brokerage Suspension**:
+   - Authenticated sockets now automatically join `user:${userId}` (for targeted user revocation) and `tenant-all:${brokerageId}` (for whole-tenant lifecycle events).
+   - Preserves all existing room isolation (`platform:admins`, `brokerage:${brokerageId}`, `client:${userId}`) and handshake authentication.
+   - Added `disconnectUserSockets(userId)` and `disconnectBrokerageSockets(brokerageId)` to `socket.server.ts` utilizing `io.in(room).fetchSockets()` and `socket.disconnect(true)`.
+   - Wired into `advisorService.updateAdvisor`: deactivating an advisor (`status: 'INACTIVE'`) immediately revokes MongoDB refresh sessions and disconnects all active Socket.IO connections.
+   - Wired into `brokerageService.updateBrokerage`: suspending a brokerage (`status: 'SUSPENDED'`) immediately revokes all tenant user refresh sessions and forcefully disconnects all connected sockets for that brokerage.
+
+2. **HARD-02: Production Secret Enforcement**:
+   - Defined `DEV_DEFAULT_SECRETS` in `server/src/config/env.ts` referencing development fallback strings.
+   - Added `validateProductionSecurity(data)`: when `NODE_ENV === 'production'`, fails startup immediately with a descriptive error if `JWT_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET`, `IMAGEKIT_PUBLIC_KEY`, or `IMAGEKIT_PRIVATE_KEY` match development defaults.
+   - Defends against credential exposure: error messages reference only the affected environment variable names and never leak secret values.
+   - Preserves development and test behavior (`NODE_ENV !== 'production'`).
+
+3. **HARD-03: Brokerage Metadata Authorization**:
+   - Added `requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR')` on `GET /api/brokerages/:brokerageId` in `brokerage.routes.ts`.
+   - Strictly blocks the `CLIENT` role with HTTP 403 `FORBIDDEN` from accessing internal brokerage operational metadata.
+   - Preserves tenant isolation via `requireSameBrokerage('brokerageId')` and anti-IDOR HTTP 404 concealment for `BROKERAGE_ADMIN` and `ADVISOR`.
+   - Preserves cross-brokerage visibility for `PLATFORM_ADMIN`.
+   - Webhook secrets remain protected and stripped for non-admin callers.
+
+4. **HARD-04: Temporary Credential Lifecycle & Forced Password Change**:
+   - Extended `IUser` model and Mongoose schema with `mustChangePassword?: boolean` (default: `false`).
+   - Set `mustChangePassword: true` on provisioned ADVISOR accounts (`advisorService.createAdvisor`), converted CLIENT portal accounts (`clientService.convertLead`), and initial BROKERAGE_ADMIN accounts (`brokerageService.createBrokerage`).
+   - Propagated `mustChangePassword` into `SanitizedUser`, `AuthUserContext`, `req.user`, and frontend `AuthUser`.
+   - Added `POST /api/auth/change-password` endpoint with Zod schema `changePasswordSchema` (`currentPassword`, `newPassword` min 8 chars).
+   - Validates `currentPassword` against existing hash, updates to hashed `newPassword`, clears `mustChangePassword` to `false`, revokes outstanding sessions to prevent replay, and clears the refresh cookie.
+   - Preserves existing onboarding flows without breaking login.
+
+5. **HARD-05: Production CORS Origin Validation**:
+   - In `validateProductionSecurity` (`env.ts`), when `NODE_ENV === 'production'`, validates that `CORS_ORIGIN` is configured with explicit HTTPS URL(s).
+   - Prohibits `localhost`, `127.0.0.1`, `0.0.0.0`, wildcard `*`, or non-HTTPS schemes in production.
+   - Added `resolveCorsOrigin(corsOrigin)` supporting both single and comma-separated origin configurations across Express (`app.ts`) and Socket.IO (`socket.server.ts`).
+   - Preserves `http://localhost:5173` for development and test suites.
+
+### Verification Results
+
+- **Backend Test Suite**:
+  - `npm --prefix server test`
+  - **432 / 432 tests passed** across 22 test files (26 new tests in `final-hardening.test.ts`).
+- **Client Test Suite**:
+  - `npm --prefix client test -- --run`
+  - **113 / 113 tests passed** across 14 test files.
+- **Monorepo Typecheck**:
+  - `npm run typecheck` passed with **0 errors** across `server`, `worker`, and `client`.
+- **Monorepo Production Build**:
+  - `npm run build` completed successfully in **1.10s** (`dist/` generated).
+
+
+
 
 
