@@ -39,6 +39,16 @@ function subscribeTokenRefresh(cb: (token: string | null) => void): void {
   refreshSubscribers.push(cb)
 }
 
+export function getApiOrigin(): string {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  }
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:5000'
+  }
+  return typeof window !== 'undefined' ? window.location.origin : ''
+}
+
 const apiBase = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api`
   : '/api'

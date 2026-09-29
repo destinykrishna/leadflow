@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { getApiOrigin } from '@/lib/api'
 import type { OnboardingResult } from '@/types/brokerage.types'
 
 interface OnboardingSuccessModalProps {
@@ -38,7 +39,7 @@ export function OnboardingSuccessModal({ isOpen, onClose, data }: OnboardingSucc
   if (!data) return null
 
   const { brokerage, admin } = data
-  const webhookUrl = `${window.location.origin}/api/leads/webhook/${brokerage.id}`
+  const webhookUrl = `${getApiOrigin()}/api/leads/webhook/${brokerage.id}`
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

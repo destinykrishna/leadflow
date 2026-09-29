@@ -17,6 +17,7 @@ import {
   useBrokerageAdvisors,
 } from '../api/brokerages.api'
 import { formatDate, formatRelativeTime } from '@/lib/format'
+import { getApiOrigin } from '@/lib/api'
 import type { BrokerageItem } from '@/types/brokerage.types'
 
 interface BrokerageDetailDrawerProps {
@@ -63,7 +64,7 @@ export function BrokerageDetailDrawer({
   }
 
   const brokerage = detailData || null
-  const webhookUrl = `${window.location.origin}/api/leads/webhook/${brokerageId}`
+  const webhookUrl = `${getApiOrigin()}/api/leads/webhook/${brokerageId}`
   const advisors = advisorsData?.advisors || []
   const advisorCount = advisorsData?.total ?? advisors.length
 

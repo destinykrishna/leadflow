@@ -174,32 +174,20 @@ Replace all existing code in `Code.gs` with the production-ready script below:
  */
 
 // ==============================================================================
-// 1. DYNAMIC CONFIGURATION (FROM SCRIPT PROPERTIES)
+// 1. DYNAMIC CONFIGURATION (FROM SCRIPT PROPERTIES OR DIRECT FALLBACK)
 // ==============================================================================
-function getLeadFlowConfig() {
-  var properties = PropertiesService.getScriptProperties();
-  var webhookUrl = properties.getProperty('LEADFLOW_WEBHOOK_URL');
-  var webhookSecret = properties.getProperty('LEADFLOW_WEBHOOK_SECRET');
-
-  if (!webhookUrl || !webhookSecret) {
-    throw new Error(
-      'Missing required Script Properties! Please open Project Settings (gear icon) -> ' +
-      'Script Properties, and add "LEADFLOW_WEBHOOK_URL" and "LEADFLOW_WEBHOOK_SECRET".'
-    );
-  }
-
-  return {
-    webhookUrl: webhookUrl.trim(),
-    webhookSecret: webhookSecret.trim()
-  };
-}
+var CONFIG = {
+  WEBHOOK_URL: PropertiesService.getScriptProperties().getProperty('LEADFLOW_WEBHOOK_URL') ||
+    'https://YOUR_BACKEND_URL/api/leads/webhook/YOUR_BROKERAGE_ID',
+  WEBHOOK_SECRET: PropertiesService.getScriptProperties().getProperty('LEADFLOW_WEBHOOK_SECRET') ||
+    'YOUR_BROKERAGE_WEBHOOK_SECRET'
+};
 
 // ==============================================================================
 // 2. FORM SUBMIT EVENT HANDLER
 // ==============================================================================
 function onFormSubmit(e) {
   try {
-    var config = getLeadFlowConfig();
     var itemResponses = e.response.getItemResponses();
     var answers = {};
 
@@ -289,14 +277,14 @@ function onFormSubmit(e) {
       method: 'post',
       contentType: 'application/json',
       headers: {
-        'x-webhook-secret': config.webhookSecret,
+        'x-webhook-secret': CONFIG.WEBHOOK_SECRET,
         'x-webhook-timestamp': timestamp
       },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     };
 
-    var response = UrlFetchApp.fetch(config.webhookUrl, options);
+    var response = UrlFetchApp.fetch(CONFIG.WEBHOOK_URL, options);
     var responseCode = response.getResponseCode();
     var responseBody = response.getContentText();
 

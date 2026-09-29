@@ -9,11 +9,14 @@ import {
   ShieldCheck,
   HelpCircle,
   Sparkles,
+  Code2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/hooks/useAuth'
+import { getApiOrigin } from '@/lib/api'
 import { useBrokerageDetails } from '../api/team.api'
 
 export function LeadSourceSetupCard() {
@@ -24,6 +27,8 @@ export function LeadSourceSetupCard() {
 
   const [copiedField, setCopiedField] = React.useState<string | null>(null)
   const [showSecret, setShowSecret] = React.useState(false)
+  const [customDomain, setCustomDomain] = React.useState('')
+  const [isEditingDomain, setIsEditingDomain] = React.useState(false)
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -31,8 +36,138 @@ export function LeadSourceSetupCard() {
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const webhookUrl = `${window.location.origin}/api/leads/webhook/${brokerageId}`
+  const apiOrigin = getApiOrigin()
+  const effectiveOrigin = (customDomain.trim() || apiOrigin).replace(/\/$/, '')
+  const webhookUrl = `${effectiveOrigin}/api/leads/webhook/${brokerageId}`
   const webhookSecret = brokerage?.webhookSecret || ''
+
+  const googleAppsScriptCode = `/**
+ * ==============================================================================
+ * LeadFlow — Google Forms to Mortgage Pipeline Webhook Forwarder
+ * ==============================================================================
+ * Automatically triggered on every Google Form submission.
+ * Validates responses, computes lead qualification score, and forwards lead
+ * payload to your LeadFlow brokerage webhook endpoint.
+ */
+
+var CONFIG = {
+  WEBHOOK_URL: PropertiesService.getScriptProperties().getProperty('LEADFLOW_WEBHOOK_URL') ||
+    '${webhookUrl}',
+  WEBHOOK_SECRET: PropertiesService.getScriptProperties().getProperty('LEADFLOW_WEBHOOK_SECRET') ||
+    '${webhookSecret || 'YOUR_BROKERAGE_WEBHOOK_SECRET'}'
+};
+
+// ==============================================================================
+// FORM SUBMIT EVENT HANDLER
+// ==============================================================================
+function onFormSubmit(e) {
+  try {
+    var itemResponses = e.response.getItemResponses();
+    var answers = {};
+
+    // Build title-to-response lookup map
+    for (var i = 0; i < itemResponses.length; i++) {
+      var title = itemResponses[i].getItem().getTitle().trim();
+      var answer = itemResponses[i].getResponse();
+      answers[title] = answer;
+    }
+
+    // Helper: Find answer by title keywords (case-insensitive)
+    function getAnswer(keywords) {
+      for (var key in answers) {
+        var lower = key.toLowerCase();
+        for (var k = 0; k < keywords.length; k++) {
+          if (lower.indexOf(keywords[k]) !== -1) {
+            return answers[key];
+          }
+        }
+      }
+      return null;
+    }
+
+    // Helper: Parse numerical fields from strings (strips ₹, commas, spaces)
+    function parseRupees(val) {
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      var cleaned = String(val).replace(/[^0-9.]/g, '');
+      var parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : Math.round(parsed);
+    }
+
+    // 1. Extract Full Name & Split into First/Last
+    var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim() || 'Valued Applicant';
+    var nameParts = String(rawName).trim().split(/\\s+/);
+    var firstName = nameParts[0] || 'Valued';
+    var lastName = nameParts.slice(1).join(' ');
+
+    // 2. Extract Contact Info
+    var email = (getAnswer(['email']) || '').toString().trim().toLowerCase();
+    var phone = (getAnswer(['phone', 'mobile', 'contact']) || '').toString().trim();
+
+    // 3. Extract Financial Fields
+    var loanAmount = parseRupees(getAnswer(['loan amount', 'target loan', 'home loan']));
+    var propertyValue = parseRupees(getAnswer(['property value', 'valuation']));
+    var grossIncome = parseRupees(getAnswer(['monthly income', 'gross monthly', 'salary', 'income']));
+    var city = (getAnswer(['city', 'location']) || '').toString().trim();
+    var employmentType = (getAnswer(['employment', 'occupation']) || 'Salaried').toString().trim();
+
+    // 4. Compute Lead Quality Score (0 - 100)
+    var score = 10; // Submission baseline
+    if (email && email.indexOf('@') !== -1) score += 20;
+    if (phone && phone.length >= 8) score += 20;
+    if (loanAmount > 0) score += 20;
+    if (grossIncome > 0) score += 15;
+    if (propertyValue > 0) score += 15;
+    if (score > 100) score = 100;
+
+    // 5. Construct Standard LeadFlow Payload
+    var payload = {
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone || undefined,
+      source: 'WEBSITE',
+      score: score,
+      notes: 'Ingested via Google Forms (Home Loan Enquiry) • City: ' + (city || 'Not specified'),
+      customFields: {
+        provider: 'GOOGLE_FORMS',
+        loanAmount: loanAmount,
+        propertyValue: propertyValue,
+        monthlyGrossIncome: grossIncome,
+        monthlyIncome: grossIncome,
+        propertyCity: city,
+        employmentType: employmentType,
+        submittedAt: new Date().toISOString()
+      }
+    };
+
+    // 6. Deliver to LeadFlow Webhook Endpoint
+    var timestamp = Math.floor(Date.now() / 1000).toString();
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'x-webhook-secret': CONFIG.WEBHOOK_SECRET,
+        'x-webhook-timestamp': timestamp
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    var response = UrlFetchApp.fetch(CONFIG.WEBHOOK_URL, options);
+    var responseCode = response.getResponseCode();
+    var responseBody = response.getContentText();
+
+    Logger.log('LeadFlow Response Code: ' + responseCode);
+    Logger.log('LeadFlow Response Body: ' + responseBody);
+
+    if (responseCode !== 200 && responseCode !== 201) {
+      throw new Error('LeadFlow webhook failed with HTTP ' + responseCode + ': ' + responseBody);
+    }
+  } catch (err) {
+    Logger.log('Error in onFormSubmit: ' + err.toString());
+  }
+}`
 
   return (
     <div className="space-y-6">
@@ -106,21 +241,44 @@ export function LeadSourceSetupCard() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-medium text-slate-700">
-                  Webhook Ingestion URL
+                  Webhook Ingestion URL (Backend API)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(webhookUrl, 'webhookUrl')}
-                  className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
-                >
-                  {copiedField === 'webhookUrl' ? (
-                    <Check className="h-3 w-3 text-emerald-600" />
-                  ) : (
-                    <Copy className="h-3 w-3" />
-                  )}
-                  <span>{copiedField === 'webhookUrl' ? 'Copied' : 'Copy URL'}</span>
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingDomain(!isEditingDomain)}
+                    className="text-[11px] text-slate-500 hover:text-slate-800 underline"
+                  >
+                    {isEditingDomain ? 'Cancel Custom URL' : 'Override Host/Tunnel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(webhookUrl, 'webhookUrl')}
+                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                  >
+                    {copiedField === 'webhookUrl' ? (
+                      <Check className="h-3 w-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                    <span>{copiedField === 'webhookUrl' ? 'Copied' : 'Copy URL'}</span>
+                  </button>
+                </div>
               </div>
+              {isEditingDomain && (
+                <div className="mb-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. https://leadflow-api.onrender.com or https://your-tunnel.ngrok-free.app"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-800 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Custom backend domain or ngrok tunnel to embed in your webhook destination.
+                  </p>
+                </div>
+              )}
               <div className="rounded-lg bg-slate-50 px-3 py-2 border border-slate-200 text-xs font-mono text-slate-800 break-all">
                 {webhookUrl}
               </div>
@@ -179,6 +337,44 @@ export function LeadSourceSetupCard() {
         )}
       </Card>
 
+      {/* Google Apps Script Code (Code.gs) Section */}
+      <Card className="p-5 border-border/80 shadow-xs space-y-3">
+        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <Code2 className="h-4 w-4 text-primary" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              Google Apps Script Code (Code.gs)
+            </h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCopy(googleAppsScriptCode, 'scriptCode')}
+            className="h-8 gap-1.5 text-xs font-medium"
+          >
+            {copiedField === 'scriptCode' ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-semibold">Script Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" />
+                <span>Copy Apps Script</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          This script is pre-populated with your verified Webhook Ingestion URL and Webhook Secret. Copy and paste it directly into your Google Form's Apps Script editor (<code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono">Code.gs</code>).
+        </p>
+
+        <div className="relative rounded-lg border border-slate-800 bg-slate-950 p-4 font-mono text-[11px] leading-relaxed text-slate-100 overflow-x-auto max-h-[380px] overflow-y-auto">
+          <pre className="whitespace-pre">{googleAppsScriptCode}</pre>
+        </div>
+      </Card>
+
       {/* 4-Step Setup Guide */}
       <Card className="p-5 border-border/80 shadow-xs space-y-4">
         <div className="flex items-center gap-2 border-b border-border/60 pb-3">
@@ -210,19 +406,11 @@ export function LeadSourceSetupCard() {
             </span>
             <div>
               <strong className="text-slate-900 font-semibold block">
-                Configure Project Script Properties
+                Paste Apps Script Code
               </strong>
               <span>
-                In the left navigation bar of Apps Script, click <strong className="text-slate-900">Project Settings</strong> (gear icon), scroll to <strong className="text-slate-900">Script Properties</strong>, and click <strong className="text-slate-900">Add script property</strong> for each:
+                Replace any existing code in <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono">Code.gs</code> with the pre-configured script from the card above and click <strong className="text-slate-900">Save</strong>.
               </span>
-              <div className="mt-2 space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2.5 font-mono text-[11px] text-slate-800">
-                <div className="flex items-center justify-between">
-                  <span>LEADFLOW_WEBHOOK_URL = [Your Webhook Ingestion URL above]</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>LEADFLOW_WEBHOOK_SECRET = [Your Webhook Secret above]</span>
-                </div>
-              </div>
             </div>
           </li>
 
@@ -235,7 +423,7 @@ export function LeadSourceSetupCard() {
                 Add Form Submission Trigger
               </strong>
               <span>
-                Paste your Apps Script lead forwarder code into <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono">Code.gs</code>. Then go to <strong className="text-slate-900">Triggers</strong> (alarm clock icon), click <strong className="text-slate-900">Add Trigger</strong>, and set event type to <strong className="text-slate-900">On form submit</strong>.
+                In Apps Script, click <strong className="text-slate-900">Triggers</strong> (alarm clock icon on left), click <strong className="text-slate-900">Add Trigger</strong> in bottom right, set function to <strong className="text-slate-900">onFormSubmit</strong>, and set event type to <strong className="text-slate-900">On form submit</strong>.
               </span>
             </div>
           </li>
