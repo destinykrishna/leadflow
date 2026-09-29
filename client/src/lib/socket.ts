@@ -4,9 +4,11 @@ import { getAccessToken } from './api'
 
 let socketInstance: Socket | null = null
 
+const wsBaseUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || '/'
+
 export function getSocket(): Socket {
   if (!socketInstance) {
-    socketInstance = io('/', {
+    socketInstance = io(wsBaseUrl, {
       path: '/socket.io',
       withCredentials: true,
       autoConnect: false,
