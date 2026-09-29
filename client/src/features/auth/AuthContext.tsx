@@ -13,22 +13,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let isMounted = true
 
+    const fallbackToken = typeof window !== 'undefined' ? localStorage.getItem('leadflow_refresh_token') : null
+
     api
-      .post<ApiResponse<AuthResponseData>>('/auth/refresh')
+      .post<ApiResponse<AuthResponseData>>('/auth/refresh', {
+        refreshToken: fallbackToken || undefined,
+      })
       .then((response) => {
         if (!isMounted) return
         const data = response.data.data
         if (data?.accessToken && data.user) {
           setAccessToken(data.accessToken)
+          if (data.refreshToken) {
+            localStorage.setItem('leadflow_refresh_token', data.refreshToken)
+          }
           setUser(data.user)
         } else {
           setUser(null)
+          localStorage.removeItem('leadflow_refresh_token')
         }
       })
       .catch(() => {
         if (!isMounted) return
         setUser(null)
         setAccessToken(null)
+        localStorage.removeItem('leadflow_refresh_token')
       })
       .finally(() => {
         if (isMounted) {
@@ -49,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setAccessToken(data.accessToken)
+    if (data.refreshToken) {
+      localStorage.setItem('leadflow_refresh_token', data.refreshToken)
+    }
     setUser(data.user)
     return data.user
   }, [])
@@ -58,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectSocket()
     setAccessToken(null)
     setUser(null)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('leadflow_refresh_token')
+    }
     queryClient.clear()
 
     // 2. Fire backend session revocation in background without blocking UI

@@ -22,4 +22,5 @@ export interface LoginCredentials {
 export interface AuthResponseData {
   user: AuthUser
   accessToken: string
+  refreshToken?: string
 }

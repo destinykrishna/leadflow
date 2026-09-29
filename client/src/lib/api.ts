@@ -103,13 +103,19 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
+        const fallbackToken = typeof window !== 'undefined' ? localStorage.getItem('leadflow_refresh_token') : null
         const refreshResponse = await axios.post<ApiResponse<AuthResponseData>>(
           `${apiBase}/auth/refresh`,
-          {},
+          { refreshToken: fallbackToken || undefined },
           { withCredentials: true },
         )
 
         const newAccessToken = refreshResponse.data.data?.accessToken ?? null
+        const newRefreshToken = refreshResponse.data.data?.refreshToken ?? null
+        if (newRefreshToken && typeof window !== 'undefined') {
+          localStorage.setItem('leadflow_refresh_token', newRefreshToken)
+        }
+
         setAccessToken(newAccessToken)
         onRefreshed(newAccessToken)
 
@@ -125,6 +131,9 @@ api.interceptors.response.use(
         // Latch: prevent subsequent 401s from spawning more refresh calls.
         refreshFailed = true
         setAccessToken(null)
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('leadflow_refresh_token')
+        }
         onRefreshed(null)
         return Promise.reject(refreshError)
       } finally {

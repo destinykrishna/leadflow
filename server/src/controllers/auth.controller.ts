@@ -25,6 +25,7 @@ export class AuthController {
         data: {
           user: result.user,
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
         },
       });
     } catch (error) {
@@ -57,6 +58,7 @@ export class AuthController {
         data: {
           user: result.user,
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
         },
       });
     } catch (error) {
