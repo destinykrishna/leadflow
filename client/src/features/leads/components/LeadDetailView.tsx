@@ -284,8 +284,17 @@ export function LeadDetailView({
     Number(lead.customFields?.monthlyGrossIncome) ||
     Number(lead.customFields?.monthlyIncome) ||
     0
-  const employmentStatus = (lead.customFields?.employmentStatus as string) || null
+  const employmentStatus =
+    (lead.customFields?.employmentType as string) ||
+    (lead.customFields?.employmentStatus as string) ||
+    null
   const residenceStatus = (lead.customFields?.residenceStatus as string) || null
+  const propertyType = (lead.customFields?.propertyType as string) || null
+  const preferredContactTime = (lead.customFields?.preferredContactTime as string) || null
+  const propertyCity =
+    (lead.customFields?.propertyCity as string) ||
+    (lead.customFields?.city as string) ||
+    null
 
   // Computed Loan-to-Value (LTV) %
   const hasLtv = loanAmount > 0 && propertyValue > 0
@@ -790,6 +799,24 @@ export function LeadDetailView({
                   Residential Real Estate Mortgage
                 </span>
               </div>
+
+              {Boolean(propertyType || propertyCity) && (
+                <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+                  <span className="text-muted-foreground block mb-1">Property Type & Location</span>
+                  <span className="font-semibold text-slate-900 text-xs">
+                    {[propertyType, propertyCity].filter(Boolean).join(' • ')}
+                  </span>
+                </div>
+              )}
+
+              {Boolean(preferredContactTime) && (
+                <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+                  <span className="text-muted-foreground block mb-1">Preferred Contact Time</span>
+                  <span className="font-semibold text-slate-900 text-xs">
+                    {preferredContactTime}
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
 

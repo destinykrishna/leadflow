@@ -220,24 +220,30 @@ function onFormSubmit(e) {
       return isNaN(parsed) ? 0 : Math.round(parsed);
     }
 
-    // 1. Extract Full Name & Split into First/Last
-    // For single-word names (e.g. "Bhavika"), firstName is the exact name and lastName is safe empty string ""
-    // For multi-word names (e.g. "Bhavika Sharma"), firstName is "Bhavika" and lastName is "Sharma"
-    var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim();
-    var nameParts = rawName ? rawName.split(/\s+/) : [];
-    var firstName = nameParts[0] || 'Valued Applicant';
-    var lastName = nameParts.slice(1).join(' '); // Safe empty string for single-name leads
+    // 1. Extract Full Name (Supports separate First/Last Name or combined Full Name)
+    var firstName = (getAnswer(['first name']) || '').toString().trim();
+    var lastName = (getAnswer(['last name', 'surname']) || '').toString().trim();
+    if (!firstName && !lastName) {
+      var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim() || 'Valued Applicant';
+      var nameParts = String(rawName).trim().split(/\s+/);
+      firstName = nameParts[0] || 'Valued';
+      lastName = nameParts.slice(1).join(' ');
+    }
+    if (!firstName) firstName = 'Valued Applicant';
 
     // 2. Extract Contact Info
     var email = (getAnswer(['email']) || '').toString().trim().toLowerCase();
     var phone = (getAnswer(['phone', 'mobile', 'contact']) || '').toString().trim();
+    var city = (getAnswer(['city', 'location']) || '').toString().trim();
 
-    // 3. Extract Financial Fields
+    // 3. Extract Property & Financial Fields
+    var propertyType = (getAnswer(['property type', 'property category']) || '').toString().trim();
     var loanAmount = parseRupees(getAnswer(['loan amount', 'target loan', 'home loan']));
     var propertyValue = parseRupees(getAnswer(['property value', 'valuation']));
-    var grossIncome = parseRupees(getAnswer(['monthly income', 'gross monthly', 'salary', 'income']));
-    var city = (getAnswer(['city', 'location']) || '').toString().trim();
-    var employmentType = (getAnswer(['employment', 'occupation']) || 'Salaried').toString().trim();
+    var grossIncome = parseRupees(getAnswer(['monthly gross income', 'gross monthly', 'monthly income', 'salary', 'income']));
+    var employmentType = (getAnswer(['employment type', 'employment', 'occupation']) || 'Salaried').toString().trim();
+    var preferredContactTime = (getAnswer(['preferred contact time', 'contact time', 'preferred time']) || '').toString().trim();
+    var additionalInfo = (getAnswer(['additional information', 'additional info', 'comments', 'remarks']) || '').toString().trim();
 
     // 4. Compute Lead Quality Score (0 - 100)
     var score = 10; // Submission baseline
@@ -248,9 +254,14 @@ function onFormSubmit(e) {
     if (propertyValue > 0) score += 15;
     if (score > 100) score = 100;
 
-    // 5. Construct Standard LeadFlow Payload
-    // NOTE: 'source' MUST be 'WEBSITE' to adhere to the supported LeadFlow LeadSource enum.
-    // 'provider: GOOGLE_FORMS' is stored in customFields to identify external origin without enum mutations.
+    // 5. Construct Structured Inquiry Notes
+    var noteParts = ['Ingested via Google Forms (Home Loan Enquiry) • City: ' + (city || 'Not specified')];
+    if (propertyType) noteParts.push('Property Type: ' + propertyType);
+    if (preferredContactTime) noteParts.push('Preferred Contact Time: ' + preferredContactTime);
+    if (additionalInfo) noteParts.push('Applicant Remarks: ' + additionalInfo);
+    var notes = noteParts.join(' • ');
+
+    // 6. Construct Standard LeadFlow Payload
     var payload = {
       firstName: firstName,
       lastName: lastName,
@@ -258,7 +269,7 @@ function onFormSubmit(e) {
       phone: phone || undefined,
       source: 'WEBSITE',
       score: score,
-      notes: 'Ingested via Google Forms (Home Loan Enquiry) • City: ' + (city || 'Not specified'),
+      notes: notes,
       customFields: {
         provider: 'GOOGLE_FORMS',
         loanAmount: loanAmount,
@@ -266,12 +277,15 @@ function onFormSubmit(e) {
         monthlyGrossIncome: grossIncome,
         monthlyIncome: grossIncome,
         propertyCity: city,
+        propertyType: propertyType || undefined,
         employmentType: employmentType,
+        preferredContactTime: preferredContactTime || undefined,
+        additionalInfo: additionalInfo || undefined,
         submittedAt: new Date().toISOString()
       }
     };
 
-    // 6. Deliver to LeadFlow Webhook Endpoint
+    // 7. Deliver to LeadFlow Webhook Endpoint
     var timestamp = Math.floor(Date.now() / 1000).toString();
     var options = {
       method: 'post',

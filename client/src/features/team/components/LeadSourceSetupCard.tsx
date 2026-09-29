@@ -94,22 +94,30 @@ function onFormSubmit(e) {
       return isNaN(parsed) ? 0 : Math.round(parsed);
     }
 
-    // 1. Extract Full Name & Split into First/Last
-    var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim() || 'Valued Applicant';
-    var nameParts = String(rawName).trim().split(/\\s+/);
-    var firstName = nameParts[0] || 'Valued';
-    var lastName = nameParts.slice(1).join(' ');
+    // 1. Extract Full Name (Supports separate First/Last Name or combined Full Name)
+    var firstName = (getAnswer(['first name']) || '').toString().trim();
+    var lastName = (getAnswer(['last name', 'surname']) || '').toString().trim();
+    if (!firstName && !lastName) {
+      var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim() || 'Valued Applicant';
+      var nameParts = String(rawName).trim().split(/\\s+/);
+      firstName = nameParts[0] || 'Valued';
+      lastName = nameParts.slice(1).join(' ');
+    }
+    if (!firstName) firstName = 'Valued Applicant';
 
     // 2. Extract Contact Info
     var email = (getAnswer(['email']) || '').toString().trim().toLowerCase();
     var phone = (getAnswer(['phone', 'mobile', 'contact']) || '').toString().trim();
+    var city = (getAnswer(['city', 'location']) || '').toString().trim();
 
-    // 3. Extract Financial Fields
+    // 3. Extract Property & Financial Fields
+    var propertyType = (getAnswer(['property type', 'property category']) || '').toString().trim();
     var loanAmount = parseRupees(getAnswer(['loan amount', 'target loan', 'home loan']));
     var propertyValue = parseRupees(getAnswer(['property value', 'valuation']));
-    var grossIncome = parseRupees(getAnswer(['monthly income', 'gross monthly', 'salary', 'income']));
-    var city = (getAnswer(['city', 'location']) || '').toString().trim();
-    var employmentType = (getAnswer(['employment', 'occupation']) || 'Salaried').toString().trim();
+    var grossIncome = parseRupees(getAnswer(['monthly gross income', 'gross monthly', 'monthly income', 'salary', 'income']));
+    var employmentType = (getAnswer(['employment type', 'employment', 'occupation']) || 'Salaried').toString().trim();
+    var preferredContactTime = (getAnswer(['preferred contact time', 'contact time', 'preferred time']) || '').toString().trim();
+    var additionalInfo = (getAnswer(['additional information', 'additional info', 'comments', 'remarks']) || '').toString().trim();
 
     // 4. Compute Lead Quality Score (0 - 100)
     var score = 10; // Submission baseline
@@ -120,7 +128,14 @@ function onFormSubmit(e) {
     if (propertyValue > 0) score += 15;
     if (score > 100) score = 100;
 
-    // 5. Construct Standard LeadFlow Payload
+    // 5. Construct Structured Inquiry Notes
+    var noteParts = ['Ingested via Google Forms (Home Loan Enquiry) • City: ' + (city || 'Not specified')];
+    if (propertyType) noteParts.push('Property Type: ' + propertyType);
+    if (preferredContactTime) noteParts.push('Preferred Contact Time: ' + preferredContactTime);
+    if (additionalInfo) noteParts.push('Applicant Remarks: ' + additionalInfo);
+    var notes = noteParts.join(' • ');
+
+    // 6. Construct Standard LeadFlow Payload
     var payload = {
       firstName: firstName,
       lastName: lastName,
@@ -128,7 +143,7 @@ function onFormSubmit(e) {
       phone: phone || undefined,
       source: 'WEBSITE',
       score: score,
-      notes: 'Ingested via Google Forms (Home Loan Enquiry) • City: ' + (city || 'Not specified'),
+      notes: notes,
       customFields: {
         provider: 'GOOGLE_FORMS',
         loanAmount: loanAmount,
@@ -136,7 +151,10 @@ function onFormSubmit(e) {
         monthlyGrossIncome: grossIncome,
         monthlyIncome: grossIncome,
         propertyCity: city,
+        propertyType: propertyType || undefined,
         employmentType: employmentType,
+        preferredContactTime: preferredContactTime || undefined,
+        additionalInfo: additionalInfo || undefined,
         submittedAt: new Date().toISOString()
       }
     };
@@ -454,41 +472,57 @@ function onFormSubmit(e) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          For seamless automated parsing, use the following question titles in your Google Form:
+          For seamless automated parsing, configure the following 12 questions in your Google Form:
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 text-xs">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Full Name</span>
-            <span className="text-[11px] text-muted-foreground">e.g. Rahul Sharma</span>
+            <span className="font-semibold text-slate-900 block">1. First Name *</span>
+            <span className="text-[11px] text-muted-foreground">Applicant given name (e.g. Rahul)</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Email Address</span>
-            <span className="text-[11px] text-muted-foreground">Primary applicant email</span>
+            <span className="font-semibold text-slate-900 block">2. Last Name *</span>
+            <span className="text-[11px] text-muted-foreground">Applicant surname (e.g. Sharma)</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Phone Number</span>
-            <span className="text-[11px] text-muted-foreground">Mobile contact number</span>
+            <span className="font-semibold text-slate-900 block">3. Email Address *</span>
+            <span className="text-[11px] text-muted-foreground">Primary applicant email address</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Target Loan Amount</span>
-            <span className="text-[11px] text-muted-foreground">Home loan request in INR ₹</span>
+            <span className="font-semibold text-slate-900 block">4. Phone Number *</span>
+            <span className="text-[11px] text-muted-foreground">Mobile contact number with prefix</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Property Value</span>
-            <span className="text-[11px] text-muted-foreground">Estimated property value ₹</span>
+            <span className="font-semibold text-slate-900 block">5. City *</span>
+            <span className="text-[11px] text-muted-foreground">Target location (e.g. Mumbai, Bengaluru)</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Monthly Income</span>
-            <span className="text-[11px] text-muted-foreground">Gross monthly earnings ₹</span>
+            <span className="font-semibold text-slate-900 block">6. Property Type *</span>
+            <span className="text-[11px] text-muted-foreground">Apartment, House, Villa, Plot, etc.</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Property City</span>
-            <span className="text-[11px] text-muted-foreground">e.g. Mumbai, Bengaluru</span>
+            <span className="font-semibold text-slate-900 block">7. Property Value *</span>
+            <span className="text-[11px] text-muted-foreground">Estimated valuation in INR ₹</span>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
-            <span className="font-semibold text-slate-900 block">Employment Type</span>
-            <span className="text-[11px] text-muted-foreground">Salaried / Self-Employed</span>
+            <span className="font-semibold text-slate-900 block">8. Loan Amount *</span>
+            <span className="text-[11px] text-muted-foreground">Requested home loan in INR ₹</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
+            <span className="font-semibold text-slate-900 block">9. Monthly Gross Income *</span>
+            <span className="text-[11px] text-muted-foreground">Gross applicant earnings in INR ₹</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
+            <span className="font-semibold text-slate-900 block">10. Employment Type *</span>
+            <span className="text-[11px] text-muted-foreground">Salaried, Self-Employed, Business Owner</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
+            <span className="font-semibold text-slate-900 block">11. Preferred Contact Time</span>
+            <span className="text-[11px] text-muted-foreground">Morning, Afternoon, Evening, Anytime</span>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
+            <span className="font-semibold text-slate-900 block">12. Additional Information</span>
+            <span className="text-[11px] text-muted-foreground">Applicant remarks or special financing notes</span>
           </div>
         </div>
       </Card>
