@@ -138,64 +138,83 @@ async function seed() {
     clientProfile = await Client.create({
       brokerageId: brokerageA._id,
       userId: clientUser._id,
-      assignedAdvisorId: advisor._id,
+      assignedTo: advisor._id,
       firstName: 'Alex',
       lastName: 'Johnson',
       email: 'alex.expat@gmail.com',
       phone: '+49 176 12345678',
-      nationality: 'British',
-      residenceStatus: 'BLUE_CARD',
-      employmentStatus: 'EMPLOYED',
-      annualGrossIncome: 95000,
-      targetLoanAmount: 480000,
-      targetPropertyValue: 600000,
-      propertyLocation: 'Berlin Kreuzberg',
-      caseStatus: 'ACTIVE',
+      type: 'BUYER',
+      status: 'ACTIVE',
+      address: {
+        street: 'Friedrichstraße 42',
+        city: 'Berlin',
+        state: 'Berlin',
+        postalCode: '10117',
+      },
     })
     console.log('Created Client Profile for:', clientProfile.email)
   }
 
   // 7. Sample Pipeline Leads
-  const sampleLeads = [
+  type SampleLead = {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    status: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL'
+    source: 'WEBSITE' | 'REFERRAL' | 'REALTOR'
+    score: number
+    assignedTo: mongoose.Types.ObjectId
+    customFields: {
+      loanAmount: number
+      propertyValue: number
+    }
+  }
+
+  const sampleLeads: SampleLead[] = [
     {
       firstName: 'Sophie',
       lastName: 'Dubois',
       email: 'sophie.dubois@expat.fr',
       phone: '+49 171 9876543',
-      loanAmount: 380000,
-      propertyValue: 460000,
       status: 'NEW',
+      source: 'WEBSITE',
+      score: 75,
       assignedTo: advisor._id,
+      customFields: { loanAmount: 380000, propertyValue: 460000 },
     },
     {
       firstName: 'Marco',
       lastName: 'Rossi',
       email: 'marco.rossi@milan.it',
       phone: '+49 172 8765432',
-      loanAmount: 520000,
-      propertyValue: 650000,
       status: 'CONTACTED',
+      source: 'REFERRAL',
+      score: 82,
       assignedTo: advisor._id,
+      customFields: { loanAmount: 520000, propertyValue: 650000 },
     },
     {
       firstName: 'Priya',
       lastName: 'Sharma',
       email: 'priya.sharma@techcorp.com',
       phone: '+49 173 7654321',
-      loanAmount: 620000,
-      propertyValue: 750000,
       status: 'QUALIFIED',
+      source: 'WEBSITE',
+      score: 90,
       assignedTo: advisor._id,
+      customFields: { loanAmount: 620000, propertyValue: 750000 },
     },
     {
       firstName: 'Lars',
       lastName: 'Van Der Berg',
       email: 'lars.vdb@amsterdam.nl',
       phone: '+49 174 6543210',
-      loanAmount: 410000,
-      propertyValue: 500000,
       status: 'PROPOSAL',
+      source: 'REALTOR',
+      score: 88,
       assignedTo: advisor._id,
+      customFields: { loanAmount: 410000, propertyValue: 500000 },
     },
   ]
 
@@ -210,6 +229,15 @@ async function seed() {
         ...leadData,
       })
       console.log(`Created sample lead: ${leadData.firstName} (${leadData.status})`)
+    } else {
+      existing.status = leadData.status
+      existing.source = leadData.source
+      existing.score = leadData.score
+      existing.assignedTo = leadData.assignedTo
+      existing.customFields = leadData.customFields
+      existing.convertedClientId = null
+      await existing.save()
+      console.log(`Reset sample lead: ${leadData.firstName} to (${leadData.status})`)
     }
   }
 
