@@ -1,3 +1,27 @@
+# LeadFlow — Engineering Prompt Journal & Architecture Log
+
+> **Submission Note for Reviewers**:  
+> This document records the complete chronological prompt-by-prompt development trajectory of LeadFlow. Below is an **Executive Phase Index** summarizing the key engineering requirements, architectural decisions, and verification metrics for rapid review.
+
+---
+
+## 📋 Executive Phase Index
+
+| Phase | Domain / Milestone | Key Architectural Decisions | Test Coverage |
+| :--- | :--- | :--- | :--- |
+| **Phase 1** | Scaffolding & Schemas | NodeNext ESM, Mongoose 9 models, `withBrokerageScope` discriminator isolation, MongoDB Memory Server. | 60+ tests |
+| **Phase 2** | Authentication & RBAC | Dual-token auth, RFC 6819 refresh token family rotation, anti-IDOR HTTP 404 concealment, `ScopedRepository`. | 119 tests |
+| **Phase 3** | Lead Ingestion & Webhooks | HMAC-SHA256 signature verification (`crypto.timingSafeEqual`), compound unique index deduplication, tenant-keyed rate limiting. | 164 tests |
+| **Phase 4** | Pipeline & Real-Time Sockets | Linear state machine, MongoDB optimistic concurrency control (`__v`), tenant-scoped Socket.IO rooms. | 216 tests |
+| **Phase 5** | Client Cases & Storage | Atomic lead-to-client conversion, ImageKit storage integration, Multer MIME/magic-byte binary inspection. | 271 tests |
+| **Phase 6** | Asynchronous Processing | BullMQ queues, Redis Pub/Sub event bridge, autonomous reconciliation sweeper (`document-recovery.service.ts`). | 289 tests |
+| **Phase 7** | Automations & Email Delivery | Post-commit stage triggers, template prototype pollution defense, background SMTP queue with exponential backoff. | 316 tests |
+| **Phase 8** | Backend Hardening & Scale | Compound index coverage, memory-bounded pagination, Autocannon load testing (2,100+ req/s throughput). | 325 tests |
+| **Frontend** | React 19 Workspace & QA | TanStack Query v5 cache invalidation, optimistic drag-and-drop, Axios interceptor latching, Radix UI primitives. | 131 tests |
+| **Total** | **Full System Verification** | **Zero TypeScript errors, 100% production build clean, zero cross-tenant leakage.** | **574+ tests** |
+
+---
+
 ## Prompt 1
 ```
 leadflow/

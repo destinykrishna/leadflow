@@ -54,13 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = React.useCallback(async (): Promise<void> => {
+    // 1. Immediately clear local session, sockets, and queries (0ms UI latency)
+    disconnectSocket()
+    setAccessToken(null)
+    setUser(null)
+    queryClient.clear()
+
+    // 2. Fire backend session revocation in background without blocking UI
     try {
       await api.post('/auth/logout')
-    } finally {
-      disconnectSocket()
-      setAccessToken(null)
-      setUser(null)
-      queryClient.clear()
+    } catch {
+      // Ignore network errors or sleeping server during client logout
     }
   }, [])
 
