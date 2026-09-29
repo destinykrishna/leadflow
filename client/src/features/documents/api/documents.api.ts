@@ -125,18 +125,49 @@ export function useUploadDocument() {
  * Defends against VULN-02 by never relying on permanent unauthenticated CDN URLs.
  */
 export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<void> {
+  // If downloadUrl or fileUrl is already directly available, open immediately
+  if (doc.downloadUrl || doc.fileUrl) {
+    const directUrl = doc.downloadUrl || doc.fileUrl!
+    window.open(directUrl, '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  // Synchronously open a blank window within the direct user gesture to prevent browser popup suppression
+  let newTab: Window | null = null
   try {
-    let url = doc.downloadUrl
-    if (!url) {
-      url = await documentsApi.getDownloadUrl(doc._id)
+    newTab = window.open('about:blank', '_blank')
+    if (newTab) {
+      newTab.opener = null
     }
+  } catch {
+    // Graceful fallback if window.open is blocked synchronously
+  }
+
+  try {
+    const url = await documentsApi.getDownloadUrl(doc._id)
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      if (newTab && !newTab.closed) {
+        newTab.location.href = url
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    } else {
+      if (newTab && !newTab.closed) {
+        newTab.close()
+      }
     }
   } catch (error) {
     console.error('Failed to obtain secure document download URL', error)
     if (doc.fileUrl) {
-      window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')
+      if (newTab && !newTab.closed) {
+        newTab.location.href = doc.fileUrl
+      } else {
+        window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')
+      }
+    } else {
+      if (newTab && !newTab.closed) {
+        newTab.close()
+      }
     }
   }
 }
