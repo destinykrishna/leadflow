@@ -79,7 +79,7 @@ describe('interceptor — only ONE refresh call for concurrent 401s', () => {
     let refreshCallCount = 0
 
     // The interceptor uses raw axios (not api) for the refresh call
-    mockAxios.onPost('/api/auth/refresh').reply(() => {
+    mockAxios.onPost(/\/api\/auth\/refresh/).reply(() => {
       refreshCallCount++
       return [
         200,
@@ -124,7 +124,7 @@ describe('interceptor — refreshFailed latch blocks subsequent refresh calls', 
     let refreshCallCount = 0
 
     // Refresh endpoint is itself expired/invalid → 401
-    mockAxios.onPost('/api/auth/refresh').reply(() => {
+    mockAxios.onPost(/\/api\/auth\/refresh/).reply(() => {
       refreshCallCount++
       return [401, { success: false, error: { code: 'UNAUTHORIZED' } }]
     })
@@ -160,7 +160,7 @@ describe('interceptor — refreshFailed latch blocks subsequent refresh calls', 
     setAccessToken('expired-token')
 
     let refreshCallCount = 0
-    mockAxios.onPost('/api/auth/refresh').reply(() => {
+    mockAxios.onPost(/\/api\/auth\/refresh/).reply(() => {
       refreshCallCount++
       return [401, { success: false }]
     })
@@ -183,7 +183,7 @@ describe('interceptor — refreshFailed latch blocks subsequent refresh calls', 
     setAccessToken('expired-token')
 
     let refreshCallCount = 0
-    mockAxios.onPost('/api/auth/refresh').reply(() => {
+    mockAxios.onPost(/\/api\/auth\/refresh/).reply(() => {
       refreshCallCount++
       return [401, { success: false }]
     })

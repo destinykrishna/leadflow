@@ -11,7 +11,7 @@ let sharedSubscriberClient: Redis | null = null;
  * BullMQ strictly requires `maxRetriesPerRequest: null`.
  */
 export function getBullMQConnectionOptions(): ConnectionOptions {
-  if (env.REDIS_URL) {
+  if (env.REDIS_URL && !env.isTest) {
     const url = new URL(env.REDIS_URL);
     const isTls = url.protocol === 'rediss:';
     const opts: ConnectionOptions = {
@@ -50,7 +50,7 @@ export function getBullMQConnectionOptions(): ConnectionOptions {
  * Returns connection options configured for direct ioredis clients.
  */
 export function getRedisConnectionOptions(): RedisOptions {
-  if (env.REDIS_URL) {
+  if (env.REDIS_URL && !env.isTest) {
     const url = new URL(env.REDIS_URL);
     const isTls = url.protocol === 'rediss:';
     return {
@@ -90,7 +90,7 @@ export function createRedisConnection(customOptions?: Partial<RedisOptions>): Re
   const mergedOptions = { ...baseOptions, ...customOptions };
 
   let client: Redis;
-  if (env.REDIS_URL) {
+  if (env.REDIS_URL && !env.isTest) {
     client = new (Redis as any)(env.REDIS_URL, mergedOptions);
   } else {
     client = new (Redis as any)(mergedOptions);
