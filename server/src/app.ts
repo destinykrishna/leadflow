@@ -66,6 +66,17 @@ export function createApp(): Express {
     },
   });
 
+  // Root status endpoint for Render health checks and browser diagnostics
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      name: 'LeadFlow API',
+      status: 'online',
+      version: '1.0.0',
+      health: '/api/health',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // Health check endpoint
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', uptime: process.uptime() });
