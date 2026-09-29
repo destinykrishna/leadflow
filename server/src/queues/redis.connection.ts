@@ -13,11 +13,14 @@ let sharedSubscriberClient: Redis | null = null;
 export function getBullMQConnectionOptions(): ConnectionOptions {
   if (env.REDIS_URL) {
     const url = new URL(env.REDIS_URL);
+    const isTls = url.protocol === 'rediss:';
     const opts: ConnectionOptions = {
       host: url.hostname,
       port: Number(url.port) || 6379,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+      keepAlive: 10000,
     };
     if (url.password) {
       opts.password = url.password;
@@ -48,9 +51,13 @@ export function getBullMQConnectionOptions(): ConnectionOptions {
  */
 export function getRedisConnectionOptions(): RedisOptions {
   if (env.REDIS_URL) {
+    const url = new URL(env.REDIS_URL);
+    const isTls = url.protocol === 'rediss:';
     return {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
+      keepAlive: 10000,
     };
   }
 

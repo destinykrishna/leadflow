@@ -416,6 +416,10 @@ export function createDocumentWorker(
   });
 
   worker.on('error', (err) => {
+    if (err.message?.includes('ECONNRESET')) {
+      logger.warn({ err: err.message }, 'Document processing worker: transient Redis socket reset (reconnecting automatically)');
+      return;
+    }
     logger.error({ err: err.message }, 'Document processing worker error');
   });
 

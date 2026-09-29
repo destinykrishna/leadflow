@@ -280,6 +280,10 @@ export function createEmailWorker(
   });
 
   worker.on('error', (err) => {
+    if (err.message?.includes('ECONNRESET')) {
+      logger.warn({ err: err.message }, 'Email worker: transient Redis socket reset (reconnecting automatically)');
+      return;
+    }
     logger.error({ err: err.message }, 'Email worker internal error');
   });
 

@@ -65,9 +65,9 @@ export function ProfileSettingsModal({
     staleTime: 5 * 60 * 1000,
   })
 
-  // Fetch client personal case details if user is a client
+  // Fetch client personal case details only if user is a client and modal is open
   const isClientRole = user?.role === 'CLIENT'
-  const { data: clientCase } = useMyCase()
+  const { data: clientCase } = useMyCase({ enabled: open && isClientRole })
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text)

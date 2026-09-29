@@ -76,11 +76,12 @@ export const CLIENT_QUERY_KEY = (id: string) => ['client', id]
 export const CLIENT_DOCUMENTS_KEY = (clientId: string) => ['client-documents', clientId]
 export const MY_CASE_QUERY_KEY = ['my-client-case']
 
-export function useMyCase() {
+export function useMyCase(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: MY_CASE_QUERY_KEY,
     queryFn: clientsApi.getMyCase,
     staleTime: 1000 * 30,
+    enabled: options?.enabled ?? true,
   })
 }
 
