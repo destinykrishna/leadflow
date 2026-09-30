@@ -175,7 +175,7 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
   // Synchronously open a placeholder window during user click gesture to preserve popup authorization
   let newTab: Window | null = null
   try {
-    newTab = window.open('about:blank', '_blank')
+    newTab = window.open('', '_blank')
     if (newTab) {
       try {
         newTab.document.title = 'Opening Document — LeadFlow'
@@ -202,13 +202,24 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
     const url = await documentsApi.getDownloadUrl(doc._id)
     if (url) {
       if (newTab && !newTab.closed) {
-        // Navigate target window directly. Do NOT disown opener before navigating as Chromium drops navigation.
-        newTab.location.replace(url)
+        // Navigate the newly opened tab directly without touching current workspace page
+        try {
+          newTab.location.href = url
+        } catch {
+          newTab.location.replace(url)
+        }
       } else {
-        // If popup was blocked or closed, attempt window.open or direct navigation
+        // If initial popup was suppressed, open in a new tab via window.open or anchor
+        // Never overwrite current window.location to preserve workspace state
         const opened = window.open(url, '_blank', 'noopener,noreferrer')
         if (!opened) {
-          window.location.href = url
+          const a = document.createElement('a')
+          a.href = url
+          a.target = '_blank'
+          a.rel = 'noopener noreferrer'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
         }
       }
     } else {
