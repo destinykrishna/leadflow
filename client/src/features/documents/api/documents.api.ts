@@ -120,6 +120,47 @@ export function useUploadDocument() {
 }
 
 /**
+ * Copies arbitrary text to the clipboard with modern API and reliable textarea fallback.
+ * Critical for asynchronous flows where transient user gesture expires before network resolution.
+ */
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false
+
+  // 1. Try modern navigator.clipboard
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // User activation likely expired during async fetch — fall through to execCommand
+    }
+  }
+
+  // 2. Fallback to hidden textarea execCommand('copy') which remains permitted in active document
+  if (typeof document !== 'undefined') {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      textarea.style.top = '-9999px'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      return successful
+    } catch {
+      return false
+    }
+  }
+
+  return false
+}
+
+/**
  * Opens a document securely in a new browser tab by obtaining an authorized,
  * short-lived signed ImageKit URL from the backend.
  * Defends against permanent unauthenticated CDN URLs by querying the authorized download endpoint.
@@ -131,27 +172,44 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
     return
   }
 
-  // Synchronously open a blank window within the direct user gesture to prevent browser popup suppression
+  // Synchronously open a placeholder window during user click gesture to preserve popup authorization
   let newTab: Window | null = null
   try {
     newTab = window.open('about:blank', '_blank')
+    if (newTab) {
+      try {
+        newTab.document.title = 'Opening Document — LeadFlow'
+        newTab.document.body.innerHTML = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
+            <div style="text-align: center; padding: 24px;">
+              <div style="width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
+              <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+              <div style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">Opening Secure Document...</div>
+              <div style="font-size: 13px; color: #94a3b8;">Verifying permissions and generating time-limited access link.</div>
+            </div>
+          </div>
+        `
+      } catch {
+        // Cross-origin inspection safeguard
+      }
+    }
   } catch {
     // Graceful fallback if window.open is blocked synchronously
   }
 
   try {
-    // Always request an authorized, time-limited signed URL through the backend download endpoint
+    // Request authorized, time-limited signed URL through the backend download endpoint
     const url = await documentsApi.getDownloadUrl(doc._id)
     if (url) {
       if (newTab && !newTab.closed) {
-        try {
-          newTab.opener = null
-        } catch {
-          // Ignore browser restriction on detached opener
-        }
-        newTab.location.href = url
+        // Navigate target window directly. Do NOT disown opener before navigating as Chromium drops navigation.
+        newTab.location.replace(url)
       } else {
-        window.open(url, '_blank', 'noopener,noreferrer')
+        // If popup was blocked or closed, attempt window.open or direct navigation
+        const opened = window.open(url, '_blank', 'noopener,noreferrer')
+        if (!opened) {
+          window.location.href = url
+        }
       }
     } else {
       if (newTab && !newTab.closed) {
@@ -170,12 +228,13 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
 /**
  * Copies a secure, time-limited document access link to clipboard.
  * Defends against permanent unauthenticated URL leakage by querying the authorized
- * backend download endpoint.
+ * backend download endpoint, and uses a resilient clipboard fallback.
  */
 export async function copySecureDocumentLink(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<string> {
   const url = doc.downloadUrl || doc.fileUrl || (await documentsApi.getDownloadUrl(doc._id))
   if (url) {
-    await navigator.clipboard.writeText(url)
+    await copyTextToClipboard(url)
   }
   return url
 }
+
