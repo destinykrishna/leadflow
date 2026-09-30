@@ -149,6 +149,8 @@ export function ClientDetailView({
   const [copiedPhone, setCopiedPhone] = React.useState(false)
   const [copiedId, setCopiedId] = React.useState(false)
   const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
+  const [copyingDocId, setCopyingDocId] = React.useState<string | null>(null)
+  const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
 
   // 404 detection (IDOR protection or non-existent record)
   const is404 =
@@ -177,11 +179,25 @@ export function ClientDetailView({
 
   const handleCopyDocLink = async (doc: DocumentItem) => {
     try {
+      setCopyingDocId(doc._id)
       await copySecureDocumentLink(doc)
       setCopiedDocId(doc._id)
       setTimeout(() => setCopiedDocId(null), 2000)
     } catch (err) {
       console.error('Failed to copy document download link', err)
+    } finally {
+      setCopyingDocId(null)
+    }
+  }
+
+  const handleViewDoc = async (doc: DocumentItem) => {
+    try {
+      setViewingDocId(doc._id)
+      await openDocumentSecurely(doc)
+    } catch (err) {
+      console.error('Failed to view document securely', err)
+    } finally {
+      setViewingDocId(null)
     }
   }
 
@@ -846,11 +862,17 @@ export function ClientDetailView({
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={copyingDocId === doc._id}
                             onClick={() => void handleCopyDocLink(doc)}
                             className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
                             title="Copy secure time-limited file link"
                           >
-                            {isLinkCopied ? (
+                            {copyingDocId === doc._id ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 animate-spin text-slate-500" />
+                                <span className="text-[11px] text-slate-500">Copying...</span>
+                              </>
+                            ) : isLinkCopied ? (
                               <>
                                 <Check className="h-3 w-3 text-emerald-600" />
                                 <span className="text-[11px] text-emerald-600">Copied</span>
@@ -866,11 +888,21 @@ export function ClientDetailView({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => void openDocumentSecurely(doc)}
+                            disabled={viewingDocId === doc._id}
+                            onClick={() => void handleViewDoc(doc)}
                             className="h-7 px-2.5 text-xs gap-1 text-slate-700 hover:text-primary hover:border-primary/50"
                           >
-                            View File
-                            <ExternalLink className="h-3 w-3" />
+                            {viewingDocId === doc._id ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 animate-spin text-slate-500" />
+                                <span>Opening...</span>
+                              </>
+                            ) : (
+                              <>
+                                View File
+                                <ExternalLink className="h-3 w-3" />
+                              </>
+                            )}
                           </Button>
                         </div>
                       </div>

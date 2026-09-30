@@ -51,6 +51,8 @@ export function DocumentsPage() {
   const [selectedStatus, setSelectedStatus] = React.useState<string>('ALL')
   const [selectedType, setSelectedType] = React.useState<string>('ALL')
   const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
+  const [copyingDocId, setCopyingDocId] = React.useState<string | null>(null)
+  const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
 
   // 1. Fetch brokerage documents
   const {
@@ -74,11 +76,25 @@ export function DocumentsPage() {
 
   const handleCopyLink = async (doc: DocumentItem) => {
     try {
+      setCopyingDocId(doc._id)
       await copySecureDocumentLink(doc)
       setCopiedDocId(doc._id)
       setTimeout(() => setCopiedDocId(null), 2000)
     } catch (err) {
       console.error('Failed to copy document download link', err)
+    } finally {
+      setCopyingDocId(null)
+    }
+  }
+
+  const handleViewDoc = async (doc: DocumentItem) => {
+    try {
+      setViewingDocId(doc._id)
+      await openDocumentSecurely(doc)
+    } catch (err) {
+      console.error('Failed to view document securely', err)
+    } finally {
+      setViewingDocId(null)
     }
   }
 
@@ -435,11 +451,17 @@ export function DocumentsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={copyingDocId === doc._id}
                       onClick={() => void handleCopyLink(doc)}
                       className="h-8 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
                       title="Copy secure time-limited file URL"
                     >
-                      {isLinkCopied ? (
+                      {copyingDocId === doc._id ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                          <span className="text-slate-500">Copying...</span>
+                        </>
+                      ) : isLinkCopied ? (
                         <>
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                           <span className="text-emerald-600">Copied</span>
@@ -455,11 +477,21 @@ export function DocumentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void openDocumentSecurely(doc)}
+                      disabled={viewingDocId === doc._id}
+                      onClick={() => void handleViewDoc(doc)}
                       className="h-8 px-3 text-xs gap-1 text-slate-700 hover:text-primary hover:border-primary/50 shadow-2xs"
                     >
-                      View File
-                      <ExternalLink className="h-3 w-3" />
+                      {viewingDocId === doc._id ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                          <span>Opening...</span>
+                        </>
+                      ) : (
+                        <>
+                          View File
+                          <ExternalLink className="h-3 w-3" />
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
