@@ -22,8 +22,11 @@ export function getBullMQConnectionOptions(): ConnectionOptions {
       ...(isTls ? { tls: { rejectUnauthorized: false } } : {}),
       keepAlive: 10000,
     };
+    if (url.username && url.username.length > 0) {
+      opts.username = decodeURIComponent(url.username);
+    }
     if (url.password) {
-      opts.password = url.password;
+      opts.password = decodeURIComponent(url.password);
     }
     if (url.pathname && url.pathname.length > 1) {
       opts.db = Number(url.pathname.slice(1)) || 0;
@@ -38,6 +41,10 @@ export function getBullMQConnectionOptions(): ConnectionOptions {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   };
+
+  if (env.REDIS_USERNAME) {
+    options.username = env.REDIS_USERNAME;
+  }
 
   if (env.REDIS_PASSWORD) {
     options.password = env.REDIS_PASSWORD;
@@ -73,6 +80,10 @@ export function getRedisConnectionOptions(): RedisOptions {
       return delay;
     },
   };
+
+  if (env.REDIS_USERNAME) {
+    options.username = env.REDIS_USERNAME;
+  }
 
   if (env.REDIS_PASSWORD) {
     options.password = env.REDIS_PASSWORD;

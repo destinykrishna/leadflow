@@ -956,4 +956,100 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
       expect(res.body.error.message).toContain('Binary signature does not match allowed types');
     });
   });
+
+  describe('12. Authorized Secure Download Endpoint (GET /api/documents/:id/download)', () => {
+    it('allows an ADVISOR to obtain a time-limited signed URL for a brokerage document', async () => {
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', dummyPdfBuffer, 'payslip.pdf')
+        .field('type', 'PAYSLIP')
+        .field('clientId', clientA1._id.toString());
+
+      const docId = uploadRes.body.data.document._id;
+
+      const res = await request(app)
+        .get(`/api/documents/${docId}/download`)
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.documentId).toBe(docId);
+      expect(res.body.data.expiresIn).toBe(300);
+      expect(typeof res.body.data.downloadUrl).toBe('string');
+      expect(res.body.data.downloadUrl).toContain('ik-s=');
+    });
+
+    it('allows the owning CLIENT to obtain a time-limited signed URL for their document', async () => {
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenClientA1}`)
+        .attach('file', dummyPdfBuffer, 'passport.pdf')
+        .field('type', 'IDENTIFICATION');
+
+      const docId = uploadRes.body.data.document._id;
+
+      const res = await request(app)
+        .get(`/api/documents/${docId}/download`)
+        .set('Authorization', `Bearer ${tokenClientA1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.documentId).toBe(docId);
+      expect(res.body.data.downloadUrl).toContain('ik-s=');
+    });
+
+    it('rejects unauthenticated requests with 401', async () => {
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', dummyPdfBuffer, 'tax.pdf')
+        .field('type', 'TAX_RETURN')
+        .field('clientId', clientA1._id.toString());
+
+      const docId = uploadRes.body.data.document._id;
+
+      const res = await request(app).get(`/api/documents/${docId}/download`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('blocks cross-client download access with 404 (IDOR concealment)', async () => {
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenClientA1}`)
+        .attach('file', dummyPdfBuffer, 'secret_payslip.pdf')
+        .field('type', 'PAYSLIP');
+
+      const docId = uploadRes.body.data.document._id;
+
+      // Client A2 in the same brokerage attempts to download Client A1's document
+      const res = await request(app)
+        .get(`/api/documents/${docId}/download`)
+        .set('Authorization', `Bearer ${tokenClientA2}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('blocks cross-brokerage download access with 404 (Brokerage isolation)', async () => {
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', dummyPdfBuffer, 'brokerage_a_doc.pdf')
+        .field('type', 'BANK_STATEMENT')
+        .field('clientId', clientA1._id.toString());
+
+      const docId = uploadRes.body.data.document._id;
+
+      // Advisor B in Brokerage B attempts to download Brokerage A's document
+      const res = await request(app)
+        .get(`/api/documents/${docId}/download`)
+        .set('Authorization', `Bearer ${tokenAdvisorB}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+  });
 });

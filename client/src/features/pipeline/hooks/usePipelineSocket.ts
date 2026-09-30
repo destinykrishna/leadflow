@@ -51,11 +51,13 @@ export function usePipelineSocket(enabled: boolean = true) {
           const updatedCounts = { ...oldData.counts }
 
           // Remove from source stage
-          updatedPipeline[sourceStage] = (updatedPipeline[sourceStage] || []).filter(
-            (l) => l._id !== leadId,
-          )
-          if (updatedCounts[sourceStage] !== undefined && updatedCounts[sourceStage] > 0) {
-            updatedCounts[sourceStage]--
+          if (sourceStage && updatedPipeline[sourceStage]) {
+            updatedPipeline[sourceStage] = updatedPipeline[sourceStage].filter(
+              (l: Lead) => l._id !== leadId,
+            )
+            if (updatedCounts[sourceStage] !== undefined && updatedCounts[sourceStage] > 0) {
+              updatedCounts[sourceStage]--
+            }
           }
 
           // Add to new stage with updated version and status

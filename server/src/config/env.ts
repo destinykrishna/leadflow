@@ -35,6 +35,7 @@ const envSchema = z.object({
   IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/leadflow_test'),
   REDIS_HOST: z.string().default('127.0.0.1'),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_USERNAME: z.string().optional(),
   REDIS_PASSWORD: z.string().optional(),
   REDIS_DB: z.coerce.number().int().nonnegative().default(0),
   REDIS_URL: z.string().optional(),

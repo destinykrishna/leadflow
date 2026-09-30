@@ -125,13 +125,6 @@ export function useUploadDocument() {
  * Defends against VULN-02 by never relying on permanent unauthenticated CDN URLs.
  */
 export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<void> {
-  // If downloadUrl or fileUrl is already directly available, open immediately
-  if (doc.downloadUrl || doc.fileUrl) {
-    const directUrl = doc.downloadUrl || doc.fileUrl!
-    window.open(directUrl, '_blank', 'noopener,noreferrer')
-    return
-  }
-
   // Synchronously open a blank window within the direct user gesture to prevent browser popup suppression
   let newTab: Window | null = null
   try {
@@ -144,6 +137,7 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
   }
 
   try {
+    // Always request an authorized, time-limited signed URL through the backend download endpoint
     const url = await documentsApi.getDownloadUrl(doc._id)
     if (url) {
       if (newTab && !newTab.closed) {
@@ -158,35 +152,21 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
     }
   } catch (error) {
     console.error('Failed to obtain secure document download URL', error)
-    if (doc.fileUrl) {
-      if (newTab && !newTab.closed) {
-        newTab.location.href = doc.fileUrl
-      } else {
-        window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')
-      }
-    } else {
-      if (newTab && !newTab.closed) {
-        newTab.close()
-      }
+    if (newTab && !newTab.closed) {
+      newTab.close()
     }
+    throw error
   }
 }
 
 /**
  * Copies a secure, time-limited document access link to clipboard.
+ * Defends against permanent unauthenticated URL leakage by always querying backend download endpoint.
  */
 export async function copySecureDocumentLink(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<string> {
-  let url = doc.downloadUrl
-  if (!url) {
-    try {
-      url = await documentsApi.getDownloadUrl(doc._id)
-    } catch {
-      url = doc.fileUrl
-    }
+  const url = await documentsApi.getDownloadUrl(doc._id)
+  if (url) {
+    await navigator.clipboard.writeText(url)
   }
-  const linkToCopy = url || doc.fileUrl || ''
-  if (linkToCopy) {
-    await navigator.clipboard.writeText(linkToCopy)
-  }
-  return linkToCopy
+  return url
 }

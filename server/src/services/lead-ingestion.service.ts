@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { leadRepository, type IngestLeadResult } from '../repositories/lead.repository.js';
 import { normalizeIncomingLeadPayload, type NormalizedLeadData } from '../validators/lead.validators.js';
 import { triggerService } from './trigger.service.js';
+import { emitPipelineStageChanged } from './lead-pipeline.service.js';
 import { logger } from '../utils/logger.js';
 
 import { maskEmail } from '../utils/mask.js';
@@ -53,6 +54,21 @@ export class LeadIngestionService {
         },
         'New lead ingested successfully'
       );
+
+      // Emit realtime pipeline stage event so open Kanban boards immediately display the new lead
+      emitPipelineStageChanged({
+        brokerageId: brokerageId.toString(),
+        leadId: result.lead._id.toString(),
+        previousStage: null,
+        newStage: 'NEW',
+        updatedBy: {
+          id: 'system:webhook',
+          name: 'Webhook Ingestion',
+          role: 'SYSTEM',
+        },
+        lead: result.lead,
+        timestamp: new Date(),
+      });
 
       // Execute configured stage automation triggers (e.g. welcome email, 2h call task) non-blocking
       triggerService

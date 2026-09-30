@@ -633,4 +633,113 @@ describe('Realtime Pipeline Socket.IO Integration Tests', () => {
       expect(eventCount).toBe(1);
     });
   });
+
+  describe('6. Webhook Ingestion Realtime Events', () => {
+    it('should emit pipeline:stage_changed and lead:stage_changed when a new lead is ingested via webhook', async () => {
+      const socketAdvisorA = createClientSocket(tokenAdvisorA);
+      await connectSocket(socketAdvisorA);
+
+      const pipelineEventPromise = new Promise<any>((resolve) => {
+        socketAdvisorA.once('pipeline:stage_changed', (payload) => resolve(payload));
+      });
+      const leadEventPromise = new Promise<any>((resolve) => {
+        socketAdvisorA.once('lead:stage_changed', (payload) => resolve(payload));
+      });
+
+      const webhookPayload = {
+        firstName: 'Immanuel',
+        lastName: 'Kant',
+        email: 'kant@koenigsberg.de',
+        phone: '+491701122334',
+        source: 'WEBSITE',
+      };
+
+      const res = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('x-webhook-secret', brokerageA.webhookSecret!)
+        .send(webhookPayload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+
+      const pipelineEvent = await pipelineEventPromise;
+      const leadEvent = await leadEventPromise;
+
+      expect(pipelineEvent.leadId).toBe(res.body.data.id);
+      expect(pipelineEvent.brokerageId).toBe(brokerageA._id.toString());
+      expect(pipelineEvent.previousStage).toBeNull();
+      expect(pipelineEvent.newStage).toBe('NEW');
+      expect(pipelineEvent.updatedBy.role).toBe('SYSTEM');
+
+      expect(leadEvent.leadId).toBe(res.body.data.id);
+      expect(leadEvent.newStage).toBe('NEW');
+    });
+
+    it('should NOT emit socket events when a duplicate lead is ingested via webhook', async () => {
+      const socketAdvisorA = createClientSocket(tokenAdvisorA);
+      await connectSocket(socketAdvisorA);
+
+      // Ingest initial lead
+      const webhookPayload = {
+        firstName: 'David',
+        lastName: 'Hume',
+        email: 'hume@edinburgh.ac.uk',
+        source: 'WEBSITE',
+      };
+
+      const firstRes = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('x-webhook-secret', brokerageA.webhookSecret!)
+        .send(webhookPayload);
+
+      expect(firstRes.status).toBe(201);
+
+      let duplicateEventReceived = false;
+      socketAdvisorA.on('pipeline:stage_changed', () => {
+        duplicateEventReceived = true;
+      });
+
+      // Send duplicate
+      const duplicateRes = await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('x-webhook-secret', brokerageA.webhookSecret!)
+        .send(webhookPayload);
+
+      expect(duplicateRes.status).toBe(200);
+      expect(duplicateRes.body.isDuplicate).toBe(true);
+
+      // Wait 150ms to ensure zero socket events emitted on duplicate
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(duplicateEventReceived).toBe(false);
+    });
+
+    it('should not leak webhook lead events to other brokerages', async () => {
+      const socketAdvisorA = createClientSocket(tokenAdvisorA);
+      const socketAdvisorB = createClientSocket(tokenAdvisorB);
+
+      await connectSocket(socketAdvisorA);
+      await connectSocket(socketAdvisorB);
+
+      let advisorBReceived = false;
+      socketAdvisorB.on('pipeline:stage_changed', () => {
+        advisorBReceived = true;
+      });
+
+      const webhookPayload = {
+        firstName: 'Baruch',
+        lastName: 'Spinoza',
+        email: 'spinoza@amsterdam.nl',
+        source: 'WEBSITE',
+      };
+
+      await request(app)
+        .post(`/api/leads/webhook/${brokerageA._id}`)
+        .set('x-webhook-secret', brokerageA.webhookSecret!)
+        .send(webhookPayload);
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(advisorBReceived).toBe(false);
+    });
+  });
 });
+

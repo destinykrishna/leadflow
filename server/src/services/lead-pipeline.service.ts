@@ -13,7 +13,7 @@ import { logger } from '../utils/logger.js';
 export interface LeadStageChangedEvent {
   brokerageId: string;
   leadId: string;
-  previousStage: LeadStatus;
+  previousStage: LeadStatus | null;
   newStage: LeadStatus;
   updatedBy: {
     id: string;
@@ -29,7 +29,7 @@ import { getSocketServer } from '../sockets/index.js';
 export interface PipelineStageChangedBroadcastPayload {
   leadId: string;
   brokerageId: string;
-  previousStage: LeadStatus;
+  previousStage: LeadStatus | null;
   newStage: LeadStatus;
   version: number;
   timestamp: string;

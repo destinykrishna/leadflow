@@ -162,7 +162,7 @@ export function isValidStageTransition(
 export interface PipelineStageChangedBroadcastPayload {
   leadId: string
   brokerageId: string
-  previousStage: LeadStatus
+  previousStage: LeadStatus | null
   newStage: LeadStatus
   version: number
   timestamp: string
