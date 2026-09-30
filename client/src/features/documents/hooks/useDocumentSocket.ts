@@ -38,11 +38,14 @@ export function useDocumentSocket(options?: {
           queryKey: CLIENT_DOCUMENTS_KEY(payload.clientId),
         })
       }
-      if (options?.clientId) {
+      if (options?.clientId && options.clientId !== payload.clientId) {
         queryClient.invalidateQueries({
           queryKey: CLIENT_DOCUMENTS_KEY(options.clientId),
         })
       }
+      queryClient.invalidateQueries({
+        queryKey: ['client-documents'],
+      })
 
       // 3. Invalidate lead-specific documents if matching or present
       if (payload.leadId) {
@@ -50,11 +53,14 @@ export function useDocumentSocket(options?: {
           queryKey: LEAD_DOCUMENTS_KEY(payload.leadId),
         })
       }
-      if (options?.leadId) {
+      if (options?.leadId && options.leadId !== payload.leadId) {
         queryClient.invalidateQueries({
           queryKey: LEAD_DOCUMENTS_KEY(options.leadId),
         })
       }
+      queryClient.invalidateQueries({
+        queryKey: ['lead-documents'],
+      })
     },
     [queryClient, options?.clientId, options?.leadId]
   )

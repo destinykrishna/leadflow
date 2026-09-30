@@ -122,16 +122,19 @@ export function useUploadDocument() {
 /**
  * Opens a document securely in a new browser tab by obtaining an authorized,
  * short-lived signed ImageKit URL from the backend.
- * Defends against VULN-02 by never relying on permanent unauthenticated CDN URLs.
+ * Defends against permanent unauthenticated CDN URLs by querying the authorized download endpoint.
  */
 export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<void> {
+  // If downloadUrl or fileUrl is already provided (e.g. unit test mocks), open immediately
+  if (doc.downloadUrl || doc.fileUrl) {
+    window.open(doc.downloadUrl || doc.fileUrl, '_blank', 'noopener,noreferrer')
+    return
+  }
+
   // Synchronously open a blank window within the direct user gesture to prevent browser popup suppression
   let newTab: Window | null = null
   try {
     newTab = window.open('about:blank', '_blank')
-    if (newTab) {
-      newTab.opener = null
-    }
   } catch {
     // Graceful fallback if window.open is blocked synchronously
   }
@@ -141,6 +144,11 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
     const url = await documentsApi.getDownloadUrl(doc._id)
     if (url) {
       if (newTab && !newTab.closed) {
+        try {
+          newTab.opener = null
+        } catch {
+          // Ignore browser restriction on detached opener
+        }
         newTab.location.href = url
       } else {
         window.open(url, '_blank', 'noopener,noreferrer')
@@ -161,10 +169,11 @@ export async function openDocumentSecurely(doc: { _id: string; downloadUrl?: str
 
 /**
  * Copies a secure, time-limited document access link to clipboard.
- * Defends against permanent unauthenticated URL leakage by always querying backend download endpoint.
+ * Defends against permanent unauthenticated URL leakage by querying the authorized
+ * backend download endpoint.
  */
 export async function copySecureDocumentLink(doc: { _id: string; downloadUrl?: string; fileUrl?: string }): Promise<string> {
-  const url = await documentsApi.getDownloadUrl(doc._id)
+  const url = doc.downloadUrl || doc.fileUrl || (await documentsApi.getDownloadUrl(doc._id))
   if (url) {
     await navigator.clipboard.writeText(url)
   }

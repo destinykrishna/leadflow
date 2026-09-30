@@ -117,9 +117,13 @@ export function useUploadClientDocument() {
   return useMutation({
     mutationFn: clientsApi.uploadClientDocument,
     onSuccess: (_newDoc, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: CLIENT_DOCUMENTS_KEY(variables.clientId),
-      })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+      queryClient.invalidateQueries({ queryKey: ['client-documents'] })
+      if (variables.clientId) {
+        queryClient.invalidateQueries({
+          queryKey: CLIENT_DOCUMENTS_KEY(variables.clientId),
+        })
+      }
       if (variables.leadId) {
         queryClient.invalidateQueries({
           queryKey: ['lead-documents', variables.leadId],

@@ -83,6 +83,7 @@ export class DocumentRecoveryService {
             brokerageId: doc.brokerageId.toString(),
             clientId: doc.clientId?.toString(),
             leadId: doc.leadId?.toString(),
+            uploadedBy: doc.uploadedBy?.toString(),
           });
 
           recoveredCount++;
@@ -187,6 +188,7 @@ export class DocumentRecoveryService {
               brokerageId: resetDoc.brokerageId.toString(),
               clientId: resetDoc.clientId?.toString(),
               leadId: resetDoc.leadId?.toString(),
+              uploadedBy: resetDoc.uploadedBy?.toString(),
             });
 
             recoveredCount++;

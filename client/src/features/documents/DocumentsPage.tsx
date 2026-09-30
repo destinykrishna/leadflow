@@ -24,6 +24,7 @@ import { formatRelativeTime, formatDate } from '@/lib/format'
 import {
   useDocuments,
   openDocumentSecurely,
+  copySecureDocumentLink,
 } from './api/documents.api'
 import { useDocumentSocket } from './hooks/useDocumentSocket'
 import {
@@ -71,13 +72,14 @@ export function DocumentsPage() {
   // 2. Real-time updates via Socket.IO
   useDocumentSocket({ enabled: true })
 
-  const handleCopyLink = (doc: DocumentItem) => {
-    const url = doc.downloadUrl || doc.fileUrl || ''
-    if (url) {
-      navigator.clipboard.writeText(url)
+  const handleCopyLink = async (doc: DocumentItem) => {
+    try {
+      await copySecureDocumentLink(doc)
+      setCopiedDocId(doc._id)
+      setTimeout(() => setCopiedDocId(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy document download link', err)
     }
-    setCopiedDocId(doc._id)
-    setTimeout(() => setCopiedDocId(null), 2000)
   }
 
   // Filter in-memory by search query

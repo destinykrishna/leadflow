@@ -36,7 +36,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useClient, useClientDocuments } from '../api/clients.api'
 import { useLead } from '@/features/leads/api/leads.api'
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
-import { openDocumentSecurely } from '@/features/documents/api/documents.api'
+import { openDocumentSecurely, copySecureDocumentLink } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from './UploadDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
 import type { DocumentItem } from '@/types/document.types'
@@ -175,13 +175,14 @@ export function ClientDetailView({
     setTimeout(() => setCopiedId(false), 2000)
   }
 
-  const handleCopyDocLink = (doc: DocumentItem) => {
-    const url = doc.downloadUrl || doc.fileUrl || ''
-    if (url) {
-      navigator.clipboard.writeText(url)
+  const handleCopyDocLink = async (doc: DocumentItem) => {
+    try {
+      await copySecureDocumentLink(doc)
+      setCopiedDocId(doc._id)
+      setTimeout(() => setCopiedDocId(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy document download link', err)
     }
-    setCopiedDocId(doc._id)
-    setTimeout(() => setCopiedDocId(null), 2000)
   }
 
   // Financial figures extracted safely from originating lead inquiry

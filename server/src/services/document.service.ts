@@ -12,6 +12,7 @@ import { storageService } from './storage.service.js';
 import { authorizationService } from './authorization.service.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { enqueueDocumentProcessing } from '../queues/document.queue.js';
+import { emitDocumentStatusChanged } from '../queues/document-events.js';
 import {
   ValidationError,
   NotFoundError,
@@ -80,6 +81,7 @@ export class DocumentService implements IDomainService {
     let targetBrokerageId: Types.ObjectId;
     let targetClientId: Types.ObjectId | undefined;
     let targetLeadId: Types.ObjectId | undefined;
+    let targetClientUserId: string | undefined;
 
     if (caller.role === 'CLIENT') {
       if (!caller.brokerageId) {
@@ -105,6 +107,7 @@ export class DocumentService implements IDomainService {
 
       targetClientId = client._id;
       targetLeadId = client.leadId;
+      targetClientUserId = caller.id;
     } else if (caller.role === 'ADVISOR' || caller.role === 'BROKERAGE_ADMIN') {
       if (!caller.brokerageId) {
         throw new BrokerageIsolationError('Brokerage context missing for staff user');
@@ -125,6 +128,9 @@ export class DocumentService implements IDomainService {
         }
         targetClientId = client._id;
         targetLeadId = client.leadId;
+        if (client.userId) {
+          targetClientUserId = client.userId.toString();
+        }
       } else if (input.leadId) {
         if (!Types.ObjectId.isValid(input.leadId)) {
           throw new ValidationError('Invalid lead ID format');
@@ -151,6 +157,9 @@ export class DocumentService implements IDomainService {
         targetClientId = client._id;
         targetBrokerageId = client.brokerageId;
         targetLeadId = client.leadId;
+        if (client.userId) {
+          targetClientUserId = client.userId.toString();
+        }
       } else if (input.leadId) {
         if (!Types.ObjectId.isValid(input.leadId)) {
           throw new ValidationError('Invalid lead ID format');
@@ -224,13 +233,30 @@ export class DocumentService implements IDomainService {
         'Document successfully uploaded and registered'
       );
 
-      // 6. Enqueue background verification job in BullMQ
+      // 6. Emit realtime status event so active document views update dynamically without refresh
+      emitDocumentStatusChanged({
+        documentId: document._id.toString(),
+        brokerageId: targetBrokerageId.toString(),
+        clientId: targetClientId ? targetClientId.toString() : undefined,
+        leadId: targetLeadId ? targetLeadId.toString() : undefined,
+        uploadedBy: caller.id,
+        clientUserId: targetClientUserId,
+        previousStatus: 'PENDING',
+        newStatus: 'PENDING',
+        type: document.type,
+        title: document.title,
+        updatedAt: document.updatedAt,
+      });
+
+      // 7. Enqueue background verification job in BullMQ
       try {
         await enqueueDocumentProcessing({
           documentId: document._id.toString(),
           brokerageId: targetBrokerageId.toString(),
           clientId: targetClientId ? targetClientId.toString() : undefined,
           leadId: targetLeadId ? targetLeadId.toString() : undefined,
+          uploadedBy: caller.id,
+          clientUserId: targetClientUserId,
         });
       } catch (queueError) {
         // Isolate queue/Redis failure from API client:

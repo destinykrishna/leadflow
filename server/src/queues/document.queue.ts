@@ -13,6 +13,8 @@ export interface DocumentJobPayload {
   brokerageId: string;
   clientId?: string | undefined;
   leadId?: string | undefined;
+  uploadedBy?: string | undefined;
+  clientUserId?: string | undefined;
   simulateFailure?: boolean | undefined;
   simulateTerminalRejection?: boolean | undefined;
   processingDelayMs?: number | undefined;
