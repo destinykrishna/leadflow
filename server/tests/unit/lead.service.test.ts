@@ -69,6 +69,50 @@ describe('Lead Ingestion Service & Validator Unit Tests', () => {
       expect(normalized.notes).toBeUndefined();
     });
 
+    it('should accurately map separate First Name and Last Name without losing lastName', () => {
+      const input = {
+        firstName: 'test',
+        lastName: 'tester1',
+        email: 'test.tester1@example.de',
+      };
+
+      const normalized = normalizeIncomingLeadPayload(input);
+
+      expect(normalized.firstName).toBe('test');
+      expect(normalized.lastName).toBe('tester1');
+      expect(normalized.email).toBe('test.tester1@example.de');
+    });
+
+    it('should preserve single-name submissions as empty string without inventing Applicant', () => {
+      const singleNameWithEmptyLast = {
+        firstName: 'Bhavika',
+        lastName: '',
+        email: 'bhavika@example.de',
+      };
+      const norm1 = normalizeIncomingLeadPayload(singleNameWithEmptyLast);
+      expect(norm1.firstName).toBe('Bhavika');
+      expect(norm1.lastName).toBe('');
+
+      const singleNameWithOmittedLast = {
+        firstName: 'Bhavika',
+        email: 'bhavika2@example.de',
+      };
+      const norm2 = normalizeIncomingLeadPayload(singleNameWithOmittedLast);
+      expect(norm2.firstName).toBe('Bhavika');
+      expect(norm2.lastName).toBe('');
+    });
+
+    it('should safely normalize legacy invented Applicant surname to empty string', () => {
+      const legacyFallback = {
+        firstName: 'test',
+        lastName: 'Applicant',
+        email: 'legacy.test@example.de',
+      };
+      const normalized = normalizeIncomingLeadPayload(legacyFallback);
+      expect(normalized.firstName).toBe('test');
+      expect(normalized.lastName).toBe('');
+    });
+
     it('should never trust or include client-supplied brokerageId in normalized data', () => {
       const maliciousPayload = {
         firstName: 'Attacker',

@@ -425,10 +425,17 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     throw new ValidationError('Invalid lead payload', parsed.error.format());
   }
 
+  // Normalize artificially invented placeholder surnames (e.g. 'Applicant', 'Valued Applicant')
+  let lastName = parsed.data.lastName;
+  const lowerLast = lastName.trim().toLowerCase();
+  if (lowerLast === 'applicant' || lowerLast === 'valued applicant') {
+    lastName = '';
+  }
+
   // Note: brokerageId is explicitly omitted from returned normalized data
   return {
     firstName: parsed.data.firstName,
-    lastName: parsed.data.lastName,
+    lastName,
     email: parsed.data.email,
     phone: parsed.data.phone,
     source: parsed.data.source,

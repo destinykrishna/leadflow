@@ -221,15 +221,17 @@ function onFormSubmit(e) {
     }
 
     // 1. Extract Full Name (Supports separate First/Last Name or combined Full Name)
-    var firstName = (getAnswer(['first name']) || '').toString().trim();
-    var lastName = (getAnswer(['last name', 'surname']) || '').toString().trim();
+    var firstName = (getAnswer(['first name', 'firstname', 'given name']) || '').toString().trim();
+    var lastName = (getAnswer(['last name', 'lastname', 'surname', 'family name']) || '').toString().trim();
     if (!firstName && !lastName) {
-      var rawName = (getAnswer(['full name', 'name', 'borrower']) || '').toString().trim() || 'Valued Applicant';
-      var nameParts = String(rawName).trim().split(/\s+/);
-      firstName = nameParts[0] || 'Valued';
-      lastName = nameParts.slice(1).join(' ');
+      var rawName = (getAnswer(['full name', 'borrower name', 'applicant name', 'name']) || '').toString().trim();
+      if (rawName) {
+        var nameParts = String(rawName).trim().split(/\s+/);
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ');
+      }
     }
-    if (!firstName) firstName = 'Valued Applicant';
+    if (!firstName) firstName = 'Applicant';
 
     // 2. Extract Contact Info
     var email = (getAnswer(['email']) || '').toString().trim().toLowerCase();
