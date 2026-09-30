@@ -228,7 +228,7 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
       expect(doc.brokerageId).toBe(brokerageA._id.toString());
       expect(doc.clientId).toBe(clientA1._id.toString());
       expect(doc.uploadedBy).toBe(advisorA._id.toString());
-      expect(doc.fileUrl).toContain('payslip_january');
+      expect(doc.fileUrl).toBeUndefined();
       expect(doc.fileKey).toBeDefined();
 
       // Verify stored in DB
@@ -236,6 +236,7 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
       expect(dbDoc).not.toBeNull();
       expect(dbDoc?.status).toBe('PENDING');
       expect(dbDoc?.fileSize).toBe(dummyPdfBuffer.length);
+      expect(dbDoc?.fileUrl).toContain('payslip_january');
     });
 
     it('allows a BROKERAGE_ADMIN to upload a contract document', async () => {
@@ -1050,6 +1051,52 @@ describe('Document Upload & Storage Foundation Integration Tests', () => {
 
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
+    });
+
+    it('BUG-01: ensures raw permanent fileUrl is never exposed in upload, retrieval, or list API responses', async () => {
+      // 1. Upload response: must NOT expose raw fileUrl
+      const uploadRes = await request(app)
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`)
+        .attach('file', dummyPdfBuffer, 'secure_test_doc.pdf')
+        .field('type', 'CONTRACT')
+        .field('clientId', clientA1._id.toString());
+
+      expect(uploadRes.status).toBe(201);
+      expect(uploadRes.body.data.document.fileUrl).toBeUndefined();
+      const docId = uploadRes.body.data.document._id;
+
+      // 2. Retrieval by ID: must NOT expose raw fileUrl or unmanaged downloadUrl
+      const getRes = await request(app)
+        .get(`/api/documents/${docId}`)
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.data.document.fileUrl).toBeUndefined();
+      expect(getRes.body.data.document.downloadUrl).toBeUndefined();
+
+      // 3. Document list: must NOT expose raw fileUrl on any items
+      const listRes = await request(app)
+        .get('/api/documents')
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.data.documents.length).toBeGreaterThan(0);
+      for (const d of listRes.body.data.documents) {
+        expect(d.fileUrl).toBeUndefined();
+        expect(d.downloadUrl).toBeUndefined();
+      }
+
+      // 4. Authorized download endpoint: ONLY valid application flow returning short-lived signed URL
+      const downloadRes = await request(app)
+        .get(`/api/documents/${docId}/download`)
+        .set('Authorization', `Bearer ${tokenAdvisorA}`);
+
+      expect(downloadRes.status).toBe(200);
+      expect(downloadRes.body.data.downloadUrl).toBeDefined();
+      expect(downloadRes.body.data.downloadUrl).toContain('ik-s=');
+      expect(downloadRes.body.data.downloadUrl).toContain('ik-t=');
+      expect(downloadRes.body.data.expiresIn).toBe(300);
     });
   });
 });

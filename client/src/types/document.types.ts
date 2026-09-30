@@ -29,7 +29,7 @@ export interface DocumentItem {
   title: string
   type: DocumentType
   status: DocumentStatus
-  fileUrl: string
+  fileUrl?: string
   downloadUrl?: string
   fileKey?: string
   fileId?: string

@@ -400,14 +400,7 @@ export class DocumentService implements IDomainService {
       }
     }
 
-    // Attach short-lived signed download URL for authorized caller
-    const signedDownloadUrl = storageService.generateSignedUrl(doc.fileUrl, {
-      expiresInSeconds: 300,
-    });
-    const docObj = doc.toObject ? doc.toObject() : doc;
-    (docObj as any).downloadUrl = signedDownloadUrl;
-
-    return docObj as IDocumentDocument & { downloadUrl?: string };
+    return doc;
   }
 
   /**

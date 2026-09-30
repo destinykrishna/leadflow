@@ -6,6 +6,18 @@ import {
 } from '../validators/document.validators.js';
 import { ValidationError } from '../utils/errors.js';
 
+/**
+ * Defense-in-depth sanitizer ensuring raw permanent storage URLs (fileUrl)
+ * and unmanaged download URLs are stripped from client-facing API responses.
+ * The only application-accessible file access route is GET /api/documents/:id/download.
+ */
+function sanitizeDocumentResponse<T extends Record<string, any>>(doc: T): Record<string, unknown> {
+  const obj = doc && typeof (doc as any).toJSON === 'function' ? (doc as any).toJSON() : { ...doc };
+  delete obj.fileUrl;
+  delete obj.downloadUrl;
+  return obj;
+}
+
 export class DocumentController {
   /**
    * Handles authenticated multipart document upload:
@@ -33,7 +45,7 @@ export class DocumentController {
 
       res.status(201).json({
         success: true,
-        data: { document },
+        data: { document: sanitizeDocumentResponse(document) },
       });
     } catch (error) {
       next(error);
@@ -59,7 +71,7 @@ export class DocumentController {
 
       res.status(200).json({
         success: true,
-        data: { documents },
+        data: { documents: documents.map(sanitizeDocumentResponse) },
       });
     } catch (error) {
       next(error);
@@ -79,7 +91,7 @@ export class DocumentController {
 
       res.status(200).json({
         success: true,
-        data: { document },
+        data: { document: sanitizeDocumentResponse(document) },
       });
     } catch (error) {
       next(error);
