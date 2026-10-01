@@ -25,6 +25,12 @@
       "skillPath": "skills/brag/SKILL.md",
       "computedHash": "ac62208b57e94973c095bf981db8931ee75fd1f2394293d0d2afbc8efd3f5051"
     },
+    "code-review-and-quality": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review-and-quality/SKILL.md",
+      "computedHash": "03790162b6550eddca4dc66b24ba70df417479499972abe7ccd451d191d2b0fe"
+    },
     "data-engineer": {
       "source": "rmyndharis/antigravity-skills",
       "sourceType": "github",
