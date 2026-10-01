@@ -103,7 +103,26 @@ export function useUploadDocument() {
 
   return useMutation({
     mutationFn: documentsApi.uploadDocument,
-    onSuccess: (_doc, variables) => {
+    onSuccess: (newDoc, variables) => {
+      if (newDoc) {
+        queryClient.setQueryData<DocumentItem[]>(
+          DOCUMENTS_QUERY_KEY,
+          (old = []) => {
+            if (old.some((doc) => doc._id === newDoc._id)) return old
+            return [newDoc, ...old]
+          }
+        )
+        if (variables.clientId) {
+          queryClient.setQueryData<DocumentItem[]>(
+            ['client-documents', variables.clientId],
+            (old = []) => {
+              if (old.some((doc) => doc._id === newDoc._id)) return old
+              return [newDoc, ...old]
+            }
+          )
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY })
       if (variables.clientId) {
         queryClient.invalidateQueries({

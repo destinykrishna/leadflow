@@ -870,6 +870,7 @@ export function ClientDocumentsPage() {
             setIsUploadModalOpen(false)
             setReuploadTargetDoc(null)
             setInitialDocType(undefined)
+            refetchDocs()
           }}
           onSuccess={() => {
             setIsUploadModalOpen(false)

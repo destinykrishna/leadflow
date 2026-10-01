@@ -107,7 +107,7 @@ export function useClientDocuments(clientId: string | undefined) {
     queryKey: CLIENT_DOCUMENTS_KEY(clientId || ''),
     queryFn: () => clientsApi.getClientDocuments(clientId!),
     enabled: Boolean(clientId),
-    staleTime: 1000 * 15,
+    staleTime: 1000 * 5,
   })
 }
 
@@ -116,7 +116,30 @@ export function useUploadClientDocument() {
 
   return useMutation({
     mutationFn: clientsApi.uploadClientDocument,
-    onSuccess: (_newDoc, variables) => {
+    onSuccess: (newDoc, variables) => {
+      // 1. Immediately place new document in client query cache for instantaneous zero-latency display
+      if (newDoc && variables.clientId) {
+        queryClient.setQueryData<DocumentItem[]>(
+          CLIENT_DOCUMENTS_KEY(variables.clientId),
+          (old = []) => {
+            if (old.some((doc) => doc._id === newDoc._id)) return old
+            return [newDoc, ...old]
+          }
+        )
+      }
+
+      // Also place in global documents query cache if present
+      if (newDoc) {
+        queryClient.setQueryData<DocumentItem[]>(
+          ['documents'],
+          (old = []) => {
+            if (old.some((doc) => doc._id === newDoc._id)) return old
+            return [newDoc, ...old]
+          }
+        )
+      }
+
+      // 2. Invalidate queries to ensure full background synchronization
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       queryClient.invalidateQueries({ queryKey: ['client-documents'] })
       if (variables.clientId) {

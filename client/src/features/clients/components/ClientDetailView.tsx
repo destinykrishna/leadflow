@@ -117,7 +117,7 @@ export function ClientDetailView({
     data: documents = [],
     isLoading: isDocsLoading,
     refetch: refetchDocs,
-  } = useClientDocuments(client?._id)
+  } = useClientDocuments(client?._id || clientId)
 
   // 3. Resolve originating lead identifier
   const leadId = React.useMemo(() => {
@@ -1091,11 +1091,14 @@ export function ClientDetailView({
 
       {/* Upload Document Modal */}
       <UploadDocumentModal
-        clientId={client._id}
-        clientName={`${client.firstName} ${client.lastName}`}
+        clientId={client?._id || clientId}
+        clientName={client ? `${client.firstName} ${client.lastName}` : undefined}
         leadId={leadId}
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={() => {
+          setIsUploadModalOpen(false)
+          refetchDocs()
+        }}
         onSuccess={() => {
           refetchDocs()
         }}

@@ -154,7 +154,10 @@ export function ClientCasePage() {
           clientId={client._id}
           clientName={`${client.firstName} ${client.lastName}`}
           isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
+          onClose={() => {
+            setIsUploadModalOpen(false)
+            refetchDocs()
+          }}
           onSuccess={() => {
             setIsUploadModalOpen(false)
             refetchDocs()
