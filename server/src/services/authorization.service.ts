@@ -97,9 +97,13 @@ export class AuthorizationService implements IDomainService {
    * Validates access to a Document entity.
    * - Cross-brokerage access returns NotFoundError (preventing cross-tenant IDOR).
    * - ADVISOR and BROKERAGE_ADMIN can access documents in their brokerage.
-   * - CLIENT role may ONLY access documents uploaded by them (uploadedBy === user.id).
+   * - CLIENT role may access documents uploaded by them or attached to their client case profile.
    */
-  authorizeDocumentAccess(user: AuthUserContext, doc: DocumentEntity): void {
+  authorizeDocumentAccess(
+    user: AuthUserContext,
+    doc: DocumentEntity,
+    clientProfileId?: string | Types.ObjectId | null
+  ): void {
     // 1. Cross-brokerage boundary check
     if (user.role !== 'PLATFORM_ADMIN') {
       const docBrokerageId = (doc.brokerageId as any)?._id
@@ -117,7 +121,17 @@ export class AuthorizationService implements IDomainService {
         : doc.uploadedBy
           ? doc.uploadedBy.toString()
           : null;
-      if (uploaderId !== user.id) {
+      const docClientId = (doc.clientId as any)?._id
+        ? (doc.clientId as any)._id.toString()
+        : doc.clientId
+          ? doc.clientId.toString()
+          : null;
+      const expectedClientId = clientProfileId ? clientProfileId.toString() : null;
+
+      const isUploader = uploaderId === user.id;
+      const isCaseOwner = Boolean(docClientId && expectedClientId && docClientId === expectedClientId);
+
+      if (!isUploader && !isCaseOwner) {
         throw new NotFoundError('Document resource not found');
       }
     }

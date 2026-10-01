@@ -16,6 +16,7 @@ import {
   Radio,
   FileSpreadsheet,
   FileBadge,
+  Check,
   Building2,
   UserCheck,
 } from 'lucide-react'
@@ -28,7 +29,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { formatDate } from '@/lib/format'
 import { useMyCase, useClientDocuments } from '@/features/clients/api/clients.api'
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
-import { openDocumentSecurely } from '@/features/documents/api/documents.api'
+import { openDocumentSecurely, copySecureDocumentLink } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from '@/features/clients/components/UploadDocumentModal'
 import type { DocumentItem, DocumentStatus, DocumentType } from '@/types/document.types'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
@@ -175,6 +176,35 @@ export function ClientDocumentsPage() {
   // Filters & Search
   const [selectedStatusFilter, setSelectedStatusFilter] = React.useState<string>('ALL')
   const [searchQuery, setSearchQuery] = React.useState('')
+
+  // Secure document interaction states
+  const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
+  const [copyingDocId, setCopyingDocId] = React.useState<string | null>(null)
+  const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
+
+  const handleCopyDocLink = async (doc: DocumentItem) => {
+    try {
+      setCopyingDocId(doc._id)
+      await copySecureDocumentLink(doc)
+      setCopiedDocId(doc._id)
+      setTimeout(() => setCopiedDocId(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy document download link', err)
+    } finally {
+      setCopyingDocId(null)
+    }
+  }
+
+  const handleViewDoc = async (doc: DocumentItem) => {
+    try {
+      setViewingDocId(doc._id)
+      await openDocumentSecurely(doc)
+    } catch (err) {
+      console.error('Failed to view document securely', err)
+    } finally {
+      setViewingDocId(null)
+    }
+  }
 
   // Computed counts
   const verifiedCount = documents.filter((d) => d.status === 'VERIFIED').length
@@ -774,22 +804,56 @@ export function ClientDocumentsPage() {
                       </div>
                     </div>
 
-                    {/* Right: Status badge & View link */}
-                    <div className="flex items-center gap-2.5 shrink-0 self-end md:self-start pt-1">
+                    {/* Right: Status badge & Actions */}
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-start pt-1">
                       <Badge variant={statusConfig.variant} size="sm" className="gap-1 font-semibold">
                         <StatusIcon className={`h-3 w-3 ${isProcessing ? 'animate-spin' : ''}`} />
                         {statusConfig.label}
                       </Badge>
 
-                      <button
-                        type="button"
-                        onClick={() => void openDocumentSecurely(doc)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={copyingDocId === doc._id}
+                        onClick={() => void handleCopyDocLink(doc)}
+                        className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
+                        title="Copy secure time-limited file link"
+                      >
+                        {copyingDocId === doc._id ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 animate-spin text-slate-500" />
+                            <span className="text-[11px] text-slate-500">Copying...</span>
+                          </>
+                        ) : copiedDocId === doc._id ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-[11px] text-emerald-600">Copied</span>
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-slate-600">Copy Link</span>
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={viewingDocId === doc._id}
+                        onClick={() => void handleViewDoc(doc)}
+                        className="h-7 px-2.5 text-xs gap-1 text-slate-700 hover:text-primary hover:border-primary/50 shadow-2xs"
                         title="Open document securely with time-limited authorization"
                       >
-                        <span>View Document</span>
-                        <ExternalLink className="h-3 w-3 text-slate-400" />
-                      </button>
+                        {viewingDocId === doc._id ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 animate-spin text-slate-500" />
+                            <span>Opening...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>View Document</span>
+                            <ExternalLink className="h-3 w-3 text-slate-400" />
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </div>

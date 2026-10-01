@@ -6,6 +6,7 @@ import {
   ExternalLink,
   ChevronRight,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -66,6 +67,19 @@ export function PortalDocumentSummary({
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
   }, [documents])
+
+  const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
+
+  const handleViewDoc = async (doc: DocumentItem) => {
+    try {
+      setViewingDocId(doc._id)
+      await openDocumentSecurely(doc)
+    } catch (err) {
+      console.error('Failed to view document securely', err)
+    } finally {
+      setViewingDocId(null)
+    }
+  }
 
   return (
     <Card className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
@@ -172,12 +186,22 @@ export function PortalDocumentSummary({
 
                   <button
                     type="button"
-                    onClick={() => void openDocumentSecurely(doc)}
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium cursor-pointer"
+                    disabled={viewingDocId === doc._id}
+                    onClick={() => void handleViewDoc(doc)}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium cursor-pointer disabled:opacity-50"
                     title="View file securely"
                   >
-                    <span>View</span>
-                    <ExternalLink className="h-3 w-3" />
+                    {viewingDocId === doc._id ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                        <span>Opening...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>View</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

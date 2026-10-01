@@ -406,25 +406,21 @@ export class DocumentService implements IDomainService {
       throw new NotFoundError('Document resource not found');
     }
 
-    // Ownership check
-    authorizationService.authorizeDocumentAccess(caller, doc);
-
     // If CLIENT, additionally verify that document belongs to their own client record
+    let clientProfileId: Types.ObjectId | string | null = null;
     if (caller.role === 'CLIENT') {
       const client = await Client.findOne(
         withBrokerageScope(caller.brokerageId!, {
           userId: new Types.ObjectId(caller.id),
         })
       );
-      const isOwner =
-        (doc.uploadedBy as any)?._id?.toString() === caller.id ||
-        doc.uploadedBy?.toString() === caller.id ||
-        (client && doc.clientId?.toString() === client._id.toString());
-
-      if (!isOwner) {
-        throw new NotFoundError('Document resource not found');
+      if (client) {
+        clientProfileId = client._id;
       }
     }
+
+    // Ownership check (anti-IDOR and tenant boundary)
+    authorizationService.authorizeDocumentAccess(caller, doc, clientProfileId);
 
     return doc;
   }
