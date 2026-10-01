@@ -109,6 +109,24 @@ export function UploadDocumentModal({
   const [isSuccess, setIsSuccess] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
   const [uploadedDoc, setUploadedDoc] = React.useState<DocumentItem | null>(null)
+  const [uploadStage, setUploadStage] = React.useState<number>(0)
+
+  // Step through security progress phases during active cloud upload
+  React.useEffect(() => {
+    let t1: ReturnType<typeof setTimeout>
+    let t2: ReturnType<typeof setTimeout>
+    if (uploadMutation.isPending) {
+      setUploadStage(1)
+      t1 = setTimeout(() => setUploadStage(2), 1200)
+      t2 = setTimeout(() => setUploadStage(3), 2600)
+    } else {
+      setUploadStage(0)
+    }
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [uploadMutation.isPending])
 
   // Reset or initialize form when modal opens
   React.useEffect(() => {
@@ -121,6 +139,7 @@ export function UploadDocumentModal({
       setIsSuccess(false)
       setIsDragging(false)
       setUploadedDoc(null)
+      setUploadStage(0)
     }
   }, [isOpen, initialType, initialTitle, initialNotes, reuploadDoc])
 
@@ -436,18 +455,40 @@ export function UploadDocumentModal({
               />
             </div>
 
-            {/* Active Upload Progress Strip */}
+            {/* Active Multi-Step Security Upload Progress */}
             {uploadMutation.isPending && (
-              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs text-primary font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Uploading file & queueing for verification...</span>
+              <div className="rounded-xl bg-primary/5 border border-primary/25 p-3.5 space-y-2.5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between text-xs text-primary font-semibold">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                    <span>
+                      {uploadStage <= 1 && 'Step 1/3: Checking Magic Bytes & Encrypting...'}
+                      {uploadStage === 2 && 'Step 2/3: Streaming to Secure Cloud Vault...'}
+                      {uploadStage >= 3 && 'Step 3/3: Registering Dossier & Queueing Verification...'}
+                    </span>
                   </div>
+                  <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    {uploadStage <= 1 ? '35%' : uploadStage === 2 ? '70%' : '90%'}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full animate-pulse w-3/4" />
+
+                <div className="w-full bg-primary/15 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-primary h-full rounded-full transition-all duration-700 ease-out"
+                    style={{
+                      width: uploadStage <= 1 ? '35%' : uploadStage === 2 ? '70%' : '90%',
+                    }}
+                  />
                 </div>
+
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>
+                    {uploadStage <= 1 && 'Validating binary signature against malware and verifying tenant isolation...'}
+                    {uploadStage === 2 && 'Streaming encrypted payload to isolated ImageKit cloud storage...'}
+                    {uploadStage >= 3 && 'Committing record to database and triggering automated BullMQ inspection...'}
+                  </span>
+                </p>
               </div>
             )}
 
