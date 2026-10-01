@@ -100,6 +100,7 @@ export class ImageKitStorageService implements IStorageService {
         folder,
         tags: options.tags || ['leadflow', 'document'],
         useUniqueFileName: true,
+        isPrivateFile: true
       });
 
       return {
