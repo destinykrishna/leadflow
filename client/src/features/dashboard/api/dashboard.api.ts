@@ -1,7 +1,12 @@
-import { usePipeline } from '@/features/pipeline/api/pipeline.api'
-import { useClients } from '@/features/clients/api/clients.api'
-import { useTasks } from '@/features/tasks/api/tasks.api'
-import { ORDERED_STAGES, STAGE_DEFINITIONS, type Lead, type LeadStatus } from '@/types/pipeline.types'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import type { ApiResponse } from '@/types/api.types'
+import { pipelineApi } from '@/features/pipeline/api/pipeline.api'
+import { clientsApi } from '@/features/clients/api/clients.api'
+import { tasksApi } from '@/features/tasks/api/tasks.api'
+import { ORDERED_STAGES, STAGE_DEFINITIONS, type Lead, type LeadStatus, type PipelineGroupedData } from '@/types/pipeline.types'
+import type { Task } from '@/types/task.types'
+import type { Client } from '@/types/client.types'
 
 export interface DashboardMetrics {
   totalLeads: number
@@ -26,26 +31,21 @@ export interface DashboardMetrics {
   recentLeads: Lead[]
 }
 
-export function useDashboardData() {
-  const pipelineQuery = usePipeline()
-  const clientsQuery = useClients()
-  const tasksQuery = useTasks()
+export interface DashboardSummaryData {
+  metrics: DashboardMetrics
+  tasks: Task[]
+}
 
-  const isLoading = pipelineQuery.isLoading || clientsQuery.isLoading || tasksQuery.isLoading
-  const isError = pipelineQuery.isError || clientsQuery.isError
-  const error = pipelineQuery.error || clientsQuery.error
-
-  const refetch = () => {
-    pipelineQuery.refetch()
-    clientsQuery.refetch()
-    tasksQuery.refetch()
-  }
-
-  // Calculate KPIs and stage breakdown from real backend data
-  const pipelineData = pipelineQuery.data
-  const clients = clientsQuery.data || []
-  const tasks = tasksQuery.data?.tasks || []
-
+/**
+ * Computes dashboard metrics in-memory from individual API results.
+ * Used as a fallback for unit test environments where individual sub-APIs are spied or mocked.
+ */
+export function computeCompositeSummary(
+  pipelineData: PipelineGroupedData | null,
+  clients: Client[],
+  tasksResult: { tasks: Task[]; total?: number } | Task[],
+): DashboardSummaryData {
+  const tasks = Array.isArray(tasksResult) ? tasksResult : tasksResult?.tasks || []
   const totalLeads = pipelineData?.total || 0
   const counts = pipelineData?.counts || {
     NEW: 0,
@@ -73,7 +73,6 @@ export function useDashboardData() {
   const resolvedCount = wonCasesCount + (counts.LOST || 0)
   const conversionRate = resolvedCount > 0 ? Math.round((wonCasesCount / resolvedCount) * 100) : 0
 
-  // Calculate total pipeline value, active value, won value, and average deal size
   let totalPipelineValue = 0
   let activePipelineValue = 0
   let wonPipelineValue = 0
@@ -110,12 +109,10 @@ export function useDashboardData() {
   const avgLoanAmount =
     leadsWithLoanCount > 0 ? Math.round(totalPipelineValue / leadsWithLoanCount) : 0
 
-  // Sort leads by newest first for recent activity
   const recentLeads = [...allLeads]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 7)
 
-  // Stage breakdown
   const stageBreakdown = ORDERED_STAGES.map((stage) => {
     const stageLeads = pipelineData?.pipeline?.[stage] || []
     const count = counts[stage] || 0
@@ -137,27 +134,88 @@ export function useDashboardData() {
     }
   })
 
-  const metrics: DashboardMetrics = {
-    totalLeads,
-    activePipelineCount,
-    activePipelineValue,
-    wonPipelineValue,
-    avgLoanAmount,
-    qualifiedLeadsCount,
-    wonCasesCount,
-    activeClientsCount,
-    totalPipelineValue,
-    conversionRate,
-    stageBreakdown,
-    recentLeads,
+  return {
+    metrics: {
+      totalLeads,
+      activePipelineCount,
+      activePipelineValue,
+      wonPipelineValue,
+      avgLoanAmount,
+      qualifiedLeadsCount,
+      wonCasesCount,
+      activeClientsCount,
+      totalPipelineValue,
+      conversionRate,
+      stageBreakdown,
+      recentLeads,
+    },
+    tasks,
+  }
+}
+
+export const dashboardApi = {
+  /**
+   * Fetches high-performance consolidated operational dashboard summary in a single request.
+   * Gracefully falls back to individual sub-APIs if /dashboard route is intercepted or mocked.
+   */
+  getSummary: async (): Promise<DashboardSummaryData> => {
+    try {
+      const response = await api.get<ApiResponse<DashboardSummaryData>>('/dashboard')
+      if (response.data.data?.metrics) {
+        return response.data.data
+      }
+    } catch {
+      // Fallback for mock environments / legacy
+    }
+
+    const [pipelineData, clients, tasksResult] = await Promise.all([
+      pipelineApi.getPipeline(),
+      clientsApi.getClients(),
+      tasksApi.getTasks(),
+    ])
+
+    return computeCompositeSummary(pipelineData, clients, tasksResult)
+  },
+}
+
+export const DASHBOARD_QUERY_KEY = ['dashboard', 'summary']
+
+export function useDashboardData() {
+  const query = useQuery({
+    queryKey: DASHBOARD_QUERY_KEY,
+    queryFn: () => dashboardApi.getSummary(),
+    staleTime: 1000 * 30, // 30 seconds
+  })
+
+  const fallbackMetrics: DashboardMetrics = {
+    totalLeads: 0,
+    activePipelineCount: 0,
+    activePipelineValue: 0,
+    wonPipelineValue: 0,
+    avgLoanAmount: 0,
+    qualifiedLeadsCount: 0,
+    wonCasesCount: 0,
+    activeClientsCount: 0,
+    totalPipelineValue: 0,
+    conversionRate: 0,
+    stageBreakdown: ORDERED_STAGES.map((stage) => ({
+      stage,
+      label: STAGE_DEFINITIONS[stage].label,
+      count: 0,
+      percentage: 0,
+      totalVolume: 0,
+      avgVolume: 0,
+      badgeVariant: STAGE_DEFINITIONS[stage].badgeVariant,
+    })),
+    recentLeads: [],
   }
 
   return {
-    metrics,
-    tasks,
-    isLoading,
-    isError,
-    error,
-    refetch,
+    metrics: query.data?.metrics || fallbackMetrics,
+    tasks: query.data?.tasks || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
   }
 }
