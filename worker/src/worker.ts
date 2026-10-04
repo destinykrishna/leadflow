@@ -88,8 +88,21 @@ async function startWorkerProcess(): Promise<void> {
     documentRecoveryService.startPeriodicReconciliation();
     logger.info('Document & email processing workers actively polling for jobs with periodic reconciliation');
 
-    const shutdown = async (signal: string) => {
+    let isShuttingDown = false;
+    const shutdown = async (signal: string, exitCode = 0) => {
+      if (isShuttingDown) {
+        logger.warn({ signal }, 'Worker shutdown already in progress, ignoring duplicate signal');
+        return;
+      }
+      isShuttingDown = true;
       logger.info({ signal }, 'Graceful shutdown initiated for background worker');
+
+      const forceExitTimer = setTimeout(() => {
+        logger.fatal('Worker graceful shutdown timed out after 10s. Forcing exit.');
+        process.exit(1);
+      }, 10000);
+      forceExitTimer.unref();
+
       try {
         documentRecoveryService.stopPeriodicReconciliation();
         await closeDocumentWorker();
@@ -98,16 +111,31 @@ async function startWorkerProcess(): Promise<void> {
         await closeEmailQueue();
         await closeRedisConnections();
         await disconnectDatabase();
+        clearTimeout(forceExitTimer);
         logger.info('Worker shutdown completed cleanly');
-        process.exit(0);
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(exitCode);
+        }
       } catch (err) {
         logger.error({ err }, 'Error during worker shutdown');
-        process.exit(1);
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(1);
+        }
       }
     };
 
-    process.on('SIGINT', () => void shutdown('SIGINT'));
-    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+    process.once('SIGINT', () => void shutdown('SIGINT', 0));
+    process.once('SIGTERM', () => void shutdown('SIGTERM', 0));
+
+    process.on('uncaughtException', (err: Error) => {
+      logger.fatal({ err }, 'Uncaught exception detected in worker process');
+      void shutdown('uncaughtException', 1);
+    });
+
+    process.on('unhandledRejection', (reason: unknown) => {
+      logger.fatal({ err: reason }, 'Unhandled promise rejection detected in worker process');
+      void shutdown('unhandledRejection', 1);
+    });
   } catch (error) {
     logger.error({ err: error }, 'Worker process startup failed');
     process.exit(1);

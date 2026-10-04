@@ -195,18 +195,20 @@ export function getDatabaseConnectionState(): DatabaseConnectionState {
 
 /**
  * Registers process signal handlers to ensure clean DB shutdown.
+ * Note: When running under unified process management (server.ts / worker.ts),
+ * shutdown is orchestrated centrally.
  */
 export function registerDatabaseShutdownHook(): void {
   const handleShutdown = async (signal: string) => {
     logger.info({ signal }, 'Closing database connection on shutdown signal');
     try {
       await disconnectDatabase();
-      process.exit(0);
-    } catch {
-      process.exit(1);
+    } catch (err) {
+      logger.error({ err }, 'Error disconnecting database on shutdown signal');
     }
   };
 
-  process.once('SIGINT', () => handleShutdown('SIGINT'));
-  process.once('SIGTERM', () => handleShutdown('SIGTERM'));
+  process.once('SIGINT', () => void handleShutdown('SIGINT'));
+  process.once('SIGTERM', () => void handleShutdown('SIGTERM'));
 }
+

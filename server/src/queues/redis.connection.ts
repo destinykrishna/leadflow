@@ -155,3 +155,36 @@ export async function closeRedisConnections(): Promise<void> {
   await Promise.all(closePromises);
   logger.debug('Shared Redis connections closed cleanly');
 }
+
+/**
+ * Checks whether the shared Redis client is actively connected.
+ */
+export function isRedisConnected(): boolean {
+  return sharedRedisClient !== null && sharedRedisClient.status === 'ready';
+}
+
+/**
+ * Executes a ping against Redis with a configurable timeout for readiness probing.
+ */
+export async function checkRedisHealth(
+  timeoutMs = 2000
+): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
+  try {
+    const client = getSharedRedisClient();
+    const start = Date.now();
+    const result = await Promise.race([
+      client.ping(),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('Redis ping timed out')), timeoutMs)
+      ),
+    ]);
+
+    if (result === 'PONG') {
+      return { ok: true, latencyMs: Date.now() - start };
+    }
+    return { ok: false, error: `Unexpected Redis response: ${result}` };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Redis connection failed' };
+  }
+}
+

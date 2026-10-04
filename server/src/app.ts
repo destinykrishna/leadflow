@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { env, resolveTrustProxy, resolveCorsOrigin } from './config/env.js';
+import { httpLogger } from './utils/logger.js';
+import { isDatabaseConnected, getDatabaseConnectionState } from './config/database.js';
+import { checkRedisHealth } from './queues/redis.connection.js';
 import { authRouter } from './routes/auth.routes.js';
 import { brokerageRouter } from './routes/brokerage.routes.js';
 import { clientRouter } from './routes/client.routes.js';
@@ -25,6 +28,9 @@ export function createApp(): Express {
   // Defends against IP spoofing by ignoring client-supplied forged X-Forwarded-For headers
   app.set('trust proxy', resolveTrustProxy(env.TRUST_PROXY));
 
+  // Request correlation and structured HTTP logging
+  app.use(httpLogger);
+
   // Security headers
   app.use(helmet());
 
@@ -34,7 +40,8 @@ export function createApp(): Express {
       origin: resolveCorsOrigin(env.CORS_ORIGIN),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      exposedHeaders: ['X-Request-Id'],
     })
   );
 
@@ -67,6 +74,57 @@ export function createApp(): Express {
     },
   });
 
+  // --- Health & Diagnostic Endpoints ---
+
+  // Liveness probe: verifies process is alive and accepting connections
+  const handleLiveness = (_req: express.Request, res: express.Response) => {
+    res.status(200).json({
+      status: 'ok',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  };
+
+  app.get('/health/live', handleLiveness);
+  app.get('/api/health/live', handleLiveness);
+
+  // Readiness probe: verifies MongoDB and Redis dependencies
+  const handleReadiness = async (_req: express.Request, res: express.Response) => {
+    const isDbReady = isDatabaseConnected();
+    const dbState = getDatabaseConnectionState();
+    const redisHealth = await checkRedisHealth();
+
+    // In unit/integration tests running without Redis, permit passing unless explicitly required
+    const isRedisReady = redisHealth.ok || (env.isTest && !process.env['REQUIRE_REDIS_FOR_TESTS']);
+    const isHealthy = isDbReady && isRedisReady;
+
+    const payload = {
+      status: isHealthy ? 'ok' : 'degraded',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      services: {
+        database: {
+          status: isDbReady ? 'up' : 'down',
+          state: dbState,
+        },
+        redis: {
+          status: redisHealth.ok ? 'up' : 'down',
+          ...(redisHealth.latencyMs !== undefined ? { latencyMs: redisHealth.latencyMs } : {}),
+          ...(redisHealth.error ? { error: redisHealth.error } : {}),
+        },
+      },
+    };
+
+    res.status(isHealthy ? 200 : 503).json(payload);
+  };
+
+  app.get('/health/ready', handleReadiness);
+  app.get('/api/health/ready', handleReadiness);
+
+  // Backward-compatible standard health check endpoints (default to readiness)
+  app.get('/health', handleReadiness);
+  app.get('/api/health', handleReadiness);
+
   // Root status endpoint for Render health checks and browser diagnostics
   app.get('/', (_req, res) => {
     res.status(200).json({
@@ -74,18 +132,12 @@ export function createApp(): Express {
       status: 'online',
       version: '1.0.0',
       health: '/api/health',
+      live: '/api/health/live',
+      ready: '/api/health/ready',
       timestamp: new Date().toISOString(),
     });
   });
 
-  // Health check endpoint
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', uptime: process.uptime() });
-  });
-
-  app.get('/api/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', uptime: process.uptime() });
-  });
 
   // Auth routes
   app.use('/api/auth', authLimiter, authRouter);
