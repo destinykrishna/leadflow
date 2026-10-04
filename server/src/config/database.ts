@@ -147,7 +147,7 @@ export async function connectDatabase(
 
   const defaultOptions: mongoose.ConnectOptions = {
     autoIndex: !env.isProduction,
-    maxPoolSize: 10,
+    maxPoolSize: env.MONGODB_MAX_POOL_SIZE,
     serverSelectionTimeoutMS: 5000,
     ...options,
   };

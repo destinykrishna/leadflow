@@ -13,6 +13,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
   MONGODB_URI: z.string().min(1).default('mongodb://localhost:27017/leadflow'),
+  MONGODB_MAX_POOL_SIZE: z.coerce.number().int().positive().default(10),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
@@ -44,6 +45,7 @@ const envSchema = z.object({
   PENDING_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(15000),
   STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(300000),
   RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+  ENABLE_IN_PROCESS_WORKERS: z.coerce.boolean().default(true),
   TRUST_PROXY: z.string().default('1'),
   EMAIL_PROVIDER: z.enum(['mock', 'resend']).default('mock'),
   RESEND_API_KEY: z.string().optional(),

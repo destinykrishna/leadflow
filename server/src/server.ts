@@ -64,12 +64,14 @@ export async function gracefulShutdown(signal: string, exitCode = 0): Promise<vo
 
     // 3. Stop background workers & queues
     try {
-      documentRecoveryService.stopPeriodicReconciliation();
-      await closeDocumentWorker();
-      await closeEmailWorker();
+      if (env.ENABLE_IN_PROCESS_WORKERS) {
+        documentRecoveryService.stopPeriodicReconciliation();
+        await closeDocumentWorker();
+        await closeEmailWorker();
+      }
       await closeDocumentQueue();
       await closeEmailQueue();
-      logger.info('In-process workers and queues stopped cleanly');
+      logger.info('Queues and background workers stopped cleanly');
     } catch (err) {
       logger.warn({ err }, 'Error stopping workers and queues');
     }
@@ -110,10 +112,15 @@ async function startServer(): Promise<void> {
     setupDocumentEventsSubscriber();
     setupAutomationEventsSubscriber();
 
-    // Start in-process workers so all document processing & email automations run seamlessly on free single-service hosting
-    startDocumentWorker();
-    startEmailWorker();
-    documentRecoveryService.startPeriodicReconciliation();
+    // Start in-process workers conditionally (disabled when running standalone worker replicas)
+    if (env.ENABLE_IN_PROCESS_WORKERS) {
+      startDocumentWorker();
+      startEmailWorker();
+      documentRecoveryService.startPeriodicReconciliation();
+      logger.info('In-process workers and recovery sweeps active');
+    } else {
+      logger.info('In-process workers disabled (ENABLE_IN_PROCESS_WORKERS=false); running pure API service');
+    }
 
     // Process-level OS signals
     process.once('SIGINT', () => void gracefulShutdown('SIGINT', 0));

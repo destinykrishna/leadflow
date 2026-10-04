@@ -5,6 +5,8 @@
   "main": "src/worker.ts",
   "scripts": {
     "dev": "tsx watch src/worker.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/worker/src/worker.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -45,6 +45,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/leadflow
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ENABLE_IN_PROCESS_WORKERS=false
       - CORS_ORIGIN=http://localhost:5173
       - JWT_SECRET=leadflow-jwt-super-secret-access-token-key-min32chars!
       - JWT_REFRESH_SECRET=leadflow-jwt-super-secret-refresh-token-key-min32chars!
@@ -55,7 +56,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/health/live || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/health/ready || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -72,11 +73,18 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/leadflow
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - WORKER_HEALTH_PORT=5001
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mongo-data:

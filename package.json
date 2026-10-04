@@ -9,8 +9,10 @@
     "test": "npm --prefix server test && npm --prefix client test",
     "test:coverage": "npm --prefix server run test:coverage",
     "seed": "npm --prefix server run seed",
+    "db:index:sync": "npm --prefix server run db:index:sync",
+    "db:verify": "npm --prefix server run db:verify",
     "typecheck": "npm --prefix server run typecheck && npm --prefix worker run typecheck && npm --prefix client run typecheck",
-    "build": "npm run typecheck && npm --prefix client run build"
+    "build": "npm run typecheck && npm --prefix server run build && npm --prefix worker run build && npm --prefix client run build"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

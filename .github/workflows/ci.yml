@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Install Workspace Dependencies
+        run: |
+          npm --prefix server ci
+          npm --prefix worker ci
+          npm --prefix client ci
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Server Unit & Integration Tests
+        run: npm --prefix server test
+        env:
+          NODE_ENV: test
+          LOG_LEVEL: silent
+
+      - name: Run Client Component & Integration Tests
+        run: npm --prefix client test
+
+      - name: Build Production Artifacts
+        run: npm run build

@@ -5,11 +5,15 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "seed": "tsx scripts/seed.ts",
     "seed:cloud": "tsx scripts/seed.ts",
+    "db:index:sync": "tsx scripts/sync-indexes.ts",
+    "db:verify": "tsx scripts/verify-backup.ts",
     "bootstrap:admin": "tsx scripts/bootstrap-platform-admin.ts",
     "qa": "tsx scripts/qa-journey-verification.ts",
     "benchmark": "tsx scripts/benchmark.ts"

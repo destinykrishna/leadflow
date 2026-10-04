@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import http, { type Server as HttpServer } from 'node:http';
 import dotenv from 'dotenv';
 import { pino, type LoggerOptions } from 'pino';
 import {
@@ -88,7 +89,36 @@ async function startWorkerProcess(): Promise<void> {
     documentRecoveryService.startPeriodicReconciliation();
     logger.info('Document & email processing workers actively polling for jobs with periodic reconciliation');
 
+    const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT || process.env.PORT || 5001);
     let isShuttingDown = false;
+
+    // 4. Lightweight HTTP healthcheck endpoint for Docker / orchestration probes
+    const healthServer: HttpServer = http.createServer((req, res) => {
+      if (req.url === '/health' || req.url === '/health/live' || req.url === '/health/ready') {
+        const isHealthy = !isShuttingDown && isDatabaseConnected();
+        res.writeHead(isHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            status: isHealthy ? 'ok' : 'degraded',
+            worker: true,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+            database: isDatabaseConnected() ? 'up' : 'down',
+          })
+        );
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+      }
+    });
+
+    healthServer.listen(WORKER_HEALTH_PORT, () => {
+      logger.info(
+        { port: WORKER_HEALTH_PORT },
+        `Worker health check endpoint listening on port ${WORKER_HEALTH_PORT}`
+      );
+    });
+
     const shutdown = async (signal: string, exitCode = 0) => {
       if (isShuttingDown) {
         logger.warn({ signal }, 'Worker shutdown already in progress, ignoring duplicate signal');
@@ -104,6 +134,7 @@ async function startWorkerProcess(): Promise<void> {
       forceExitTimer.unref();
 
       try {
+        await new Promise<void>((resolve) => healthServer.close(() => resolve()));
         documentRecoveryService.stopPeriodicReconciliation();
         await closeDocumentWorker();
         await closeDocumentQueue();

@@ -2,30 +2,38 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy root manifests
+# Copy root and server manifests
 COPY package*.json ./
 COPY server/package*.json ./server/
 
-# Install dependencies
+# Install dependencies including devDependencies for build
 RUN npm ci --prefix server
 
 # Copy server source
 COPY server/ ./server/
 
-# Build / verify
-RUN npm --prefix server run typecheck
+# Build TypeScript to dist
+RUN npm --prefix server run build
+
+# Prune devDependencies to keep image lean
+RUN npm prune --prefix server --omit=dev
 
 FROM node:22-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PORT=5000
 
-# Copy built server and node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/server ./server
+# Copy root manifests and production node_modules & dist with non-root ownership
+COPY --chown=node:node --from=builder /app/package*.json ./
+COPY --chown=node:node --from=builder /app/server/package*.json ./server/
+COPY --chown=node:node --from=builder /app/server/node_modules ./server/node_modules
+COPY --chown=node:node --from=builder /app/server/dist ./server/dist
+
+USER node
 
 WORKDIR /app/server
 
 EXPOSE 5000
 
-CMD ["npx", "tsx", "src/server.ts"]
+CMD ["node", "dist/server.js"]
