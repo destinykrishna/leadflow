@@ -223,8 +223,8 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
     });
   });
 
-  describe('2. Successful Processing & State Transitions (PENDING -> PROCESSING -> VERIFIED)', () => {
-    it('successfully processes a document from PENDING to PROCESSING to VERIFIED', async () => {
+  describe('2. Successful Processing & State Transitions (PENDING -> PROCESSING -> PENDING_REVIEW)', () => {
+    it('successfully processes a document from PENDING to PROCESSING to PENDING_REVIEW', async () => {
       const doc = await DocumentModel.create({
         brokerageId: brokerageA._id,
         clientId: clientA._id,
@@ -258,10 +258,9 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
 
       const updated = await DocumentModel.findById(doc._id);
       expect(updated).toBeDefined();
-      expect(updated?.status).toBe('VERIFIED');
-      expect(updated?.verifiedAt).toBeInstanceOf(Date);
-      expect(updated?.verificationNotes).toContain('Automated verification check passed');
-      expect(updated?.__v).toBeGreaterThanOrEqual(2); // Initial (0) -> Claimed (1) -> Verified (2)
+      expect(updated?.status).toBe('PENDING_REVIEW');
+      expect(updated?.verificationNotes).toContain('Automated technical pre-checks passed');
+      expect(updated?.__v).toBeGreaterThanOrEqual(2); // Initial (0) -> Claimed (1) -> Pending Review (2)
     });
   });
 
@@ -304,7 +303,7 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
       await worker.close();
 
       const finalDoc = await DocumentModel.findById(doc._id);
-      expect(finalDoc?.status).toBe('VERIFIED');
+      expect(finalDoc?.status).toBe('PENDING_REVIEW');
     });
   });
 
@@ -504,12 +503,12 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
         processDocumentJob(job2),
       ]);
 
-      // Exactly one succeeds with VERIFIED, the other detects concurrent claim or early exits
+      // Exactly one succeeds with PENDING_REVIEW, the other detects concurrent claim or early exits
       const statuses = [res1.status, res2.status];
-      expect(statuses).toContain('VERIFIED');
+      expect(statuses).toContain('PENDING_REVIEW');
 
       const finalDoc = await DocumentModel.findById(doc._id);
-      expect(finalDoc?.status).toBe('VERIFIED');
+      expect(finalDoc?.status).toBe('PENDING_REVIEW');
     });
   });
 
@@ -609,16 +608,16 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
       // Brief delay to allow socket event propagation
       await new Promise((resolve) => setTimeout(resolve, 150));
 
-      // 1. Advisor in Brokerage A received events (PENDING -> PROCESSING, PROCESSING -> VERIFIED)
+      // 1. Advisor in Brokerage A received events (PENDING -> PROCESSING, PROCESSING -> PENDING_REVIEW)
       expect(eventsAdvisorA.length).toBe(2);
       expect(eventsAdvisorA[0].newStatus).toBe('PROCESSING');
-      expect(eventsAdvisorA[1].newStatus).toBe('VERIFIED');
+      expect(eventsAdvisorA[1].newStatus).toBe('PENDING_REVIEW');
       expect(eventsAdvisorA[1].documentId).toBe(doc._id.toString());
       expect(eventsAdvisorA[1].brokerageId).toBe(brokerageA._id.toString());
 
       // 2. Client User A received events in their personal client room
       expect(eventsClientA.length).toBe(2);
-      expect(eventsClientA[1].newStatus).toBe('VERIFIED');
+      expect(eventsClientA[1].newStatus).toBe('PENDING_REVIEW');
 
       // 3. Advisor in Brokerage B received ZERO events (strict cross-brokerage tenant isolation!)
       expect(eventsAdvisorB.length).toBe(0);
@@ -666,7 +665,7 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
       await worker.close();
 
       const finalDoc = await DocumentModel.findById(doc._id);
-      expect(finalDoc?.status).toBe('VERIFIED');
+      expect(finalDoc?.status).toBe('PENDING_REVIEW');
     });
   });
 
@@ -731,7 +730,7 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
       }
 
       const verifiedDoc = await DocumentModel.findById(staleDoc._id);
-      expect(verifiedDoc?.status).toBe('VERIFIED');
+      expect(verifiedDoc?.status).toBe('PENDING_REVIEW');
     });
 
     it('returns 0 recovered documents when all PENDING documents are newer than threshold', async () => {
@@ -789,7 +788,7 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
       }
 
       const finalDoc = await DocumentModel.findById(stalledDoc._id);
-      expect(finalDoc?.status).toBe('VERIFIED');
+      expect(finalDoc?.status).toBe('PENDING_REVIEW');
     });
   });
 
@@ -875,7 +874,7 @@ describe('BullMQ Document Processing Foundation Integration Tests', () => {
         // Assert strictly required domain fields are present
         expect(event.documentId).toBe(doc._id.toString());
         expect(event.brokerageId).toBe(brokerageA._id.toString());
-        expect(['PROCESSING', 'VERIFIED']).toContain(event.newStatus);
+        expect(['PROCESSING', 'PENDING_REVIEW']).toContain(event.newStatus);
       }
     });
   });

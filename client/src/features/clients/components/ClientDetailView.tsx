@@ -38,8 +38,10 @@ import { useLead } from '@/features/leads/api/leads.api'
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
 import { openDocumentSecurely, copySecureDocumentLink } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from './UploadDocumentModal'
+import { ClientDocumentChecklistCard } from './ClientDocumentChecklistCard'
+import { ReviewDocumentModal } from '@/features/documents/components/ReviewDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
-import type { DocumentItem } from '@/types/document.types'
+import type { DocumentItem, DocumentType } from '@/types/document.types'
 import { STAGE_DEFINITIONS } from '@/types/pipeline.types'
 import { sanitizeIndianMortgageText, formatUserEmail } from '@/lib/presentation'
 
@@ -144,6 +146,9 @@ export function ClientDetailView({
 
   // Local UI states
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false)
+  const [initialDocType, setInitialDocType] = React.useState<DocumentType | undefined>(undefined)
+  const [reviewDoc, setReviewDoc] = React.useState<DocumentItem | null>(null)
+  const [reviewAction, setReviewAction] = React.useState<'APPROVE' | 'REJECT' | null>(null)
   const [selectedDocFilter, setSelectedDocFilter] = React.useState<string>('ALL')
   const [copiedEmail, setCopiedEmail] = React.useState(false)
   const [copiedPhone, setCopiedPhone] = React.useState(false)
@@ -151,6 +156,16 @@ export function ClientDetailView({
   const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
   const [copyingDocId, setCopyingDocId] = React.useState<string | null>(null)
   const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
+
+  const isStaff =
+    user?.role === 'PLATFORM_ADMIN' ||
+    user?.role === 'BROKERAGE_ADMIN' ||
+    user?.role === 'ADVISOR'
+
+  const handleOpenReview = (doc: DocumentItem, action: 'APPROVE' | 'REJECT') => {
+    setReviewDoc(doc)
+    setReviewAction(action)
+  }
 
   // 404 detection (IDOR protection or non-existent record)
   const is404 =
@@ -244,8 +259,9 @@ export function ClientDetailView({
     return documents.filter((doc) => doc.status === selectedDocFilter)
   }, [documents, selectedDocFilter])
 
-  // Document verification counts (all 4 states clearly distinguished)
+  // Document verification counts (all 5 states clearly distinguished)
   const verifiedDocCount = documents.filter((d) => d.status === 'VERIFIED').length
+  const pendingReviewDocCount = documents.filter((d) => d.status === 'PENDING_REVIEW').length
   const processingDocCount = documents.filter((d) => d.status === 'PROCESSING').length
   const pendingDocCount = documents.filter((d) => d.status === 'PENDING').length
   const rejectedDocCount = documents.filter((d) => d.status === 'REJECTED').length
@@ -537,14 +553,20 @@ export function ClientDetailView({
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-lg font-bold text-slate-900">{documents.length} Total</span>
-            {verifiedDocCount > 0 && (
+            {pendingReviewDocCount > 0 ? (
+              <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                {pendingReviewDocCount} Needs Review
+              </span>
+            ) : verifiedDocCount > 0 ? (
               <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
                 {verifiedDocCount} Verified
               </span>
-            )}
+            ) : null}
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            {pendingDocCount > 0
+            {pendingReviewDocCount > 0
+              ? `${pendingReviewDocCount} awaiting staff verification`
+              : pendingDocCount > 0
               ? `${pendingDocCount} pending verification`
               : 'All files up to date'}
           </p>
@@ -642,6 +664,15 @@ export function ClientDetailView({
             )}
           </Card>
 
+          {/* Document Checklist Card */}
+          <ClientDocumentChecklistCard
+            documents={documents}
+            onUploadClick={(type) => {
+              setInitialDocType(type)
+              setIsUploadModalOpen(true)
+            }}
+          />
+
           {/* Documents Workspace */}
           <Card className="p-5 border border-border/80 shadow-2xs bg-white">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
@@ -666,10 +697,11 @@ export function ClientDetailView({
                 </Button>
               </div>
 
-              {/* Document Status Filter Tabs (4 Distinct Processing States) */}
+              {/* Document Status Filter Tabs (5 Distinct Processing States) */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
                 {[
                   { key: 'ALL', label: `All (${documents.length})` },
+                  { key: 'PENDING_REVIEW', label: `Needs Review (${pendingReviewDocCount})` },
                   { key: 'VERIFIED', label: `Verified (${verifiedDocCount})` },
                   { key: 'PROCESSING', label: `Processing (${processingDocCount})` },
                   { key: 'PENDING', label: `Pending (${pendingDocCount})` },
@@ -739,6 +771,7 @@ export function ClientDetailView({
                 <div className="divide-y divide-border/60">
                   {filteredDocuments.map((doc: DocumentItem) => {
                     const isVerified = doc.status === 'VERIFIED'
+                    const isPendingReview = doc.status === 'PENDING_REVIEW'
                     const isProcessing = doc.status === 'PROCESSING'
                     const isPending = doc.status === 'PENDING'
                     const isRejected = doc.status === 'REJECTED'
@@ -762,15 +795,19 @@ export function ClientDetailView({
                                 ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                                 : isRejected
                                 ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
+                                : isPendingReview
+                                ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-300'
                                 : isProcessing
                                 ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200'
-                                : 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
+                                : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
                             }`}
                           >
                             {isVerified ? (
                               <CheckCircle2 className="h-5 w-5" />
                             ) : isRejected ? (
                               <AlertTriangle className="h-5 w-5" />
+                            ) : isPendingReview ? (
+                              <Clock className="h-5 w-5 text-amber-600" />
                             ) : isProcessing ? (
                               <RefreshCw className="h-5 w-5 animate-spin" />
                             ) : (
@@ -803,14 +840,18 @@ export function ClientDetailView({
                                     ? 'success'
                                     : isRejected
                                     ? 'danger'
+                                    : isPendingReview
+                                    ? 'warning'
                                     : isProcessing
                                     ? 'default'
-                                    : 'warning'
+                                    : 'neutral'
                                 }
                                 size="sm"
                                 className="text-[10px]"
                               >
-                                {isProcessing ? (
+                                {isPendingReview ? (
+                                  'NEEDS REVIEW'
+                                ) : isProcessing ? (
                                   <>
                                     <span className="sr-only">PROCESSING (BULLMQ)</span>
                                     <span aria-hidden="true">PROCESSING</span>
@@ -838,12 +879,12 @@ export function ClientDetailView({
                             </div>
 
                             {/* Prominent Rejection Reason Callout */}
-                            {isRejected && (doc.verificationNotes || doc.failureReason) && (
+                            {isRejected && (doc.rejectionReason || doc.verificationNotes || doc.failureReason) && (
                               <div className="mt-2 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
                                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
                                 <div>
                                   <span className="font-semibold block">Inspection Rejection Issue:</span>
-                                  <span className="leading-relaxed">{doc.verificationNotes || doc.failureReason}</span>
+                                  <span className="leading-relaxed">{doc.rejectionReason || doc.verificationNotes || doc.failureReason}</span>
                                 </div>
                               </div>
                             )}
@@ -858,7 +899,36 @@ export function ClientDetailView({
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                        <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                          {isStaff && (
+                            <>
+                              {doc.status !== 'VERIFIED' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenReview(doc, 'APPROVE')}
+                                  className="h-7 px-2 text-xs gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300"
+                                  title="Verify and approve document"
+                                >
+                                  <Check className="h-3 w-3 text-emerald-600" />
+                                  <span className="text-[11px]">Approve</span>
+                                </Button>
+                              )}
+                              {doc.status !== 'REJECTED' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenReview(doc, 'REJECT')}
+                                  className="h-7 px-2 text-xs gap-1 text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300"
+                                  title="Reject document with reason"
+                                >
+                                  <AlertTriangle className="h-3 w-3 text-rose-600" />
+                                  <span className="text-[11px]">Reject</span>
+                                </Button>
+                              )}
+                            </>
+                          )}
+
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1095,14 +1165,35 @@ export function ClientDetailView({
         clientName={client ? `${client.firstName} ${client.lastName}` : undefined}
         leadId={leadId}
         isOpen={isUploadModalOpen}
+        initialType={initialDocType}
         onClose={() => {
           setIsUploadModalOpen(false)
+          setInitialDocType(undefined)
           refetchDocs()
         }}
         onSuccess={() => {
+          setInitialDocType(undefined)
           refetchDocs()
         }}
       />
+
+      {/* Review Document Modal */}
+      {reviewDoc && reviewAction && (
+        <ReviewDocumentModal
+          document={reviewDoc}
+          action={reviewAction}
+          isOpen={Boolean(reviewDoc)}
+          onClose={() => {
+            setReviewDoc(null)
+            setReviewAction(null)
+          }}
+          onSuccess={() => {
+            setReviewDoc(null)
+            setReviewAction(null)
+            refetchDocs()
+          }}
+        />
+      )}
     </div>
   )
 }

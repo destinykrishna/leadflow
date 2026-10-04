@@ -205,3 +205,39 @@ export const documentIdParamSchema = z.object({
 });
 
 export type DocumentIdParam = z.infer<typeof documentIdParamSchema>;
+
+/**
+ * Validation schema for human document verification / review.
+ * Only VERIFIED or REJECTED statuses can be set by staff.
+ * Rejection reason is required if status is REJECTED.
+ */
+export const reviewDocumentSchema = z
+  .object({
+    status: z.enum(['VERIFIED', 'REJECTED']),
+    verificationNotes: z
+      .string()
+      .trim()
+      .max(2000, 'Verification notes cannot exceed 2000 characters')
+      .optional(),
+    rejectionReason: z
+      .string()
+      .trim()
+      .max(1000, 'Rejection reason cannot exceed 1000 characters')
+      .optional(),
+    expectedVersion: z.number().int().min(0).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.status === 'REJECTED') {
+        return Boolean(data.rejectionReason && data.rejectionReason.trim().length > 0);
+      }
+      return true;
+    },
+    {
+      message: 'Rejection reason is required when rejecting a document',
+      path: ['rejectionReason'],
+    }
+  );
+
+export type ReviewDocumentInput = z.infer<typeof reviewDocumentSchema>;
+

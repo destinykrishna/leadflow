@@ -27,6 +27,10 @@ const STATUS_LABELS: Record<
     label: 'Verified',
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   },
+  PENDING_REVIEW: {
+    label: 'In Review',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+  },
   PROCESSING: {
     label: 'Under Review',
     badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
@@ -57,7 +61,7 @@ export function PortalDocumentSummary({
   onOpenUpload,
 }: PortalDocumentSummaryProps) {
   const verifiedCount = documents.filter((d) => d.status === 'VERIFIED').length
-  const processingCount = documents.filter((d) => d.status === 'PROCESSING').length
+  const processingCount = documents.filter((d) => d.status === 'PROCESSING' || d.status === 'PENDING_REVIEW').length
   const pendingCount = documents.filter((d) => d.status === 'PENDING').length
   const rejectedCount = documents.filter((d) => d.status === 'REJECTED').length
 

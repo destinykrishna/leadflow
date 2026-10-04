@@ -18,6 +18,8 @@ export interface DocumentStatusChangedEvent {
   title: string;
   verificationNotes?: string | null | undefined;
   verifiedAt?: Date | null | undefined;
+  verifiedBy?: string | null | undefined;
+  rejectionReason?: string | null | undefined;
   updatedAt?: Date | null | undefined;
 }
 
@@ -32,6 +34,8 @@ export interface DocumentStatusChangedBroadcastPayload {
   title: string;
   verificationNotes?: string | null | undefined;
   verifiedAt?: string | null | undefined;
+  verifiedBy?: string | null | undefined;
+  rejectionReason?: string | null | undefined;
   updatedAt: string;
 }
 
@@ -81,6 +85,8 @@ export function emitDocumentStatusChanged(event: DocumentStatusChangedEvent): vo
     title: event.title,
     verificationNotes: event.verificationNotes || undefined,
     verifiedAt: event.verifiedAt ? event.verifiedAt.toISOString() : undefined,
+    verifiedBy: event.verifiedBy || undefined,
+    rejectionReason: event.rejectionReason || undefined,
     updatedAt: (event.updatedAt || new Date()).toISOString(),
   };
 

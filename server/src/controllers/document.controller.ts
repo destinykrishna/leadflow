@@ -3,6 +3,7 @@ import { documentService } from '../services/document.service.js';
 import {
   uploadDocumentMetadataSchema,
   documentQuerySchema,
+  reviewDocumentSchema,
 } from '../validators/document.validators.js';
 import { ValidationError } from '../utils/errors.js';
 
@@ -117,6 +118,35 @@ export class DocumentController {
       res.status(200).json({
         success: true,
         data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Performs human verification review (Approval or Rejection) on a document.
+   * Gated to authorized staff within the same brokerage.
+   */
+  async reviewDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = typeof req.params.id === 'string' ? req.params.id : '';
+      const validationResult = reviewDocumentSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new ValidationError(
+          validationResult.error.issues?.[0]?.message || 'Invalid review payload'
+        );
+      }
+
+      const document = await documentService.reviewDocument(
+        req.user!,
+        id,
+        validationResult.data
+      );
+
+      res.status(200).json({
+        success: true,
+        data: { document: sanitizeDocumentResponse(document) },
       });
     } catch (error) {
       next(error);

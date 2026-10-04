@@ -13,12 +13,11 @@ import {
   X,
   Loader2,
   FileCheck,
-  Radio,
-  FileSpreadsheet,
-  FileBadge,
   Check,
-  Building2,
   UserCheck,
+  FileSpreadsheet,
+  Building2,
+  FileBadge,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -31,6 +30,7 @@ import { useMyCase, useClientDocuments } from '@/features/clients/api/clients.ap
 import { useDocumentSocket } from '@/features/documents/hooks/useDocumentSocket'
 import { openDocumentSecurely, copySecureDocumentLink } from '@/features/documents/api/documents.api'
 import { UploadDocumentModal } from '@/features/clients/components/UploadDocumentModal'
+import { ClientDocumentChecklistCard } from '@/features/clients/components/ClientDocumentChecklistCard'
 import type { DocumentItem, DocumentStatus, DocumentType } from '@/types/document.types'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
 
@@ -54,6 +54,15 @@ const STATUS_CONFIG: Record<
     bgLight: 'bg-emerald-50/70',
     borderLight: 'border-emerald-200',
     textColor: 'text-emerald-700',
+  },
+  PENDING_REVIEW: {
+    label: 'Awaiting Verification',
+    shortLabel: 'Pending Review',
+    variant: 'warning',
+    icon: Clock,
+    bgLight: 'bg-amber-50/70',
+    borderLight: 'border-amber-200',
+    textColor: 'text-amber-700',
   },
   PROCESSING: {
     label: 'Under Review',
@@ -246,11 +255,6 @@ export function ClientDocumentsPage() {
     setReuploadTargetDoc(doc)
     setInitialDocType(doc.type)
     setIsUploadModalOpen(true)
-  }
-
-  // Check required document status for checklist
-  const hasDocType = (type: DocumentType) => {
-    return documents.some((d) => d.type === type && d.status !== 'REJECTED')
   }
 
   if (isClientLoading || isDocsLoading) {
@@ -499,143 +503,11 @@ export function ClientDocumentsPage() {
       </div>
 
       {/* Essential Mortgage Documents Checklist */}
-      <Card className="p-4 border-slate-200/90 bg-slate-50/50 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-primary" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              Indian Home Loan Checklist
-            </h2>
-          </div>
-          <span className="text-[11px] text-muted-foreground hidden sm:inline">
-            Required by lenders for mortgage sanction
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {/* 1. Identity & KYC */}
-          <div className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                hasDocType('IDENTIFICATION') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {hasDocType('IDENTIFICATION') ? <CheckCircle2 className="h-4 w-4" /> : '1'}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-slate-900 block truncate">
-                  PAN & Aadhaar Card
-                </span>
-                <span className="text-[10px] text-muted-foreground block truncate">
-                  Identity & KYC
-                </span>
-              </div>
-            </div>
-            {!hasDocType('IDENTIFICATION') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleOpenUpload('IDENTIFICATION')}
-                className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10 font-medium shrink-0"
-              >
-                Upload
-              </Button>
-            )}
-          </div>
-
-          {/* 2. Salary Slips */}
-          <div className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                hasDocType('PAYSLIP') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {hasDocType('PAYSLIP') ? <CheckCircle2 className="h-4 w-4" /> : '2'}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-slate-900 block truncate">
-                  Salary Slips (3M)
-                </span>
-                <span className="text-[10px] text-muted-foreground block truncate">
-                  Income Proof
-                </span>
-              </div>
-            </div>
-            {!hasDocType('PAYSLIP') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleOpenUpload('PAYSLIP')}
-                className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10 font-medium shrink-0"
-              >
-                Upload
-              </Button>
-            )}
-          </div>
-
-          {/* 3. Bank Statement */}
-          <div className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                hasDocType('BANK_STATEMENT') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {hasDocType('BANK_STATEMENT') ? <CheckCircle2 className="h-4 w-4" /> : '3'}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-slate-900 block truncate">
-                  Bank Statement (6M)
-                </span>
-                <span className="text-[10px] text-muted-foreground block truncate">
-                  Salary Account
-                </span>
-              </div>
-            </div>
-            {!hasDocType('BANK_STATEMENT') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleOpenUpload('BANK_STATEMENT')}
-                className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10 font-medium shrink-0"
-              >
-                Upload
-              </Button>
-            )}
-          </div>
-
-          {/* 4. Property Papers */}
-          <div className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                hasDocType('CONTRACT') || hasDocType('PROPERTY_DETAILS')
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-500'
-              }`}>
-                {hasDocType('CONTRACT') || hasDocType('PROPERTY_DETAILS') ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  '4'
-                )}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-slate-900 block truncate">
-                  Sale Agreement
-                </span>
-                <span className="text-[10px] text-muted-foreground block truncate">
-                  Property Title
-                </span>
-              </div>
-            </div>
-            {!hasDocType('CONTRACT') && !hasDocType('PROPERTY_DETAILS') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleOpenUpload('CONTRACT')}
-                className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10 font-medium shrink-0"
-              >
-                Upload
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
+      <ClientDocumentChecklistCard
+        documents={documents}
+        onUploadClick={(type) => handleOpenUpload(type)}
+        isClientView
+      />
 
       {/* Main Document List Card */}
       <Card className="p-5 border-slate-200/80 bg-white shadow-2xs space-y-4">

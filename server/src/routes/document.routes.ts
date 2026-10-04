@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { documentController } from '../controllers/document.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
-import { requireActiveUser } from '../middleware/rbac.middleware.js';
+import { requireActiveUser, requireRoles } from '../middleware/rbac.middleware.js';
 import { handleFileUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
@@ -39,4 +39,23 @@ router.get(
   documentController.getDownloadUrl.bind(documentController)
 );
 
+// Human document review (Approve / Reject) — Restricted to same-brokerage staff
+router.patch(
+  '/:id/review',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  documentController.reviewDocument.bind(documentController)
+);
+
+// Alias /:id/verify to review endpoint
+router.patch(
+  '/:id/verify',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  documentController.reviewDocument.bind(documentController)
+);
+
 export const documentRouter = router;
+

@@ -14,6 +14,7 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export const DOCUMENT_STATUSES = [
   'PENDING',
   'PROCESSING',
+  'PENDING_REVIEW',
   'VERIFIED',
   'REJECTED',
 ] as const;
@@ -33,6 +34,8 @@ export interface IDocument {
   leadId?: Types.ObjectId;
   verificationNotes?: string;
   verifiedAt?: Date;
+  verifiedBy?: Types.ObjectId | null;
+  rejectionReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,6 +114,18 @@ const documentSchema = new Schema<IDocumentDocument>(
     },
     verifiedAt: {
       type: Date,
+      default: null,
+    },
+    verifiedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Rejection reason cannot exceed 1000 characters'],
       default: null,
     },
   },

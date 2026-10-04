@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { formatRelativeTime, formatDate } from '@/lib/format'
+import { ReviewDocumentModal } from './components/ReviewDocumentModal'
 import {
   useDocuments,
   openDocumentSecurely,
@@ -53,6 +54,8 @@ export function DocumentsPage() {
   const [copiedDocId, setCopiedDocId] = React.useState<string | null>(null)
   const [copyingDocId, setCopyingDocId] = React.useState<string | null>(null)
   const [viewingDocId, setViewingDocId] = React.useState<string | null>(null)
+  const [reviewDoc, setReviewDoc] = React.useState<DocumentItem | null>(null)
+  const [reviewAction, setReviewAction] = React.useState<'APPROVE' | 'REJECT' | null>(null)
 
   // 1. Fetch brokerage documents
   const {
@@ -113,6 +116,7 @@ export function DocumentsPage() {
   // Aggregate KPI counts
   const totalCount = documents.length
   const verifiedCount = documents.filter((d) => d.status === 'VERIFIED').length
+  const pendingReviewCount = documents.filter((d) => d.status === 'PENDING_REVIEW').length
   const processingCount = documents.filter((d) => d.status === 'PROCESSING').length
   const pendingCount = documents.filter((d) => d.status === 'PENDING').length
   const rejectedCount = documents.filter((d) => d.status === 'REJECTED').length
@@ -150,7 +154,7 @@ export function DocumentsPage() {
       </div>
 
       {/* KPI Status Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="p-3.5 border border-border/80 shadow-2xs bg-white">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">Total Files</span>
@@ -158,6 +162,15 @@ export function DocumentsPage() {
           </div>
           <div className="mt-2 text-xl font-bold text-slate-900">{totalCount}</div>
           <span className="text-[11px] text-muted-foreground">Across all cases</span>
+        </Card>
+
+        <Card className="p-3.5 border border-amber-300 shadow-2xs bg-amber-50/50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-900">Needs Review</span>
+            <Clock className="h-4 w-4 text-amber-600" />
+          </div>
+          <div className="mt-2 text-xl font-bold text-amber-950">{pendingReviewCount}</div>
+          <span className="text-[11px] text-amber-700 font-medium">Awaiting advisor</span>
         </Card>
 
         <Card className="p-3.5 border border-emerald-200/80 shadow-2xs bg-emerald-50/30">
@@ -175,19 +188,19 @@ export function DocumentsPage() {
             <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
           </div>
           <div className="mt-2 text-xl font-bold text-blue-950">{processingCount}</div>
-          <span className="text-[11px] text-blue-700">Verification in progress<span className="sr-only">In BullMQ worker</span></span>
+          <span className="text-[11px] text-blue-700">In BullMQ worker</span>
         </Card>
 
-        <Card className="p-3.5 border border-amber-200/80 shadow-2xs bg-amber-50/30">
+        <Card className="p-3.5 border border-slate-200/80 shadow-2xs bg-slate-50/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-800">Pending</span>
-            <Clock className="h-4 w-4 text-amber-600" />
+            <span className="text-xs font-semibold text-slate-700">Pending</span>
+            <Clock className="h-4 w-4 text-slate-500" />
           </div>
-          <div className="mt-2 text-xl font-bold text-amber-950">{pendingCount}</div>
-          <span className="text-[11px] text-amber-700">Queued for review</span>
+          <div className="mt-2 text-xl font-bold text-slate-900">{pendingCount}</div>
+          <span className="text-[11px] text-slate-600">Queued in worker</span>
         </Card>
 
-        <Card className="p-3.5 border border-rose-200/80 shadow-2xs bg-rose-50/30 col-span-2 sm:col-span-1">
+        <Card className="p-3.5 border border-rose-200/80 shadow-2xs bg-rose-50/30">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-rose-800">Rejected</span>
             <AlertTriangle className="h-4 w-4 text-rose-600" />
@@ -233,6 +246,7 @@ export function DocumentsPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-border/60">
           {[
             { key: 'ALL', label: `All Statuses (${totalCount})` },
+            { key: 'PENDING_REVIEW', label: `Needs Review (${pendingReviewCount})` },
             { key: 'VERIFIED', label: `Verified (${verifiedCount})` },
             { key: 'PROCESSING', label: `Processing (${processingCount})` },
             { key: 'PENDING', label: `Pending (${pendingCount})` },
@@ -301,9 +315,10 @@ export function DocumentsPage() {
         <div className="space-y-3">
           {filteredDocuments.map((doc: DocumentItem) => {
             const isVerified = doc.status === 'VERIFIED'
+            const isRejected = doc.status === 'REJECTED'
+            const isPendingReview = doc.status === 'PENDING_REVIEW'
             const isProcessing = doc.status === 'PROCESSING'
             const isPending = doc.status === 'PENDING'
-            const isRejected = doc.status === 'REJECTED'
 
             const fileSizeKB =
               doc.fileSize ? (doc.fileSize / 1024).toFixed(0) :
@@ -325,6 +340,8 @@ export function DocumentsPage() {
                           ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                           : isRejected
                           ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
+                          : isPendingReview
+                          ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
                           : isProcessing
                           ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200'
                           : 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
@@ -334,6 +351,8 @@ export function DocumentsPage() {
                         <CheckCircle2 className="h-5 w-5" />
                       ) : isRejected ? (
                         <AlertTriangle className="h-5 w-5" />
+                      ) : isPendingReview ? (
+                        <Clock className="h-5 w-5 text-amber-700" />
                       ) : isProcessing ? (
                         <RefreshCw className="h-5 w-5 animate-spin" />
                       ) : (
@@ -366,6 +385,8 @@ export function DocumentsPage() {
                               ? 'success'
                               : isRejected
                               ? 'danger'
+                              : isPendingReview
+                              ? 'warning'
                               : isProcessing
                               ? 'default'
                               : 'warning'
@@ -373,7 +394,9 @@ export function DocumentsPage() {
                           size="sm"
                           className="text-[10px]"
                         >
-                          {isProcessing ? (
+                          {isPendingReview ? (
+                            'PENDING REVIEW'
+                          ) : isProcessing ? (
                             <>
                               <span className="sr-only">PROCESSING (BULLMQ)</span>
                               <span aria-hidden="true">PROCESSING</span>
@@ -447,7 +470,40 @@ export function DocumentsPage() {
                   </div>
 
                   {/* Right Column: Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0">
+                    {/* Human Verification Actions for Staff */}
+                    {doc.status !== 'VERIFIED' && doc.status !== 'REJECTED' && (
+                      <div className="flex items-center gap-1.5 mr-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setReviewDoc(doc)
+                            setReviewAction('APPROVE')
+                          }}
+                          className="h-8 px-2.5 text-xs gap-1 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 font-medium shadow-2xs"
+                          title="Approve and verify document"
+                        >
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Approve</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setReviewDoc(doc)
+                            setReviewAction('REJECT')
+                          }}
+                          className="h-8 px-2.5 text-xs gap-1 text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-300 font-medium shadow-2xs"
+                          title="Reject document with reason"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    )}
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -500,6 +556,17 @@ export function DocumentsPage() {
           })}
         </div>
       )}
+
+      {/* Reusable Review Document Modal */}
+      <ReviewDocumentModal
+        document={reviewDoc}
+        action={reviewAction || 'APPROVE'}
+        isOpen={Boolean(reviewDoc && reviewAction)}
+        onClose={() => {
+          setReviewDoc(null)
+          setReviewAction(null)
+        }}
+      />
     </div>
   )
 }

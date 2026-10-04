@@ -76,6 +76,35 @@ export const documentsApi = {
     )
     return response.data.data!.document
   },
+
+  reviewDocument: async ({
+    documentId,
+    status,
+    verificationNotes,
+    rejectionReason,
+    expectedVersion,
+  }: ReviewDocumentPayload): Promise<DocumentItem> => {
+    const response = await api.patch<ApiResponse<{ document: DocumentItem }>>(
+      `/documents/${documentId}/review`,
+      {
+        status,
+        verificationNotes,
+        rejectionReason,
+        expectedVersion,
+      }
+    )
+    return response.data.data!.document
+  },
+}
+
+export interface ReviewDocumentPayload {
+  documentId: string
+  status: 'VERIFIED' | 'REJECTED'
+  verificationNotes?: string
+  rejectionReason?: string
+  expectedVersion?: number
+  clientId?: string
+  leadId?: string
 }
 
 export const DOCUMENTS_QUERY_KEY = ['documents']
@@ -134,6 +163,36 @@ export function useUploadDocument() {
           queryKey: ['lead-documents', variables.leadId],
         })
       }
+    },
+  })
+}
+
+export function useReviewDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: documentsApi.reviewDocument,
+    onSuccess: (updatedDoc, variables) => {
+      if (updatedDoc) {
+        queryClient.setQueryData<DocumentItem[]>(
+          DOCUMENTS_QUERY_KEY,
+          (old = []) => old.map((d) => (d._id === updatedDoc._id ? updatedDoc : d))
+        )
+        queryClient.setQueryData<DocumentItem>(
+          DOCUMENT_QUERY_KEY(updatedDoc._id),
+          updatedDoc
+        )
+        if (variables.clientId) {
+          queryClient.setQueryData<DocumentItem[]>(
+            ['client-documents', variables.clientId],
+            (old = []) => old.map((d) => (d._id === updatedDoc._id ? updatedDoc : d))
+          )
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: ['client-documents'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-documents'] })
     },
   })
 }

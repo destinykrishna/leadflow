@@ -17,6 +17,7 @@ import {
   ValidationError,
   NotFoundError,
   ForbiddenError,
+  ConflictError,
   BrokerageIsolationError,
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -26,6 +27,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   validateFileSignature,
   type DocumentQuery,
+  type ReviewDocumentInput,
 } from '../validators/document.validators.js';
 import type { IDomainService } from './base.service.js';
 
@@ -457,6 +459,160 @@ export class DocumentService implements IDomainService {
       downloadUrl,
       expiresIn,
     };
+  }
+
+  /**
+   * Performs human verification review (Approval or Rejection) on a document.
+   * Strictly enforces:
+   * 1. Only authorized staff (PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR) in the same brokerage.
+   * 2. CLIENT role is strictly forbidden from reviewing documents.
+   * 3. Tenant isolation via withBrokerageScope (anti-IDOR 404 concealment).
+   * 4. Atomic conditional transitions with optimistic concurrency locking (__v and status matching).
+   * 5. Returns HTTP 409 ConflictError for stale reviews or documents already decided.
+   * 6. Records verifiedBy (User ID), verifiedAt timestamp, verificationNotes, and mandatory rejectionReason on rejection.
+   * 7. Emits realtime document:status_changed event to brokerage and client rooms.
+   */
+  async reviewDocument(
+    caller: AuthUserContext,
+    id: string,
+    input: ReviewDocumentInput
+  ): Promise<IDocumentDocument> {
+    // 1. Role validation: Clients cannot verify documents
+    if (caller.role === 'CLIENT') {
+      throw new ForbiddenError('Clients are not authorized to review or verify documents');
+    }
+
+    if (!['PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'].includes(caller.role)) {
+      throw new ForbiddenError('Unauthorized user role for document verification');
+    }
+
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundError('Document resource not found');
+    }
+
+    // 2. Resolve target brokerage scope and fetch existing document
+    let filter: Record<string, unknown>;
+    if (caller.role === 'PLATFORM_ADMIN') {
+      filter = { _id: new Types.ObjectId(id) };
+    } else {
+      if (!caller.brokerageId) {
+        throw new BrokerageIsolationError('Brokerage context missing for staff user');
+      }
+      filter = withBrokerageScope(caller.brokerageId, {
+        _id: new Types.ObjectId(id),
+      });
+    }
+
+    const doc = await DocumentModel.findOne(filter);
+    if (!doc) {
+      throw new NotFoundError('Document resource not found');
+    }
+
+    // 3. Stale review check (if expectedVersion provided and mismatch)
+    if (input.expectedVersion !== undefined && doc.__v !== input.expectedVersion) {
+      throw new ConflictError(
+        'Document was modified by another process. Please refresh and review the latest version.'
+      );
+    }
+
+    // Prevent duplicate terminal decisions
+    if (doc.status === 'VERIFIED' || doc.status === 'REJECTED') {
+      throw new ConflictError(
+        `Document has already reached terminal status (${doc.status}) and cannot be re-reviewed.`
+      );
+    }
+
+    // 4. Atomic conditional transition preventing worker/human races
+    const targetBrokerageId = doc.brokerageId;
+    const atomicFilter: Record<string, unknown> = {
+      _id: doc._id,
+      brokerageId: targetBrokerageId,
+      status: { $in: ['PENDING_REVIEW', 'PENDING', 'PROCESSING'] },
+      __v: doc.__v,
+    };
+
+    const updateSet: Record<string, unknown> = {
+      status: input.status,
+      verifiedAt: new Date(),
+      verifiedBy: new Types.ObjectId(caller.id),
+    };
+
+    if (input.verificationNotes !== undefined && input.verificationNotes.trim().length > 0) {
+      updateSet.verificationNotes = input.verificationNotes.trim();
+    }
+
+    if (input.status === 'REJECTED') {
+      const reason = input.rejectionReason?.trim();
+      updateSet.rejectionReason = reason;
+      if (!updateSet.verificationNotes) {
+        updateSet.verificationNotes = `Rejected by reviewer: ${reason}`;
+      }
+    } else if (input.status === 'VERIFIED') {
+      updateSet.rejectionReason = null;
+      if (!updateSet.verificationNotes) {
+        updateSet.verificationNotes = 'Document verified and approved by advisor.';
+      }
+    }
+
+    const reviewedDoc = await DocumentModel.findOneAndUpdate(
+      atomicFilter,
+      {
+        $set: updateSet,
+        $inc: { __v: 1 },
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!reviewedDoc) {
+      // Document was updated concurrently by another reviewer or worker
+      logger.warn(
+        { documentId: id, callerId: caller.id, expectedVersion: doc.__v },
+        'Conflict detected during human document review'
+      );
+      throw new ConflictError(
+        'Document was concurrently updated or has already been reviewed. Please refresh.'
+      );
+    }
+
+    logger.info(
+      {
+        documentId: reviewedDoc._id,
+        brokerageId: reviewedDoc.brokerageId,
+        newStatus: reviewedDoc.status,
+        verifiedBy: caller.id,
+      },
+      `Document review successfully committed: ${reviewedDoc.status}`
+    );
+
+    // 5. Resolve target client user id for private room broadcast if applicable
+    let targetClientUserId: string | undefined;
+    if (reviewedDoc.clientId) {
+      const client = await Client.findById(reviewedDoc.clientId);
+      if (client?.userId) {
+        targetClientUserId = client.userId.toString();
+      }
+    }
+
+    // 6. Emit realtime document status event
+    emitDocumentStatusChanged({
+      documentId: reviewedDoc._id.toString(),
+      brokerageId: reviewedDoc.brokerageId.toString(),
+      clientId: reviewedDoc.clientId?.toString(),
+      leadId: reviewedDoc.leadId?.toString(),
+      uploadedBy: reviewedDoc.uploadedBy?.toString(),
+      clientUserId: targetClientUserId,
+      previousStatus: doc.status,
+      newStatus: reviewedDoc.status,
+      type: reviewedDoc.type,
+      title: reviewedDoc.title,
+      verificationNotes: reviewedDoc.verificationNotes,
+      verifiedAt: reviewedDoc.verifiedAt,
+      verifiedBy: caller.id,
+      rejectionReason: reviewedDoc.rejectionReason,
+      updatedAt: reviewedDoc.updatedAt,
+    });
+
+    return reviewedDoc;
   }
 }
 

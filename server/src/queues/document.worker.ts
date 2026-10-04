@@ -90,11 +90,11 @@ export async function processDocumentJob(
     throw new UnrecoverableError('Document resource not found');
   }
 
-  // 3. Idempotency Check: if document already reached terminal state, return immediately
-  if (doc.status === 'VERIFIED' || doc.status === 'REJECTED') {
+  // 3. Idempotency Check: if document already reached terminal state or review queue, return immediately
+  if (doc.status === 'VERIFIED' || doc.status === 'REJECTED' || doc.status === 'PENDING_REVIEW') {
     logger.info(
       { documentId: doc._id, status: doc.status },
-      'Document has already reached terminal verification status; skipping duplicate processing'
+      'Document has already reached terminal or reviewable status; skipping duplicate processing'
     );
     return {
       documentId: doc._id.toString(),
@@ -244,50 +244,62 @@ export async function processDocumentJob(
     };
   }
 
-  // 6c. Successful Verification
-  const verifiedDoc = await DocumentModel.findOneAndUpdate(
+  // 6c. Successful Technical Pre-Checks -> PENDING_REVIEW
+  const pendingReviewDoc = await DocumentModel.findOneAndUpdate(
     withBrokerageScope(payload.brokerageId, {
       _id: doc._id,
       status: 'PROCESSING',
     }),
     {
       $set: {
-        status: 'VERIFIED',
-        verifiedAt: new Date(),
-        verificationNotes: 'Automated verification check passed successfully.',
+        status: 'PENDING_REVIEW',
+        verificationNotes: 'Automated technical pre-checks passed. Awaiting human verification.',
       },
       $inc: { __v: 1 },
     },
     { returnDocument: 'after' }
   );
 
-  if (verifiedDoc) {
+  if (pendingReviewDoc) {
     emitDocumentStatusChanged({
-      documentId: verifiedDoc._id.toString(),
-      brokerageId: verifiedDoc.brokerageId.toString(),
-      clientId: verifiedDoc.clientId?.toString(),
-      leadId: verifiedDoc.leadId?.toString(),
-      uploadedBy: verifiedDoc.uploadedBy?.toString() || payload.uploadedBy,
+      documentId: pendingReviewDoc._id.toString(),
+      brokerageId: pendingReviewDoc.brokerageId.toString(),
+      clientId: pendingReviewDoc.clientId?.toString(),
+      leadId: pendingReviewDoc.leadId?.toString(),
+      uploadedBy: pendingReviewDoc.uploadedBy?.toString() || payload.uploadedBy,
       clientUserId: payload.clientUserId,
       previousStatus: 'PROCESSING',
-      newStatus: 'VERIFIED',
-      type: verifiedDoc.type,
-      title: verifiedDoc.title,
-      verificationNotes: verifiedDoc.verificationNotes,
-      verifiedAt: verifiedDoc.verifiedAt,
-      updatedAt: verifiedDoc.updatedAt,
+      newStatus: 'PENDING_REVIEW',
+      type: pendingReviewDoc.type,
+      title: pendingReviewDoc.title,
+      verificationNotes: pendingReviewDoc.verificationNotes,
+      updatedAt: pendingReviewDoc.updatedAt,
     });
+  } else {
+    // If concurrent human review already modified status away from PROCESSING
+    const currentDoc = await DocumentModel.findOne(
+      withBrokerageScope(payload.brokerageId, { _id: doc._id })
+    );
+    logger.info(
+      { documentId: doc._id, currentStatus: currentDoc?.status },
+      'Document status changed during processing; skipping worker status transition'
+    );
+    return {
+      documentId: doc._id.toString(),
+      status: currentDoc?.status ?? 'PROCESSING',
+      message: 'Document status changed concurrently',
+    };
   }
 
   logger.info(
     { documentId: doc._id, brokerageId: payload.brokerageId },
-    'Document verification completed: VERIFIED'
+    'Document technical pre-checks completed: PENDING_REVIEW'
   );
 
   return {
     documentId: doc._id.toString(),
-    status: 'VERIFIED',
-    message: 'Document successfully verified',
+    status: 'PENDING_REVIEW',
+    message: 'Document technical pre-checks passed successfully; awaiting human review',
   };
 }
 

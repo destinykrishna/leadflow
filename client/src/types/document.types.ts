@@ -14,6 +14,7 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 export const DOCUMENT_STATUSES = [
   'PENDING',
   'PROCESSING',
+  'PENDING_REVIEW',
   'VERIFIED',
   'REJECTED',
 ] as const
@@ -38,8 +39,11 @@ export interface DocumentItem {
   sizeBytes?: number
   verificationNotes?: string
   failureReason?: string
+  rejectionReason?: string | null
+  verifiedBy?: string | { _id: string; name?: string; email?: string } | null
   metadata?: Record<string, unknown>
   verifiedAt?: string
+  __v?: number
   createdAt: string
   updatedAt: string
 }
