@@ -338,6 +338,88 @@ export class LeadPipelineService {
 
     return updatedLead;
   }
+
+  /**
+   * Reopens a lead currently in LOST status back to NEW stage.
+   * Enforces tenant boundary scoping, LOST status verification, and optimistic concurrency version matching.
+   */
+  async reopenLead(
+    userContext: AuthUserContext,
+    leadId: string,
+    expectedVersion?: number,
+    reason?: string
+  ): Promise<{
+    lead: ILeadDocument;
+    previousStage: LeadStatus;
+    currentStage: LeadStatus;
+  }> {
+    const result = await leadRepository.reopenLead(
+      userContext,
+      leadId,
+      expectedVersion,
+      reason
+    );
+
+    if (!result.success) {
+      if (result.error === 'NOT_FOUND') {
+        throw new NotFoundError(result.message || 'Lead resource not found');
+      }
+      if (result.error === 'INVALID_TRANSITION') {
+        throw new ValidationError(result.message || "Only leads in 'LOST' status can be reopened");
+      }
+      if (result.error === 'CONFLICT') {
+        throw new ConflictError(
+          result.message || 'Stage update conflict: Lead has been modified concurrently'
+        );
+      }
+      throw new ValidationError(result.message || 'Reopening lead failed');
+    }
+
+    // Trigger realtime broadcast seam hook
+    emitPipelineStageChanged({
+      brokerageId: userContext.brokerageId || result.lead!.brokerageId.toString(),
+      leadId: result.lead!._id.toString(),
+      previousStage: 'LOST',
+      newStage: 'NEW',
+      updatedBy: {
+        id: userContext.id,
+        name: userContext.name,
+        role: userContext.role,
+      },
+      lead: result.lead!,
+      timestamp: new Date(),
+    });
+
+    // Execute configured stage automation triggers for NEW stage non-blocking
+    triggerService
+      .handleStageTransition({
+        brokerageId: userContext.brokerageId || result.lead!.brokerageId.toString(),
+        lead: result.lead!,
+        previousStage: 'LOST',
+        newStage: 'NEW',
+        updatedBy: {
+          id: userContext.id,
+          name: userContext.name,
+          role: userContext.role,
+        },
+      })
+      .catch((triggerErr) => {
+        logger.error(
+          {
+            err: (triggerErr as Error).message,
+            leadId: result.lead!._id.toString(),
+            targetStage: 'NEW',
+          },
+          'Error executing background stage transition triggers on reopen'
+        );
+      });
+
+    return {
+      lead: result.lead!,
+      previousStage: 'LOST',
+      currentStage: 'NEW',
+    };
+  }
 }
 
 export const leadPipelineService = new LeadPipelineService();

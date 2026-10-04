@@ -6,6 +6,7 @@ import {
   pipelineQuerySchema,
   leadIdParamSchema,
   updateLeadStageSchema,
+  reopenLeadSchema,
 } from '../validators/lead.validators.js';
 import { convertLeadSchema } from '../validators/client.validators.js';
 import { ValidationError, UnauthorizedError, NotFoundError } from '../utils/errors.js';
@@ -290,6 +291,47 @@ export class LeadController {
         success: true,
         data: emails,
         count: emails.length,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reopens a lead from LOST stage back to NEW stage.
+   * Restricted to staff roles (PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR).
+   */
+  async reopenLead(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const parsedBody = reopenLeadSchema.safeParse(req.body || {});
+      if (!parsedBody.success) {
+        throw new ValidationError('Invalid reopen payload', parsedBody.error.format());
+      }
+
+      const result = await leadPipelineService.reopenLead(
+        req.user,
+        parsedParam.data.id,
+        parsedBody.data.version,
+        parsedBody.data.reason
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Lead reopened successfully',
+        data: {
+          lead: result.lead,
+          previousStage: result.previousStage,
+          currentStage: result.currentStage,
+        },
       });
     } catch (error) {
       next(error);

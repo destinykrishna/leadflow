@@ -1,10 +1,10 @@
 import { Types } from 'mongoose';
+import { Lead, type ILeadDocument } from '../models/lead.model.js';
 import { leadRepository, type IngestLeadResult } from '../repositories/lead.repository.js';
 import { normalizeIncomingLeadPayload, type NormalizedLeadData } from '../validators/lead.validators.js';
 import { triggerService } from './trigger.service.js';
 import { emitPipelineStageChanged } from './lead-pipeline.service.js';
 import { logger } from '../utils/logger.js';
-
 import { maskEmail } from '../utils/mask.js';
 
 export class LeadIngestionService {
@@ -20,6 +20,40 @@ export class LeadIngestionService {
     // 1. Validate & normalize payload (strips any untrusted client brokerageId)
     const normalizedData: NormalizedLeadData = normalizeIncomingLeadPayload(rawPayload);
 
+    // Silent Honeypot Defense: Drop bot submissions without database writes, realtime events, or triggers
+    if (normalizedData.isHoneypot) {
+      logger.info(
+        {
+          brokerageId: brokerageId.toString(),
+          maskedEmail: maskEmail(normalizedData.email),
+          source: normalizedData.source,
+        },
+        'Honeypot field triggered; silently ignoring spam lead submission'
+      );
+
+      const dummyId = new Types.ObjectId();
+      const syntheticLead = new Lead({
+        _id: dummyId,
+        brokerageId: typeof brokerageId === 'string' ? new Types.ObjectId(brokerageId) : brokerageId,
+        firstName: normalizedData.firstName,
+        lastName: normalizedData.lastName,
+        email: normalizedData.email,
+        phone: normalizedData.phone,
+        status: 'NEW',
+        source: normalizedData.source,
+        score: normalizedData.score,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }) as ILeadDocument;
+
+      return {
+        lead: syntheticLead,
+        isDuplicate: false,
+        isAlreadyKnown: false,
+        knownAs: null,
+      };
+    }
+
     logger.info(
       {
         brokerageId: brokerageId.toString(),
@@ -29,7 +63,7 @@ export class LeadIngestionService {
       'Processing lead webhook ingestion'
     );
 
-    // 2. Perform idempotent ingestion with already-known client detection
+    // 2. Perform idempotent ingestion with already-known client detection and re-inquiry handling
     const result = await leadRepository.ingestLead(brokerageId, normalizedData);
 
     if (result.isDuplicate) {
@@ -51,19 +85,20 @@ export class LeadIngestionService {
           maskedEmail: maskEmail(normalizedData.email),
           isAlreadyKnown: result.isAlreadyKnown,
           knownAs: result.knownAs,
+          isReInquiry: result.isReInquiry,
         },
-        'New lead ingested successfully'
+        result.isReInquiry ? 'Re-inquiry on existing lead processed successfully' : 'New lead ingested successfully'
       );
 
       // Emit realtime pipeline stage event so open Kanban boards immediately display the new lead
       emitPipelineStageChanged({
         brokerageId: brokerageId.toString(),
         leadId: result.lead._id.toString(),
-        previousStage: null,
+        previousStage: result.previousStage ?? null,
         newStage: 'NEW',
         updatedBy: {
           id: 'system:webhook',
-          name: 'Webhook Ingestion',
+          name: result.isReInquiry ? 'Webhook Ingestion (Re-inquiry)' : 'Webhook Ingestion',
           role: 'SYSTEM',
         },
         lead: result.lead,
@@ -75,7 +110,7 @@ export class LeadIngestionService {
         .handleStageTransition({
           brokerageId,
           lead: result.lead,
-          previousStage: null,
+          previousStage: result.previousStage ?? null,
           newStage: 'NEW',
         })
         .catch((err) => {

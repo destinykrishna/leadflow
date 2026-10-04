@@ -59,6 +59,20 @@ export const updateLeadStageSchema = z
 export type UpdateLeadStageInput = z.infer<typeof updateLeadStageSchema>;
 
 /**
+ * Schema for explicitly reopening a lead currently in LOST status.
+ */
+export const reopenLeadSchema = z.object({
+  version: z
+    .number()
+    .int('Version must be an integer')
+    .min(0, 'Version cannot be negative')
+    .optional(),
+  reason: z.string().trim().max(1000, 'Reason cannot exceed 1000 characters').optional(),
+});
+
+export type ReopenLeadInput = z.infer<typeof reopenLeadSchema>;
+
+/**
  * Schema validating lead ID URL route parameters.
  */
 export const leadIdParamSchema = z.object({
@@ -137,9 +151,49 @@ export const standardLeadPayloadSchema = z.object({
     .optional(),
   customFields: z.record(z.string(), z.unknown()).optional(),
   brokerageId: z.unknown().optional(), // Allowed in raw input but explicitly stripped/ignored
+  _hp: z.string().optional(), // Bot honeypot field
+  hp_website: z.string().optional(), // Bot honeypot field
 });
 
 export type StandardLeadPayload = z.infer<typeof standardLeadPayloadSchema>;
+
+/**
+ * Obvious temporary/disposable email services used by spam bots.
+ */
+export const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com',
+  'guerrillamail.com',
+  'guerrillamail.net',
+  'guerrillamail.biz',
+  'tempmail.com',
+  'temp-mail.org',
+  '10minutemail.com',
+  '10minutemail.net',
+  'throwawaymail.com',
+  'sharklasers.com',
+  'yopmail.com',
+  'yopmail.net',
+  'trashmail.com',
+  'trashmail.net',
+  'dispostable.com',
+  'getairmail.com',
+  'fakeinbox.com',
+  'maildrop.cc',
+  'inboxkitten.com',
+  'burnermail.io',
+]);
+
+/**
+ * Checks if an email belongs to a known temporary/disposable mail provider.
+ */
+export function isDisposableEmail(email: string): boolean {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return false;
+  }
+  const parts = email.split('@');
+  const domain = parts[parts.length - 1]?.toLowerCase().trim();
+  return domain ? DISPOSABLE_EMAIL_DOMAINS.has(domain) : false;
+}
 
 /**
  * Documented External Provider: Typeform Webhook Schema
@@ -198,6 +252,7 @@ export interface NormalizedLeadData {
   score: number;
   notes?: string | undefined;
   customFields?: Record<string, unknown> | undefined;
+  isHoneypot?: boolean | undefined;
 }
 
 /**
@@ -209,7 +264,32 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     throw new ValidationError('Webhook payload must be a non-empty JSON object');
   }
 
-  // 1. Detect and parse Typeform webhook payload
+  // 1. Silent Honeypot Detection (detect bot-filled traps before processing or schema validation)
+  const rawObj = payload as Record<string, unknown>;
+  const honeypotVal =
+    (typeof rawObj._hp === 'string' ? rawObj._hp.trim() : '') ||
+    (typeof rawObj.hp_website === 'string' ? rawObj.hp_website.trim() : '') ||
+    (typeof (rawObj.form_response as any)?.hidden?._hp === 'string'
+      ? (rawObj.form_response as any).hidden._hp.trim()
+      : '') ||
+    (typeof (rawObj.form_response as any)?.hidden?.hp_website === 'string'
+      ? (rawObj.form_response as any).hidden.hp_website.trim()
+      : '');
+
+  if (honeypotVal !== '') {
+    return {
+      firstName: typeof rawObj.firstName === 'string' ? rawObj.firstName.trim().slice(0, 60) : 'Anonymous',
+      lastName: typeof rawObj.lastName === 'string' ? rawObj.lastName.trim().slice(0, 60) : '',
+      email: typeof rawObj.email === 'string' && rawObj.email.includes('@')
+        ? rawObj.email.toLowerCase().trim()
+        : 'bot@honeypot.local',
+      source: 'WEBSITE',
+      score: 0,
+      isHoneypot: true,
+    };
+  }
+
+  // 2. Detect and parse Typeform webhook payload
   if ('form_response' in payload && typeof (payload as any).form_response === 'object') {
     const typeformParsed = typeformWebhookSchema.safeParse(payload);
     if (!typeformParsed.success) {
@@ -249,6 +329,9 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
     const email = emailAnswer?.email || emailAnswer?.text;
     if (!email) {
       throw new ValidationError('Typeform payload missing required email answer');
+    }
+    if (isDisposableEmail(email)) {
+      throw new ValidationError('Disposable or temporary email addresses are not accepted for lead inquiries');
     }
 
     // Extract names
@@ -423,6 +506,10 @@ export function normalizeIncomingLeadPayload(payload: unknown): NormalizedLeadDa
   const parsed = standardLeadPayloadSchema.safeParse(payload);
   if (!parsed.success) {
     throw new ValidationError('Invalid lead payload', parsed.error.format());
+  }
+
+  if (isDisposableEmail(parsed.data.email)) {
+    throw new ValidationError('Disposable or temporary email addresses are not accepted for lead inquiries');
   }
 
   // Normalize artificially invented placeholder surnames (e.g. 'Applicant', 'Valued Applicant')

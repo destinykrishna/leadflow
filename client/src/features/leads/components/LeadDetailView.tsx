@@ -21,6 +21,7 @@ import {
   XCircle,
   Archive,
   Mail,
+  RotateCcw,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -46,6 +47,7 @@ import {
   useArchiveLead,
   useUnarchiveLead,
   useAssignAdvisor,
+  useReopenLead,
 } from '../api/leads.api'
 import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
@@ -121,6 +123,7 @@ export function LeadDetailView({
   const archiveMutation = useArchiveLead()
   const unarchiveMutation = useUnarchiveLead()
   const assignAdvisorMutation = useAssignAdvisor()
+  const reopenMutation = useReopenLead()
 
   // Fetch ACTIVE advisors for the assignment dropdown (BROKERAGE_ADMIN only)
   const isBrokerageAdmin = user?.role === 'BROKERAGE_ADMIN'
@@ -184,6 +187,40 @@ export function LeadDetailView({
       } else {
         setConcurrencyNotice(
           errObj.response?.data?.error?.message || 'Failed to update lead stage. Please retry.',
+        )
+      }
+    }
+  }
+
+  // Reopen LOST inquiry handler
+  const handleReopenLead = async () => {
+    if (!lead) return
+    setConcurrencyNotice(null)
+
+    try {
+      await reopenMutation.mutateAsync({
+        id: lead._id,
+        version: lead.__v,
+      })
+      showToast({
+        type: 'success',
+        title: 'Inquiry Reopened',
+        message: 'Lead inquiry has been restored to the New stage.',
+      })
+      refetchLead()
+      refetchTasks()
+    } catch (err: unknown) {
+      const errObj = err as {
+        response?: { status?: number; data?: { error?: { code?: string; message?: string } } }
+      }
+      if (errObj.response?.status === 409 || errObj.response?.data?.error?.code === 'CONFLICT') {
+        setConcurrencyNotice(
+          'Concurrency conflict: This lead was modified by another session or automated trigger. Please reload the inquiry before reopening.',
+        )
+        refetchLead()
+      } else {
+        setConcurrencyNotice(
+          errObj.response?.data?.error?.message || 'Failed to reopen lead. Please retry.',
         )
       }
     }
@@ -611,14 +648,29 @@ export function LeadDetailView({
         </div>
 
         {lead.status === 'LOST' ? (
-          <div className="flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
-            <XCircle className="h-4 w-4 shrink-0 text-rose-600" />
-            <div>
-              <span className="font-semibold">Terminal State: Closed Lost</span>
-              <p className="text-[11px] text-rose-700 mt-0.5">
-                This lead has been archived as lost. No forward stage progressions are available.
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800">
+            <div className="flex items-center gap-2.5">
+              <XCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <div>
+                <span className="font-semibold">Closed Lost</span>
+                <p className="text-[11px] text-rose-700 mt-0.5">
+                  This inquiry was closed as lost. You can reopen the inquiry to resume active qualification, or archive it to hide it from active views.
+                </p>
+              </div>
             </div>
+            {isStaffRole && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={reopenMutation.isPending}
+                onClick={handleReopenLead}
+                className="shrink-0 gap-1.5 text-xs h-8 border-rose-300 text-rose-800 hover:bg-rose-100/70 bg-white"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reopen Inquiry
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1">
@@ -1140,7 +1192,29 @@ export function LeadDetailView({
                   Allowed Next Transitions
                 </span>
 
-                {validTransitions.length === 0 ? (
+                {lead.status === 'LOST' ? (
+                  <div className="space-y-2.5">
+                    <div className="rounded-lg bg-rose-50/70 border border-rose-100 p-2.5 text-center text-[11px] text-rose-800">
+                      Closed Lost: Inquiry is currently inactive.
+                    </div>
+                    {isStaffRole && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={reopenMutation.isPending}
+                        onClick={handleReopenLead}
+                        className="w-full justify-between text-xs h-9 border-primary/40 text-primary hover:bg-primary/10 shadow-xs"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Reopen Inquiry
+                        </span>
+                        <ArrowRight className="h-3 w-3 opacity-60" />
+                      </Button>
+                    )}
+                  </div>
+                ) : validTransitions.length === 0 ? (
                   <div className="rounded-lg bg-slate-100/60 p-2.5 text-center text-[11px] text-muted-foreground">
                     Terminal Stage: No outgoing transitions permitted.
                   </div>

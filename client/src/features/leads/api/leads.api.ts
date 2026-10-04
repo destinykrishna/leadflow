@@ -125,6 +125,24 @@ export const leadsApi = {
     )
     return response.data.data!
   },
+
+  reopenLead: async ({
+    id,
+    version,
+    reason,
+  }: {
+    id: string
+    version?: number
+    reason?: string
+  }): Promise<{ lead: Lead; previousStage: LeadStatus; currentStage: LeadStatus }> => {
+    const response = await api.patch<
+      ApiResponse<{ lead: Lead; previousStage: LeadStatus; currentStage: LeadStatus }>
+    >(`/leads/${id}/reopen`, {
+      version,
+      reason,
+    })
+    return response.data.data!
+  },
 }
 
 export const LEAD_QUERY_KEY = (id: string) => ['lead', id]
@@ -215,6 +233,21 @@ export function useUnarchiveLead() {
     mutationFn: (id: string) => leadsApi.unarchiveLead(id),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(id) })
+      queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
+    },
+  })
+}
+
+export function useReopenLead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: leadsApi.reopenLead,
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(LEAD_QUERY_KEY(variables.id), data.lead)
+      queryClient.invalidateQueries({ queryKey: LEAD_QUERY_KEY(variables.id) })
+      queryClient.invalidateQueries({ queryKey: LEAD_TASKS_KEY(variables.id) })
       queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: LEADS_LIST_KEY })
     },

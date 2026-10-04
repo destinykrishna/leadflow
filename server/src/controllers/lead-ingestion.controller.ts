@@ -47,6 +47,19 @@ export class LeadIngestionController {
         return;
       }
 
+      if (result.isReInquiry) {
+        res.status(201).json({
+          success: true,
+          isDuplicate: false,
+          isAlreadyKnown: true,
+          isReInquiry: true,
+          knownAs: 'LEAD',
+          message: 'Lead re-inquiry processed successfully. Inquiry revived.',
+          data: responseData,
+        });
+        return;
+      }
+
       if (result.isAlreadyKnown && result.knownAs === 'CLIENT') {
         res.status(201).json({
           success: true,

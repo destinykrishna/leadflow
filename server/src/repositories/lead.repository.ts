@@ -17,6 +17,8 @@ export interface IngestLeadResult {
   isAlreadyKnown: boolean;
   knownAs: 'LEAD' | 'CLIENT' | null;
   existingClientId?: string;
+  isReInquiry?: boolean;
+  previousStage?: LeadStatus | null;
 }
 
 export interface PipelineFilterOptions {
@@ -92,6 +94,79 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
     // 1. Check for existing lead within this brokerage
     const existingLead = await this.findByEmail(validBrokerageId, normalizedEmail);
     if (existingLead) {
+      // Safe re-inquiry handling: If existing lead is in LOST stage or archived (and not converted to a Client case),
+      // treat a legitimate new submission as a fresh NEW inquiry on the existing lead.
+      const isReInquiryEligible =
+        (existingLead.status === 'LOST' || existingLead.isArchived === true) &&
+        !existingLead.convertedClientId;
+
+      if (isReInquiryEligible) {
+        const previousStage = existingLead.status;
+        const preservedNotes = data.notes
+          ? existingLead.notes
+            ? `${data.notes}\n\n[Re-inquiry History - Prior Stage: ${previousStage}]: ${existingLead.notes}`
+            : data.notes
+          : existingLead.notes
+            ? `[Re-inquiry received while in ${previousStage}]:\n${existingLead.notes}`
+            : undefined;
+
+        const existingCustom =
+          existingLead.customFields instanceof Map
+            ? Object.fromEntries(existingLead.customFields)
+            : (existingLead.customFields ?? {});
+
+        const updatedCustomFields: Record<string, unknown> = {
+          ...existingCustom,
+          ...(data.customFields ?? {}),
+          reInquiryCount: ((existingCustom.reInquiryCount as number) || 0) + 1,
+          lastReInquiryAt: new Date().toISOString(),
+          previousStageBeforeReInquiry: previousStage,
+        };
+
+        const updateSet: Record<string, unknown> = {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          source: data.source,
+          score: data.score,
+          status: 'NEW',
+          isArchived: false,
+          archivedAt: null,
+          customFields: updatedCustomFields,
+        };
+
+        if (data.phone !== undefined) {
+          updateSet.phone = data.phone;
+        }
+        if (preservedNotes !== undefined) {
+          updateSet.notes = preservedNotes;
+        }
+
+        const revivedLead = await this.model.findOneAndUpdate(
+          {
+            _id: existingLead._id,
+            brokerageId: validBrokerageId,
+            __v: existingLead.__v,
+          },
+          {
+            $set: updateSet,
+            $inc: { __v: 1 },
+          },
+          { returnDocument: 'after' }
+        );
+
+        const finalLead =
+          revivedLead || (await this.findByEmail(validBrokerageId, normalizedEmail)) || existingLead;
+
+        return {
+          lead: finalLead,
+          isDuplicate: false,
+          isAlreadyKnown: true,
+          knownAs: 'LEAD',
+          isReInquiry: true,
+          previousStage,
+        };
+      }
+
       return {
         lead: existingLead,
         isDuplicate: true,
@@ -171,6 +246,41 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
           concurrentLead = await this.findByEmail(validBrokerageId, normalizedEmail);
         }
         if (concurrentLead) {
+          if (
+            (concurrentLead.status === 'LOST' || concurrentLead.isArchived === true) &&
+            !concurrentLead.convertedClientId
+          ) {
+            const previousStage = concurrentLead.status;
+            const updated = await this.model.findOneAndUpdate(
+              {
+                _id: concurrentLead._id,
+                brokerageId: validBrokerageId,
+              },
+              {
+                $set: {
+                  firstName: data.firstName,
+                  lastName: data.lastName,
+                  phone: data.phone !== undefined ? data.phone : concurrentLead.phone,
+                  source: data.source,
+                  score: data.score,
+                  status: 'NEW',
+                  isArchived: false,
+                  archivedAt: null,
+                },
+                $inc: { __v: 1 },
+              },
+              { returnDocument: 'after' }
+            );
+            return {
+              lead: updated || concurrentLead,
+              isDuplicate: false,
+              isAlreadyKnown: true,
+              knownAs: 'LEAD',
+              isReInquiry: true,
+              previousStage,
+            };
+          }
+
           return {
             lead: concurrentLead,
             isDuplicate: true,
@@ -605,6 +715,116 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
       lead: updatedLead,
       previousStage: lead.status,
       currentStage: targetStage,
+    };
+  }
+
+  /**
+   * Reopens a lead currently in LOST status back to NEW stage.
+   * Enforces tenant isolation, LOST status check, and optimistic concurrency version control.
+   */
+  async reopenLead(
+    userContext: AuthUserContext,
+    leadId: string,
+    expectedVersion?: number,
+    reason?: string
+  ): Promise<AtomicStageUpdateResult> {
+    if (!Types.ObjectId.isValid(leadId)) {
+      return {
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'Lead resource not found',
+      };
+    }
+
+    const objectId = new Types.ObjectId(leadId);
+
+    // 1. Fetch lead scoped to tenant
+    let lead: ILeadDocument | null = null;
+    if (userContext.role === 'PLATFORM_ADMIN') {
+      lead = await this.model.findById(objectId);
+    } else {
+      if (!userContext.brokerageId) {
+        throw new BrokerageIsolationError('Brokerage context missing for tenant user');
+      }
+      const filter = withBrokerageScope<ILead>(userContext.brokerageId, {
+        _id: objectId,
+      } as unknown as QueryFilter<ILead>);
+      lead = await this.model.findOne(filter);
+    }
+
+    if (!lead) {
+      return {
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'Lead resource not found',
+      };
+    }
+
+    // 2. Only leads in LOST status can be reopened
+    if (lead.status !== 'LOST') {
+      return {
+        success: false,
+        error: 'INVALID_TRANSITION',
+        message: `Only leads in 'LOST' status can be reopened (current status is '${lead.status}')`,
+      };
+    }
+
+    // 3. Optimistic concurrency version check
+    if (expectedVersion !== undefined && lead.__v !== expectedVersion) {
+      return {
+        success: false,
+        error: 'CONFLICT',
+        message: `Stage update conflict: Expected version ${expectedVersion} but current version is ${lead.__v}. Lead has been modified concurrently.`,
+      };
+    }
+
+    // 4. Atomic conditional update matching _id, status: 'LOST', and __v
+    const matchFilter: Record<string, unknown> = {
+      _id: objectId,
+      status: 'LOST',
+      __v: lead.__v,
+    };
+
+    if (userContext.role !== 'PLATFORM_ADMIN') {
+      matchFilter.brokerageId = new Types.ObjectId(userContext.brokerageId!);
+    }
+
+    let preservedNotes = lead.notes || '';
+    if (reason && reason.trim()) {
+      const stamp = `[Reopened by ${userContext.name || userContext.email}]: ${reason.trim()}`;
+      preservedNotes = preservedNotes ? `${preservedNotes}\n\n${stamp}` : stamp;
+    }
+
+    const updatedLead = await this.model
+      .findOneAndUpdate(
+        matchFilter,
+        {
+          $set: {
+            status: 'NEW',
+            isArchived: false,
+            archivedAt: null,
+            notes: preservedNotes,
+          },
+          $inc: { __v: 1 },
+        },
+        { returnDocument: 'after' }
+      )
+      .populate('assignedTo', '_id name email');
+
+    if (!updatedLead) {
+      return {
+        success: false,
+        error: 'CONFLICT',
+        message:
+          'Stage update conflict: Lead has been modified concurrently by another user. Please refresh the pipeline board.',
+      };
+    }
+
+    return {
+      success: true,
+      lead: updatedLead,
+      previousStage: 'LOST',
+      currentStage: 'NEW',
     };
   }
 }

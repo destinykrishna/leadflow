@@ -164,5 +164,14 @@ router.delete(
   leadController.archiveLead.bind(leadController)
 );
 
+// Reopen lead from LOST status back to NEW stage (staff only, with optimistic concurrency protection)
+router.patch(
+  '/:id/reopen',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.reopenLead.bind(leadController)
+);
+
 export const leadRouter = router;
 
