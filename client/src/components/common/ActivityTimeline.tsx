@@ -15,6 +15,7 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
+  FileText,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -157,6 +158,30 @@ const ACTION_CONFIGS: Record<ActivityAction, ActivityConfig> = {
     formatTitle: (meta) => {
       const subject = meta?.subject ? ` "${String(meta.subject)}"` : ''
       return `Automated email dispatched${subject}`
+    },
+  },
+  NOTE_ADDED: {
+    icon: FileText,
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-600',
+    borderColor: 'border-amber-200',
+    badgeVariant: 'warning',
+    badgeLabel: 'Note Added',
+    formatTitle: (meta) => {
+      const preview = meta?.preview ? `: "${String(meta.preview)}"` : ''
+      return `Advisor note recorded${preview}`
+    },
+  },
+  TASK_CREATED: {
+    icon: CheckSquare,
+    iconBg: 'bg-indigo-50',
+    iconColor: 'text-indigo-600',
+    borderColor: 'border-indigo-200',
+    badgeVariant: 'default',
+    badgeLabel: 'Task Scheduled',
+    formatTitle: (meta) => {
+      const title = meta?.title ? `: ${String(meta.title)}` : ''
+      return `Follow-up task created${title}`
     },
   },
 }

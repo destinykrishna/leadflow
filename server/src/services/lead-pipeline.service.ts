@@ -5,7 +5,7 @@ import { Lead } from '../models/lead.model.js';
 import { User } from '../models/user.model.js';
 import { leadRepository } from '../repositories/lead.repository.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
-import type { PipelineQuery } from '../validators/lead.validators.js';
+import type { PipelineQuery, UpdateLeadDetailsInput } from '../validators/lead.validators.js';
 import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { triggerService } from './trigger.service.js';
 import { activityService } from './activity.service.js';
@@ -478,6 +478,127 @@ export class LeadPipelineService {
       previousStage: 'LOST',
       currentStage: 'NEW',
     };
+  }
+
+  /**
+   * Updates lead details (notes, phone, and financial customFields).
+   * - Enforces brokerage tenant boundary isolation (anti-IDOR 404).
+   * - Records NOTE_ADDED activity log entry when meaningful advisor notes are added or updated.
+   * - Restricts access to operational roles (PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR).
+   */
+  async updateLeadDetails(
+    userContext: AuthUserContext,
+    leadId: string,
+    input: UpdateLeadDetailsInput
+  ): Promise<ILeadDocument> {
+    if (userContext.role === 'CLIENT') {
+      throw new ForbiddenError('Clients are not authorized to update lead details');
+    }
+
+    if (!Types.ObjectId.isValid(leadId)) {
+      throw new NotFoundError('Lead resource not found');
+    }
+
+    const leadObjectId = new Types.ObjectId(leadId);
+    const filter =
+      userContext.role === 'PLATFORM_ADMIN'
+        ? { _id: leadObjectId }
+        : withBrokerageScope(userContext.brokerageId!, { _id: leadObjectId });
+
+    const lead = await Lead.findOne(filter);
+    if (!lead) {
+      throw new NotFoundError('Lead resource not found');
+    }
+
+    const updateSet: Record<string, unknown> = {};
+    let noteAdded = false;
+    let newNoteText = '';
+
+    if (input.phone !== undefined) {
+      updateSet.phone = input.phone ? input.phone.trim() : '';
+    }
+
+    if (input.notes !== undefined) {
+      const trimmedNote = input.notes ? input.notes.trim() : '';
+      if (trimmedNote !== (lead.notes || '')) {
+        updateSet.notes = trimmedNote;
+        if (trimmedNote.length > 0) {
+          noteAdded = true;
+          newNoteText = trimmedNote;
+        }
+      }
+    }
+
+    // Merge financial fields into customFields
+    const existingCustom =
+      lead.customFields instanceof Map
+        ? Object.fromEntries(lead.customFields)
+        : ((lead.customFields as Record<string, unknown>) ?? {});
+
+    const updatedCustom: Record<string, unknown> = { ...existingCustom };
+    const fin = input.financials;
+    if (input.loanAmount !== undefined) updatedCustom.loanAmount = input.loanAmount;
+    else if (fin?.loanAmount !== undefined) updatedCustom.loanAmount = fin.loanAmount;
+
+    if (input.propertyValue !== undefined) updatedCustom.propertyValue = input.propertyValue;
+    else if (fin?.propertyValue !== undefined) updatedCustom.propertyValue = fin.propertyValue;
+
+    if (input.monthlyGrossIncome !== undefined) updatedCustom.monthlyGrossIncome = input.monthlyGrossIncome;
+    else if (fin?.monthlyGrossIncome !== undefined) updatedCustom.monthlyGrossIncome = fin.monthlyGrossIncome;
+
+    if (input.downPayment !== undefined) updatedCustom.downPayment = input.downPayment;
+    else if (fin?.downPayment !== undefined) updatedCustom.downPayment = fin.downPayment;
+
+    if (input.customFields) {
+      for (const [key, val] of Object.entries(input.customFields)) {
+        if (!/(__proto__|constructor|prototype|password|token|secret)/i.test(key)) {
+          updatedCustom[key] = val;
+        }
+      }
+    }
+    updateSet.customFields = updatedCustom;
+
+    const condition: Record<string, unknown> = { ...filter };
+    if (input.version !== undefined) {
+      condition.__v = input.version;
+    }
+
+    const updatedLead = await Lead.findOneAndUpdate(
+      condition,
+      { $set: updateSet, $inc: { __v: 1 } },
+      { returnDocument: 'after' }
+    ).populate('assignedTo', '_id name email');
+
+    if (!updatedLead) {
+      if (input.version !== undefined) {
+        throw new ConflictError(
+          'Lead was modified concurrently by another user or automated process. Please reload and retry.'
+        );
+      }
+      throw new NotFoundError('Lead resource not found');
+    }
+
+    if (noteAdded) {
+      await activityService.logActivity({
+        brokerageId: lead.brokerageId,
+        entityType: 'LEAD',
+        entityId: lead._id,
+        leadId: lead._id,
+        action: 'NOTE_ADDED',
+        actor: {
+          id: userContext.id,
+          name: userContext.name,
+          role: userContext.role,
+          email: userContext.email,
+        },
+        metadata: {
+          preview: newNoteText.length > 150 ? `${newNoteText.slice(0, 150)}...` : newNoteText,
+          noteLength: newNoteText.length,
+        },
+      });
+    }
+
+    return updatedLead;
   }
 }
 

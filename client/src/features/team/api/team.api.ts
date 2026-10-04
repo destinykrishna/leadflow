@@ -64,6 +64,23 @@ export const teamApi = {
     return response.data.data?.brokerage || null
   },
 
+  getAdvisorWorkload: async (): Promise<AdvisorWorkloadResponse> => {
+    const response = await api.get<ApiResponse<AdvisorWorkloadResponse>>('/advisors/workload')
+    return (
+      response.data.data || {
+        advisors: [],
+        summary: {
+          totalAdvisors: 0,
+          activeAdvisors: 0,
+          totalActiveAssignedLeads: 0,
+          totalPendingTasks: 0,
+          totalOverdueTasks: 0,
+          totalWonCases: 0,
+        },
+      }
+    )
+  },
+
   getPipelineSummary: async (): Promise<PipelineGroupedData | null> => {
     try {
       const response = await api.get<ApiResponse<PipelineGroupedData>>('/leads/pipeline')
@@ -72,6 +89,43 @@ export const teamApi = {
       return null
     }
   },
+}
+
+export interface AdvisorWorkloadItem {
+  advisorId: string
+  name: string
+  email: string
+  status: string
+  phone?: string
+  workload: {
+    activeLeadsCount: number
+    wonCasesCount: number
+    totalLeadsCount: number
+    pendingTasksCount: number
+    overdueTasksCount: number
+    completedTasksCount: number
+    activeLoanVolume: number
+  }
+}
+
+export interface AdvisorWorkloadResponse {
+  advisors: AdvisorWorkloadItem[]
+  summary: {
+    totalAdvisors: number
+    activeAdvisors: number
+    totalActiveAssignedLeads: number
+    totalPendingTasks: number
+    totalOverdueTasks: number
+    totalWonCases: number
+  }
+}
+
+export function useAdvisorWorkload() {
+  return useQuery({
+    queryKey: ['advisors', 'workload'],
+    queryFn: teamApi.getAdvisorWorkload,
+    staleTime: 30000,
+  })
 }
 
 export function useAdvisorsList(query?: ListAdvisorsQuery) {

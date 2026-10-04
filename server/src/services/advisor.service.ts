@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { User, type IUserDocument } from '../models/user.model.js';
 import { Brokerage } from '../models/brokerage.model.js';
 import { Session } from '../models/session.model.js';
+import { Lead } from '../models/lead.model.js';
+import { Task } from '../models/task.model.js';
 import { hashPassword } from '../utils/password.js';
 import {
   ConflictError,
@@ -40,6 +42,35 @@ export interface PaginatedAdvisorsResult {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface AdvisorWorkloadItem {
+  advisorId: string;
+  name: string;
+  email: string;
+  status: string;
+  phone?: string | undefined;
+  workload: {
+    activeLeadsCount: number;
+    wonCasesCount: number;
+    totalLeadsCount: number;
+    pendingTasksCount: number;
+    overdueTasksCount: number;
+    completedTasksCount: number;
+    activeLoanVolume: number;
+  };
+}
+
+export interface AdvisorWorkloadResponse {
+  advisors: AdvisorWorkloadItem[];
+  summary: {
+    totalAdvisors: number;
+    activeAdvisors: number;
+    totalActiveAssignedLeads: number;
+    totalPendingTasks: number;
+    totalOverdueTasks: number;
+    totalWonCases: number;
+  };
 }
 
 export class AdvisorService implements IDomainService {
@@ -369,6 +400,215 @@ export class AdvisorService implements IDomainService {
     );
 
     return this.sanitizeAdvisor(advisor);
+  }
+
+  /**
+   * Aggregates advisor workloads across the brokerage with server-side grouping.
+   * Computes active leads, pending tasks, overdue tasks, completed tasks, and won cases per advisor.
+   */
+  async getAdvisorWorkload(
+    caller: AuthUserContext,
+    queryBrokerageId?: string
+  ): Promise<AdvisorWorkloadResponse> {
+    if (caller.role === 'CLIENT') {
+      throw new ForbiddenError('Clients are not authorized to view advisor workload');
+    }
+
+    let targetBrokerageId: Types.ObjectId | null = null;
+
+    if (caller.role !== 'PLATFORM_ADMIN') {
+      if (!caller.brokerageId) {
+        throw new BrokerageIsolationError('Brokerage context missing for tenant user');
+      }
+      targetBrokerageId = new Types.ObjectId(caller.brokerageId);
+    } else if (queryBrokerageId) {
+      if (!Types.ObjectId.isValid(queryBrokerageId)) {
+        throw new ValidationError('Invalid brokerageId format');
+      }
+      targetBrokerageId = new Types.ObjectId(queryBrokerageId);
+    }
+
+    // 1. Fetch advisors
+    const advisorFilter: Record<string, any> = { role: 'ADVISOR' };
+    if (targetBrokerageId) {
+      advisorFilter.brokerageId = targetBrokerageId;
+    }
+
+    const advisors = await User.find(advisorFilter).select('_id name email status phone brokerageId');
+    const advisorIds = advisors.map((a) => a._id);
+
+    if (advisorIds.length === 0) {
+      return {
+        advisors: [],
+        summary: {
+          totalAdvisors: 0,
+          activeAdvisors: 0,
+          totalActiveAssignedLeads: 0,
+          totalPendingTasks: 0,
+          totalOverdueTasks: 0,
+          totalWonCases: 0,
+        },
+      };
+    }
+
+    // 2. Aggregate Leads
+    const leadMatch: Record<string, any> = {
+      isArchived: { $ne: true },
+      assignedTo: { $in: advisorIds },
+    };
+    if (targetBrokerageId) {
+      leadMatch.brokerageId = targetBrokerageId;
+    }
+
+    // 3. Aggregate Tasks
+    const now = new Date();
+    const taskMatch: Record<string, any> = {
+      assignedTo: { $in: advisorIds },
+    };
+    if (targetBrokerageId) {
+      taskMatch.brokerageId = targetBrokerageId;
+    }
+
+    const [leadAgg, taskAgg] = await Promise.all([
+      Lead.aggregate([
+        { $match: leadMatch },
+        {
+          $group: {
+            _id: '$assignedTo',
+            totalLeads: { $sum: 1 },
+            activeLeads: {
+              $sum: {
+                $cond: [
+                  { $in: ['$status', ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION']] },
+                  1,
+                  0,
+                ],
+              },
+            },
+            wonCases: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'WON'] }, 1, 0],
+              },
+            },
+            activeLoanVolume: {
+              $sum: {
+                $cond: [
+                  { $in: ['$status', ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION']] },
+                  { $ifNull: ['$customFields.loanAmount', 0] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
+      Task.aggregate([
+        { $match: taskMatch },
+        {
+          $group: {
+            _id: '$assignedTo',
+            totalTasks: { $sum: 1 },
+            pendingTasks: {
+              $sum: {
+                $cond: [{ $in: ['$status', ['PENDING', 'IN_PROGRESS']] }, 1, 0],
+              },
+            },
+            overdueTasks: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $in: ['$status', ['PENDING', 'IN_PROGRESS']] },
+                      { $ne: ['$dueDate', null] },
+                      { $lt: ['$dueDate', now] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            completedTasks: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'COMPLETED'] }, 1, 0],
+              },
+            },
+          },
+        },
+      ]),
+    ]);
+
+    const leadMap = new Map<string, any>();
+    for (const item of leadAgg) {
+      leadMap.set(item._id.toString(), item);
+    }
+
+    const taskMap = new Map<string, any>();
+    for (const item of taskAgg) {
+      taskMap.set(item._id.toString(), item);
+    }
+
+    let totalActiveAssignedLeads = 0;
+    let totalPendingTasks = 0;
+    let totalOverdueTasks = 0;
+    let totalWonCases = 0;
+
+    const advisorItems: AdvisorWorkloadItem[] = advisors.map((advisor) => {
+      const idStr = advisor._id.toString();
+      const lStat = leadMap.get(idStr) || {
+        totalLeads: 0,
+        activeLeads: 0,
+        wonCases: 0,
+        activeLoanVolume: 0,
+      };
+      const tStat = taskMap.get(idStr) || {
+        totalTasks: 0,
+        pendingTasks: 0,
+        overdueTasks: 0,
+        completedTasks: 0,
+      };
+
+      totalActiveAssignedLeads += lStat.activeLeads;
+      totalPendingTasks += tStat.pendingTasks;
+      totalOverdueTasks += tStat.overdueTasks;
+      totalWonCases += lStat.wonCases;
+
+      return {
+        advisorId: idStr,
+        name: advisor.name,
+        email: advisor.email,
+        status: advisor.status,
+        phone: advisor.phone,
+        activeLeadsCount: lStat.activeLeads,
+        wonCasesCount: lStat.wonCases,
+        totalLeadsCount: lStat.totalLeads,
+        pendingTasksCount: tStat.pendingTasks,
+        overdueTasksCount: tStat.overdueTasks,
+        completedTasksCount: tStat.completedTasks,
+        activeLoanVolume: lStat.activeLoanVolume,
+        workload: {
+          activeLeadsCount: lStat.activeLeads,
+          wonCasesCount: lStat.wonCases,
+          totalLeadsCount: lStat.totalLeads,
+          pendingTasksCount: tStat.pendingTasks,
+          overdueTasksCount: tStat.overdueTasks,
+          completedTasksCount: tStat.completedTasks,
+          activeLoanVolume: lStat.activeLoanVolume,
+        },
+      };
+    });
+
+    return {
+      advisors: advisorItems,
+      summary: {
+        totalAdvisors: advisors.length,
+        activeAdvisors: advisors.filter((a) => a.status === 'ACTIVE').length,
+        totalActiveAssignedLeads,
+        totalPendingTasks,
+        totalOverdueTasks,
+        totalWonCases,
+      },
+    };
   }
 }
 

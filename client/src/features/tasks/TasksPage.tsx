@@ -9,6 +9,7 @@ import {
   Briefcase,
   X,
   Sparkles,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -28,6 +29,7 @@ import {
 import { TaskMetricsStrip } from './components/TaskMetricsStrip'
 import { TaskItemRow } from './components/TaskItemRow'
 import { TaskDetailModal } from './components/TaskDetailModal'
+import { CreateTaskModal } from './components/CreateTaskModal'
 import { useAuth } from '@/hooks/useAuth'
 import { validateForm, taskFilterSchema } from '@/lib/validation'
 
@@ -49,6 +51,7 @@ export function TasksPage() {
   // Selected task for detail modal
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false)
 
   // Real backend tasks query
   const { data, isLoading, isError, error, refetch, isFetching } = useTasks()
@@ -230,6 +233,16 @@ export function TasksPage() {
           >
             <Briefcase className="h-3.5 w-3.5" />
             <span>Client Cases</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-1.5 text-xs shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>New Task</span>
           </Button>
         </div>
       </div>
@@ -445,6 +458,13 @@ export function TasksPage() {
           setIsModalOpen(false)
           setSelectedTask(null)
         }}
+      />
+
+      {/* 7. Create Follow-Up Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => refetch()}
       />
     </div>
   )

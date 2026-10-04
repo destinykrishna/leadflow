@@ -8,6 +8,7 @@ import {
   RotateCw,
   ArrowRight,
   PlusCircle,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -17,6 +18,7 @@ import { formatCurrency } from '@/lib/format'
 import { useDashboardData } from './api/dashboard.api'
 import { KpiCard } from './components/KpiCard'
 import { PipelineDistributionCard } from './components/PipelineDistributionCard'
+import { SourceConversionCard } from './components/SourceConversionCard'
 import { RecentActivityCard } from './components/RecentActivityCard'
 import { PendingTasksCard } from './components/PendingTasksCard'
 
@@ -119,6 +121,32 @@ export function DashboardPage() {
       ) : (
         /* Real Operational Dashboard */
         <div className="space-y-6">
+          {/* Stale Leads Operational Warning */}
+          {Boolean(metrics.staleLeadsCount && metrics.staleLeadsCount > 0) && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-xs text-amber-900 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <div>
+                  <span className="font-semibold text-amber-950">
+                    {metrics.staleLeadsCount} Stale {metrics.staleLeadsCount === 1 ? 'Inquiry' : 'Inquiries'} Detected:
+                  </span>{' '}
+                  <span className="text-amber-800">
+                    Inquiries remaining uncontacted or inactive for over 7 days in active pipeline stages.
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/app/leads')}
+                className="shrink-0 h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100 bg-white self-start sm:self-auto"
+              >
+                Review Inquiries
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+          )}
+
           {/* 5 Core KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             <KpiCard
@@ -162,6 +190,9 @@ export function DashboardPage() {
 
           {/* Pipeline Stage Distribution Card */}
           <PipelineDistributionCard metrics={metrics} />
+
+          {/* Source Conversion Breakdown Card */}
+          <SourceConversionCard sourceBreakdown={metrics.sourceBreakdown} />
 
           {/* Lower Two-Column Section: Recent Inquiries + Tasks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -137,6 +137,15 @@ router.patch(
   leadController.updateLeadStage.bind(leadController)
 );
 
+// Update lead details (notes, phone, financial customFields)
+router.patch(
+  '/:id',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.updateLeadDetails.bind(leadController)
+);
+
 // Convert lead to client case (authorized staff only)
 router.post(
   '/:id/convert',

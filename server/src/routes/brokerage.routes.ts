@@ -59,10 +59,19 @@ router.post(
 
 // Advisors nested under brokerage (BROKERAGE_ADMIN of own brokerage, or PLATFORM_ADMIN)
 router.get(
+  '/:brokerageId/advisors/workload',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  requireSameBrokerage('brokerageId'),
+  (req, res, next) => void advisorController.getAdvisorWorkload(req, res, next)
+);
+
+router.get(
   '/:brokerageId/advisors',
   authenticate,
   requireActiveUser,
-  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN'),
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
   requireSameBrokerage('brokerageId'),
   (req, res, next) => void advisorController.listAdvisors(req, res, next)
 );

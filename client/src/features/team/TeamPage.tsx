@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { formatDate } from '@/lib/format'
 import { formatUserEmail } from '@/lib/presentation'
-import { useAdvisorsList, usePipelineSummary } from './api/team.api'
+import { useAdvisorsList, useAdvisorWorkload } from './api/team.api'
 import { CreateAdvisorModal } from './components/CreateAdvisorModal'
 import { AdvisorCreatedSuccessModal } from './components/AdvisorCreatedSuccessModal'
 import { EditAdvisorModal } from './components/EditAdvisorModal'
@@ -63,46 +63,44 @@ export function TeamPage() {
     isLoading,
     isError,
     error,
-    refetch,
+    refetch: refetchAdvisors,
     isFetching,
   } = useAdvisorsList({
     status: selectedStatus !== 'ALL' ? (selectedStatus as 'ACTIVE' | 'INACTIVE') : undefined,
     search: debouncedSearch.trim() || undefined,
   })
 
-  const { data: pipelineSummary } = usePipelineSummary()
+  const {
+    data: workloadData,
+    isLoading: isWorkloadLoading,
+    refetch: refetchWorkload,
+  } = useAdvisorWorkload()
+
+  const refetch = () => {
+    refetchAdvisors()
+    refetchWorkload()
+  }
 
   const advisors = paginatedData?.advisors || []
   const totalCount = paginatedData?.total || 0
 
-  // Calculate active workload counts per advisor from the pipeline
-  const advisorWorkloadMap = React.useMemo(() => {
-    const map = new Map<string, number>()
-    if (!pipelineSummary?.pipeline) return map
-
-    // Tally active leads across all active stages (excluding WON / LOST)
-    const activeStages = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION'] as const
-    for (const stage of activeStages) {
-      const leadsInStage = pipelineSummary.pipeline[stage] || []
-      for (const lead of leadsInStage) {
-        const assignedId =
-          typeof lead.assignedTo === 'string' ? lead.assignedTo : lead.assignedTo?._id
-        if (assignedId) {
-          const count = map.get(assignedId) || 0
-          map.set(assignedId, count + 1)
-        }
+  // Index server-side aggregated workload metrics by advisorId
+  const workloadByAdvisorId = React.useMemo(() => {
+    const map = new Map<string, any>()
+    if (workloadData?.advisors) {
+      for (const item of workloadData.advisors) {
+        map.set(item.advisorId, item)
       }
     }
     return map
-  }, [pipelineSummary])
+  }, [workloadData])
 
-  // Summary counts
+  // Summary counts from server aggregation
   const activeCount = advisors.filter((a) => a.status === 'ACTIVE').length
   const inactiveCount = advisors.filter((a) => a.status === 'INACTIVE').length
-  const totalActiveAssignedLeads = Array.from(advisorWorkloadMap.values()).reduce(
-    (acc, val) => acc + val,
-    0
-  )
+  const totalActiveAssignedLeads = workloadData?.summary.totalActiveAssignedLeads ?? 0
+  const totalPendingTasks = workloadData?.summary.totalPendingTasks ?? 0
+  const totalOverdueTasks = workloadData?.summary.totalOverdueTasks ?? 0
 
   const handleCopyEmail = (email: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -260,10 +258,14 @@ export function TeamPage() {
                 </div>
               </div>
               <div className="text-xl font-bold text-blue-700 mt-1">
-                {isLoading ? <Skeleton className="h-6 w-8 inline-block" /> : totalActiveAssignedLeads}
+                {isLoading || isWorkloadLoading ? (
+                  <Skeleton className="h-6 w-8 inline-block" />
+                ) : (
+                  totalActiveAssignedLeads
+                )}
               </div>
               <span className="text-[11px] text-blue-700/80 mt-0.5 block">
-                Assigned in qualification
+                {totalPendingTasks} pending tasks ({totalOverdueTasks} overdue)
               </span>
             </Card>
           </div>
@@ -373,7 +375,7 @@ export function TeamPage() {
                       <th className="py-3 px-4">Advisor Name & Email</th>
                       <th className="py-3 px-4">Contact Phone</th>
                       <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Active Leads</th>
+                      <th className="py-3 px-4">Workload & Pipeline</th>
                       <th className="py-3 px-4">Onboarded</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -382,7 +384,6 @@ export function TeamPage() {
                     {advisors.map((advisor) => {
                       const advisorId = advisor.id || advisor._id || ''
                       const isInactive = advisor.status === 'INACTIVE'
-                      const activeLeadCount = advisorWorkloadMap.get(advisorId) || 0
 
                       return (
                         <tr
@@ -454,17 +455,42 @@ export function TeamPage() {
                             )}
                           </td>
 
-                          {/* Workload */}
+                          {/* Workload (Server Aggregated) */}
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <Briefcase className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="font-medium text-slate-800">
-                                {activeLeadCount}
-                              </span>
-                              <span className="text-[11px] text-muted-foreground">
-                                {activeLeadCount === 1 ? 'case' : 'cases'}
-                              </span>
-                            </div>
+                            {(() => {
+                              const workload = workloadByAdvisorId.get(advisorId)
+                              const activeLeads = workload?.activeLeadsCount ?? 0
+                              const wonCases = workload?.wonCasesCount ?? 0
+                              const pendingTasks = workload?.pendingTasksCount ?? 0
+                              const overdueTasks = workload?.overdueTasksCount ?? 0
+
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <Briefcase className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <span className="font-semibold text-slate-900">
+                                      {activeLeads}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {activeLeads === 1 ? 'lead' : 'leads'}
+                                    </span>
+                                    {wonCases > 0 && (
+                                      <span className="text-[11px] text-emerald-700 font-medium">
+                                        • {wonCases} won
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    <span>{pendingTasks} tasks</span>
+                                    {overdueTasks > 0 && (
+                                      <span className="text-rose-600 font-semibold ml-1">
+                                        ({overdueTasks} overdue)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </td>
 
                           {/* Created */}

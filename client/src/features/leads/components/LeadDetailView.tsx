@@ -23,6 +23,7 @@ import {
   Mail,
   RotateCcw,
   Activity,
+  Edit3,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -49,10 +50,12 @@ import {
   useUnarchiveLead,
   useAssignAdvisor,
   useReopenLead,
+  useUpdateLeadDetails,
 } from '../api/leads.api'
 import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
+import { CreateTaskModal } from '@/features/tasks/components/CreateTaskModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
 import { useLeadTimeline } from '@/features/admin/api/audit.api'
 import { ActivityTimeline } from '@/components/common/ActivityTimeline'
@@ -134,6 +137,7 @@ export function LeadDetailView({
   const unarchiveMutation = useUnarchiveLead()
   const assignAdvisorMutation = useAssignAdvisor()
   const reopenMutation = useReopenLead()
+  const updateDetailsMutation = useUpdateLeadDetails()
 
   // Fetch ACTIVE advisors for the assignment dropdown (BROKERAGE_ADMIN only)
   const isBrokerageAdmin = user?.role === 'BROKERAGE_ADMIN'
@@ -144,9 +148,20 @@ export function LeadDetailView({
 
   const { showToast } = useToast()
   const [isConvertModalOpen, setIsConvertModalOpen] = React.useState(false)
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = React.useState(false)
+  const [isEditingNotes, setIsEditingNotes] = React.useState(false)
+  const [noteText, setNoteText] = React.useState('')
+  const [isSavingNotes, setIsSavingNotes] = React.useState(false)
   const [concurrencyNotice, setConcurrencyNotice] = React.useState<string | null>(null)
   const [copiedEmail, setCopiedEmail] = React.useState(false)
   const [copiedId, setCopiedId] = React.useState(false)
+
+  // Keep local note text synchronized when lead loads
+  React.useEffect(() => {
+    if (lead?.notes !== undefined) {
+      setNoteText(lead.notes || '')
+    }
+  }, [lead?.notes])
 
   // 404 detection
   const is404 =
@@ -165,6 +180,45 @@ export function LeadDetailView({
     navigator.clipboard.writeText(id)
     setCopiedId(true)
     setTimeout(() => setCopiedId(false), 2000)
+  }
+
+  // Advisor note saving handler
+  const handleSaveNotes = async () => {
+    if (!lead) return
+    setIsSavingNotes(true)
+    try {
+      await updateDetailsMutation.mutateAsync({
+        id: lead._id,
+        notes: noteText,
+        version: lead.__v,
+      })
+      showToast({
+        type: 'success',
+        title: 'Notes Saved',
+        message: 'Inquiry notes and advisor observation updated.',
+      })
+      setIsEditingNotes(false)
+      refetchLead()
+      refetchTimeline()
+    } catch (err: unknown) {
+      const errObj = err as {
+        response?: { status?: number; data?: { error?: { code?: string; message?: string } } }
+      }
+      if (errObj.response?.status === 409 || errObj.response?.data?.error?.code === 'CONFLICT') {
+        setConcurrencyNotice(
+          'Concurrency conflict: This lead was modified by another session or automated trigger. The latest data has been loaded.',
+        )
+        refetchLead()
+      } else {
+        showToast({
+          type: 'error',
+          title: 'Save Failed',
+          message: errObj.response?.data?.error?.message || 'Failed to update notes.',
+        })
+      }
+    } finally {
+      setIsSavingNotes(false)
+    }
   }
 
   // Stage action handler
@@ -803,11 +857,62 @@ export function LeadDetailView({
               </div>
             </div>
 
-            {lead.notes && (
-              <div className="mt-4 pt-3 border-t border-border/60">
-                <span className="text-muted-foreground block text-[11px] font-semibold mb-1">
-                  Inquiry Notes
+            {/* Advisor Notes Section with In-place Editing */}
+            <div className="mt-4 pt-3 border-t border-border/60">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-muted-foreground block text-[11px] font-semibold">
+                  Advisor Inquiry Notes
                 </span>
+                {isStaffRole && !isEditingNotes && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setNoteText(lead.notes || '')
+                      setIsEditingNotes(true)
+                    }}
+                    className="h-6 text-[11px] text-primary hover:text-primary/80 gap-1 px-1.5"
+                  >
+                    <Edit3 className="h-3 w-3" />
+                    <span>{lead.notes ? 'Edit Notes' : '+ Add Note'}</span>
+                  </Button>
+                )}
+              </div>
+
+              {isEditingNotes ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Enter borrower background, intake observations, or follow-up details..."
+                    rows={3}
+                    className="w-full rounded-lg border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNoteText(lead.notes || '')
+                        setIsEditingNotes(false)
+                      }}
+                      disabled={isSavingNotes}
+                      className="h-7 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSaveNotes}
+                      disabled={isSavingNotes}
+                      className="h-7 text-xs shadow-xs"
+                    >
+                      {isSavingNotes ? 'Saving…' : 'Save Notes'}
+                    </Button>
+                  </div>
+                </div>
+              ) : lead.notes ? (
                 <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-800 leading-relaxed">
                   {sanitizeIndianMortgageText(lead.notes) !== lead.notes ? (
                     <>
@@ -818,8 +923,12 @@ export function LeadDetailView({
                     lead.notes
                   )}
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-muted-foreground italic bg-slate-50/50 p-2.5 rounded-lg border border-dashed border-border/60">
+                  No advisor intake notes recorded yet.
+                </p>
+              )}
+            </div>
           </Card>
 
           {/* Mortgage & Financial Requirements Card */}
@@ -900,14 +1009,26 @@ export function LeadDetailView({
                   Relevant Tasks ({tasks.length})
                 </h2>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => refetchTasks()}
-                className="h-6 text-[11px] text-muted-foreground hover:text-slate-900"
-              >
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                {isStaffRole && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateTaskModalOpen(true)}
+                    className="h-6 text-[11px] text-primary border-primary/30 hover:bg-primary/5 gap-1"
+                  >
+                    + Add Task
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refetchTasks()}
+                  className="h-6 text-[11px] text-muted-foreground hover:text-slate-900"
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
 
             {isTasksLoading ? (
@@ -1519,6 +1640,21 @@ export function LeadDetailView({
             refetchTasks()
             refetchDocs()
           }}
+        />
+      )}
+
+      {/* Follow-Up Task Modal */}
+      {isStaffRole && (
+        <CreateTaskModal
+          isOpen={isCreateTaskModalOpen}
+          onClose={() => setIsCreateTaskModalOpen(false)}
+          onSuccess={() => {
+            refetchTasks()
+            refetchTimeline()
+          }}
+          initialLeadId={lead._id}
+          initialLeadName={[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
+          defaultAssignedTo={assignedAdvisor?._id}
         />
       )}
     </div>

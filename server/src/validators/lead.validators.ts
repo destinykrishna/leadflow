@@ -85,6 +85,7 @@ export const leadIdParamSchema = z.object({
 export const pipelineQuerySchema = z.object({
   stage: leadStatusEnum.optional(),
   status: leadStatusEnum.optional(),
+  source: leadSourceEnum.optional(),
   groupBy: z.enum(['stage', 'status']).optional(),
   assignedTo: z
     .string()
@@ -111,6 +112,49 @@ export const pipelineQuerySchema = z.object({
 });
 
 export type PipelineQuery = z.infer<typeof pipelineQuerySchema>;
+
+/**
+ * Schema for updating lead notes, phone, and financial customFields.
+ */
+export const updateLeadDetailsSchema = z
+  .object({
+    notes: z.string().trim().max(5000, 'Notes cannot exceed 5000 characters').optional(),
+    phone: z.string().trim().max(30, 'Phone number cannot exceed 30 characters').optional(),
+    loanAmount: z.coerce.number().min(0, 'Loan amount cannot be negative').optional(),
+    propertyValue: z.coerce.number().min(0, 'Property value cannot be negative').optional(),
+    monthlyGrossIncome: z.coerce.number().min(0, 'Monthly income cannot be negative').optional(),
+    downPayment: z.coerce.number().min(0, 'Down payment cannot be negative').optional(),
+    financials: z
+      .object({
+        loanAmount: z.coerce.number().min(0, 'Loan amount cannot be negative').optional(),
+        propertyValue: z.coerce.number().min(0, 'Property value cannot be negative').optional(),
+        monthlyGrossIncome: z.coerce.number().min(0, 'Monthly income cannot be negative').optional(),
+        downPayment: z.coerce.number().min(0, 'Down payment cannot be negative').optional(),
+      })
+      .optional(),
+    customFields: z.record(z.string(), z.unknown()).optional(),
+    version: z
+      .number()
+      .int('Version must be an integer')
+      .min(0, 'Version cannot be negative')
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      data.notes !== undefined ||
+      data.phone !== undefined ||
+      data.loanAmount !== undefined ||
+      data.propertyValue !== undefined ||
+      data.monthlyGrossIncome !== undefined ||
+      data.downPayment !== undefined ||
+      data.financials !== undefined ||
+      data.customFields !== undefined,
+    {
+      message: 'At least one field must be provided for update',
+    }
+  );
+
+export type UpdateLeadDetailsInput = z.infer<typeof updateLeadDetailsSchema>;
 
 /**
  * Standard LeadFlow Webhook Payload Schema.

@@ -14,6 +14,7 @@ router.use(requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'));
 
 // Task endpoints
 router.get('/', (req, res, next) => void taskController.listTasks(req, res, next));
+router.post('/', (req, res, next) => void taskController.createTask(req, res, next));
 router.get('/:id', (req, res, next) => void taskController.getTaskById(req, res, next));
 router.patch('/:id', (req, res, next) => void taskController.updateTaskStatus(req, res, next));
 

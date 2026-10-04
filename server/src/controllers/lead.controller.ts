@@ -6,6 +6,7 @@ import {
   pipelineQuerySchema,
   leadIdParamSchema,
   updateLeadStageSchema,
+  updateLeadDetailsSchema,
   reopenLeadSchema,
 } from '../validators/lead.validators.js';
 import { convertLeadSchema } from '../validators/client.validators.js';
@@ -369,6 +370,42 @@ export class LeadController {
           limit: result.limit,
           totalPages: result.totalPages,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Updates lead details (notes, phone, financial customFields).
+   * Enforces tenant scoping, RBAC (PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR), and validation.
+   */
+  async updateLeadDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const parsedBody = updateLeadDetailsSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError('Invalid lead update data', parsedBody.error.format());
+      }
+
+      const updatedLead = await leadPipelineService.updateLeadDetails(
+        req.user,
+        parsedParam.data.id,
+        parsedBody.data
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Lead updated successfully',
+        data: { lead: updatedLead },
       });
     } catch (error) {
       next(error);

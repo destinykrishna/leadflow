@@ -45,6 +45,14 @@ export interface DashboardSummaryResponse {
       badgeVariant: 'neutral' | 'default' | 'success' | 'warning' | 'danger';
     }>;
     recentLeads: any[];
+    staleLeadsCount: number;
+    sourceBreakdown: Array<{
+      source: string;
+      count: number;
+      wonCount: number;
+      conversionRate: number;
+      totalVolume: number;
+    }>;
   };
   tasks: any[];
 }
@@ -131,6 +139,32 @@ export class DashboardService {
                 },
               },
             ],
+            sourceStats: [
+              {
+                $group: {
+                  _id: '$source',
+                  count: { $sum: 1 },
+                  wonCount: {
+                    $sum: { $cond: [{ $eq: ['$status', 'WON'] }, 1, 0] },
+                  },
+                  totalVolume: {
+                    $sum: { $ifNull: ['$customFields.loanAmount', 0] },
+                  },
+                },
+              },
+              { $sort: { count: -1 } },
+            ],
+            staleLeadsStats: [
+              {
+                $match: {
+                  status: { $in: ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION'] },
+                  updatedAt: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+                },
+              },
+              {
+                $count: 'staleCount',
+              },
+            ],
           },
         },
       ]),
@@ -144,6 +178,16 @@ export class DashboardService {
     const stageStats: Array<{ _id: LeadStatus; count: number; totalVolume: number }> =
       leadAggResult[0]?.stageStats || [];
     const recentLeads = leadAggResult[0]?.recentLeads || [];
+    const staleLeadsCount = leadAggResult[0]?.staleLeadsStats?.[0]?.staleCount || 0;
+    const rawSourceStats = leadAggResult[0]?.sourceStats || [];
+
+    const sourceBreakdown = rawSourceStats.map((s: any) => ({
+      source: s._id || 'OTHER',
+      count: s.count,
+      wonCount: s.wonCount,
+      conversionRate: s.count > 0 ? Math.round((s.wonCount / s.count) * 100) : 0,
+      totalVolume: s.totalVolume,
+    }));
 
     // Map stats by stage
     const statsByStage: Partial<Record<LeadStatus, { count: number; totalVolume: number }>> = {};
@@ -221,6 +265,8 @@ export class DashboardService {
         conversionRate,
         stageBreakdown,
         recentLeads,
+        staleLeadsCount,
+        sourceBreakdown,
       },
       tasks: pendingTasks,
     };

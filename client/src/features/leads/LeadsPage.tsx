@@ -26,12 +26,25 @@ import {
   type LeadStatus,
 } from '@/types/pipeline.types'
 import { useLeadsList, useArchiveLead, useUnarchiveLead } from './api/leads.api'
+import { useAdvisorsList } from '@/features/team/api/team.api'
+
+const LEAD_SOURCES = [
+  { value: 'ALL', label: 'All Sources' },
+  { value: 'WEBSITE', label: 'Website' },
+  { value: 'MANUAL', label: 'Direct Intake' },
+  { value: 'REFERRAL', label: 'Referral' },
+  { value: 'BROKER_PORTAL', label: 'Broker Portal' },
+  { value: 'EXTERNAL_API', label: 'External API' },
+  { value: 'IMPORT', label: 'File Import' },
+]
 
 export function LeadsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [selectedStatus, setSelectedStatus] = React.useState<string>('ALL')
+  const [selectedSource, setSelectedSource] = React.useState<string>('ALL')
+  const [selectedAdvisor, setSelectedAdvisor] = React.useState<string>('ALL')
   const [viewScope, setViewScope] = React.useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
   const [page, setPage] = React.useState(1)
   const limit = 25
@@ -47,8 +60,13 @@ export function LeadsPage() {
 
   const isArchivedView = viewScope === 'ARCHIVED'
 
+  const { data: advisorsData } = useAdvisorsList({ status: 'ACTIVE' })
+  const activeAdvisors = advisorsData?.advisors ?? []
+
   const { data, isLoading, isError, error, refetch, isFetching } = useLeadsList({
     status: selectedStatus !== 'ALL' ? (selectedStatus as LeadStatus) : undefined,
+    source: selectedSource !== 'ALL' ? (selectedSource as any) : undefined,
+    assignedTo: selectedAdvisor !== 'ALL' ? selectedAdvisor : undefined,
     search: debouncedSearch.trim() || undefined,
     page,
     limit,
@@ -153,21 +171,59 @@ export function LeadsPage() {
             />
           </div>
 
-          {/* Status Dropdown Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
+          {/* Filter Dropdowns (Status, Source, Advisor) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            
+            {/* Status Dropdown */}
             <select
               value={selectedStatus}
               onChange={(e) => {
                 setSelectedStatus(e.target.value)
                 setPage(1)
               }}
-              className="rounded-md border border-border bg-white px-3 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+              title="Filter by Stage"
             >
               <option value="ALL">All Stages</option>
               {ORDERED_STAGES.map((s) => (
                 <option key={s} value={s}>
                   {STAGE_DEFINITIONS[s]?.label || s}
+                </option>
+              ))}
+            </select>
+
+            {/* Source Dropdown */}
+            <select
+              value={selectedSource}
+              onChange={(e) => {
+                setSelectedSource(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+              title="Filter by Inbound Source"
+            >
+              {LEAD_SOURCES.map((src) => (
+                <option key={src.value} value={src.value}>
+                  {src.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Advisor Dropdown */}
+            <select
+              value={selectedAdvisor}
+              onChange={(e) => {
+                setSelectedAdvisor(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9 max-w-[140px] truncate"
+              title="Filter by Assigned Advisor"
+            >
+              <option value="ALL">All Advisors</option>
+              {activeAdvisors.map((adv) => (
+                <option key={adv._id || adv.id} value={adv._id || adv.id}>
+                  {adv.name}
                 </option>
               ))}
             </select>

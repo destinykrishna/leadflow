@@ -29,6 +29,16 @@ export interface DashboardMetrics {
     badgeVariant: 'neutral' | 'default' | 'success' | 'warning' | 'danger'
   }>
   recentLeads: Lead[]
+  staleLeadsCount?: number
+  sourceBreakdown?: SourceConversionMetric[]
+}
+
+export interface SourceConversionMetric {
+  source: string
+  count: number
+  wonCount: number
+  conversionRate: number
+  totalVolume: number
 }
 
 export interface DashboardSummaryData {
@@ -134,6 +144,29 @@ export function computeCompositeSummary(
     }
   })
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const staleLeadsCount = allLeads.filter(
+    (l) => activeStagesSet.has(l.status) && new Date(l.updatedAt).getTime() < sevenDaysAgo.getTime()
+  ).length
+
+  const sourceMap = new Map<string, { count: number; wonCount: number; totalVolume: number }>()
+  allLeads.forEach((l) => {
+    const src = l.source || 'OTHER'
+    const cur = sourceMap.get(src) || { count: 0, wonCount: 0, totalVolume: 0 }
+    cur.count++
+    if (l.status === 'WON') cur.wonCount++
+    cur.totalVolume += Number(l.customFields?.loanAmount) || 0
+    sourceMap.set(src, cur)
+  })
+
+  const sourceBreakdown = Array.from(sourceMap.entries()).map(([source, s]) => ({
+    source,
+    count: s.count,
+    wonCount: s.wonCount,
+    conversionRate: s.count > 0 ? Math.round((s.wonCount / s.count) * 100) : 0,
+    totalVolume: s.totalVolume,
+  }))
+
   return {
     metrics: {
       totalLeads,
@@ -148,6 +181,8 @@ export function computeCompositeSummary(
       conversionRate,
       stageBreakdown,
       recentLeads,
+      staleLeadsCount,
+      sourceBreakdown,
     },
     tasks,
   }
@@ -208,6 +243,8 @@ export function useDashboardData() {
       badgeVariant: STAGE_DEFINITIONS[stage].badgeVariant,
     })),
     recentLeads: [],
+    staleLeadsCount: 0,
+    sourceBreakdown: [],
   }
 
   return {

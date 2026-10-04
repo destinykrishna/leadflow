@@ -11,6 +11,8 @@ export const ACTIVITY_ACTIONS = [
   'DOCUMENT_REJECTED',
   'TASK_COMPLETED',
   'EMAIL_SENT',
+  'NOTE_ADDED',
+  'TASK_CREATED',
 ] as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];

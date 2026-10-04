@@ -1,11 +1,40 @@
 import type { Request, Response, NextFunction } from 'express';
 import { taskRepository } from '../repositories/task.repository.js';
-import { taskQuerySchema, updateTaskStatusSchema } from '../validators/task.validators.js';
+import { taskQuerySchema, updateTaskStatusSchema, createTaskSchema } from '../validators/task.validators.js';
 import { validateData } from '../validators/common.validators.js';
 import { NotFoundError } from '../utils/errors.js';
 import { activityService } from '../services/activity.service.js';
 
 export class TaskController {
+  /**
+   * POST /api/tasks
+   * Creates a manual follow-up task linked to a lead or client with tenant boundary validation.
+   */
+  async createTask(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const user = req.user!;
+      const data = validateData(createTaskSchema, req.body);
+
+      const task = await taskRepository.createTask(user, {
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        priority: data.priority,
+        dueDate: data.dueDate,
+        assignedTo: data.assignedTo,
+        leadId: data.leadId,
+        clientId: data.clientId,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Task created successfully',
+        data: { task },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   /**
    * GET /api/tasks
    * Lists tasks for the authenticated brokerage with optional status and overdue filtering.

@@ -1,5 +1,5 @@
 import { Types, type QueryFilter } from 'mongoose';
-import { Lead, type ILead, type ILeadDocument, type LeadStatus } from '../models/lead.model.js';
+import { Lead, type ILead, type ILeadDocument, type LeadStatus, type LeadSource } from '../models/lead.model.js';
 import { Client, type IClientDocument } from '../models/client.model.js';
 import { ScopedRepository } from './scoped.repository.js';
 import { withBrokerageScope } from './base.repository.js';
@@ -24,6 +24,7 @@ export interface IngestLeadResult {
 export interface PipelineFilterOptions {
   stage?: LeadStatus | undefined;
   status?: LeadStatus | undefined;
+  source?: LeadSource | undefined;
   assignedTo?: string | undefined;
   search?: string | undefined;
   brokerageId?: string | undefined;
@@ -326,6 +327,10 @@ export class LeadRepository extends ScopedRepository<ILead, ILeadDocument> {
     const targetStage = options.stage ?? options.status;
     if (targetStage) {
       queryFilter.status = targetStage;
+    }
+
+    if (options.source) {
+      queryFilter.source = options.source;
     }
 
     if (options.assignedTo && Types.ObjectId.isValid(options.assignedTo)) {

@@ -61,7 +61,11 @@ export const tasksApi = {
     // 1. Frontend Zod validation on mutation payload
     const validation = validateForm(updateTaskStatusSchema, { status })
     if (!validation.success) {
-      throw new Error(validation.message || 'Invalid task status update payload')
+      const errorMessage =
+        ('message' in validation && validation.message) ||
+        (validation.errors && Object.values(validation.errors)[0]) ||
+        'Invalid task status update payload'
+      throw new Error(errorMessage)
     }
 
     // 2. Transmit to backend
@@ -71,6 +75,25 @@ export const tasksApi = {
 
     return response.data.data!
   },
+
+  createTask: async (payload: CreateTaskPayload): Promise<Task> => {
+    const response = await api.post<ApiResponse<Task | { task: Task }>>('/tasks', payload)
+    const rawData = response.data.data!
+    if (rawData && typeof rawData === 'object' && 'task' in rawData) {
+      return (rawData as { task: Task }).task
+    }
+    return rawData as Task
+  },
+}
+
+export interface CreateTaskPayload {
+  title: string
+  description?: string
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  dueDate?: string | Date
+  assignedTo: string
+  leadId?: string
+  clientId?: string
 }
 
 export const TASKS_QUERY_KEY = ['tasks']
@@ -92,6 +115,27 @@ export function useTask(id?: string) {
   })
 }
 
+export function useCreateTask() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreateTaskPayload) => tasksApi.createTask(payload),
+    onSuccess: (newTask) => {
+      queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-timeline'] })
+      const leadIdStr =
+        typeof newTask.leadId === 'string' ? newTask.leadId : newTask.leadId?._id
+      if (leadIdStr) {
+        queryClient.invalidateQueries({ queryKey: ['lead-tasks', leadIdStr] })
+        queryClient.invalidateQueries({ queryKey: ['lead-timeline', leadIdStr] })
+      }
+      queryClient.invalidateQueries({ queryKey: ['advisors', 'workload'] })
+    },
+  })
+}
+
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient()
 
@@ -105,6 +149,7 @@ export function useUpdateTaskStatus() {
       // Invalidate dashboard and lead details so task cards update
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['advisors', 'workload'] })
     },
   })
 }

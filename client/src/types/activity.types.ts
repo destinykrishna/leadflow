@@ -8,7 +8,9 @@ export type ActivityAction =
   | 'DOCUMENT_VERIFIED'
   | 'DOCUMENT_REJECTED'
   | 'TASK_COMPLETED'
-  | 'EMAIL_SENT';
+  | 'EMAIL_SENT'
+  | 'NOTE_ADDED'
+  | 'TASK_CREATED';
 
 export type ActivityEntityType =
   | 'LEAD'

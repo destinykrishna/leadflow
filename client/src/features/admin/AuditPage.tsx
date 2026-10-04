@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  FileText,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -43,6 +44,8 @@ const ACTION_FILTER_OPTIONS: { label: string; value: ActivityAction | '' }[] = [
   { label: 'Document Rejected', value: 'DOCUMENT_REJECTED' },
   { label: 'Task Completed', value: 'TASK_COMPLETED' },
   { label: 'Email Dispatched', value: 'EMAIL_SENT' },
+  { label: 'Note Added', value: 'NOTE_ADDED' },
+  { label: 'Task Created', value: 'TASK_CREATED' },
 ]
 
 const ENTITY_FILTER_OPTIONS: { label: string; value: ActivityEntityType | '' }[] = [
@@ -76,6 +79,10 @@ function getActionBadge(action: ActivityAction) {
       return { variant: 'success' as const, label: 'Task Completed', icon: CheckSquare }
     case 'EMAIL_SENT':
       return { variant: 'neutral' as const, label: 'Email Sent', icon: Mail }
+    case 'NOTE_ADDED':
+      return { variant: 'warning' as const, label: 'Note Added', icon: FileText }
+    case 'TASK_CREATED':
+      return { variant: 'default' as const, label: 'Task Created', icon: CheckSquare }
     default:
       return { variant: 'neutral' as const, label: action, icon: Activity }
   }

@@ -158,6 +158,28 @@ export class AdvisorController {
       )
     );
   }
+
+  /**
+   * Retrieves aggregated advisor workload metrics across the brokerage.
+   * Computes active leads, pending tasks, overdue tasks, and won cases.
+   */
+  async getAdvisorWorkload(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const paramBrokerageId =
+        typeof req.params.brokerageId === 'string' ? req.params.brokerageId : undefined;
+      const queryBrokerageId =
+        typeof req.query.brokerageId === 'string' ? req.query.brokerageId : paramBrokerageId;
+
+      const workload = await advisorService.getAdvisorWorkload(req.user!, queryBrokerageId);
+
+      res.status(200).json({
+        success: true,
+        data: workload,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const advisorController = new AdvisorController();

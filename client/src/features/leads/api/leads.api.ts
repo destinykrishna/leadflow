@@ -46,6 +46,8 @@ export interface ConvertLeadResponseData {
 export interface LeadsQueryParams {
   status?: LeadStatus
   stage?: LeadStatus
+  source?: string
+  assignedTo?: string
   search?: string
   page?: number
   limit?: number
@@ -53,9 +55,25 @@ export interface LeadsQueryParams {
   isArchived?: boolean
 }
 
+export interface UpdateLeadDetailsPayload {
+  notes?: string
+  phone?: string
+  loanAmount?: number
+  propertyValue?: number
+  monthlyGrossIncome?: number
+  downPayment?: number
+  customFields?: Record<string, unknown>
+  version?: number
+}
+
 export const leadsApi = {
   getLeadById: async (id: string): Promise<Lead> => {
     const response = await api.get<ApiResponse<{ lead: Lead }>>(`/leads/${id}`)
+    return response.data.data!.lead
+  },
+
+  updateLeadDetails: async (id: string, payload: UpdateLeadDetailsPayload): Promise<Lead> => {
+    const response = await api.patch<ApiResponse<{ lead: Lead }>>(`/leads/${id}`, payload)
     return response.data.data!.lead
   },
 
@@ -309,6 +327,20 @@ export function useLeadEmails(leadId?: string) {
       return response.data.data || []
     },
     enabled: Boolean(leadId),
+  })
+}
+
+export function useUpdateLeadDetails() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & UpdateLeadDetailsPayload) =>
+      leadsApi.updateLeadDetails(id, payload),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(['lead', variables.id], data)
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: [PIPELINE_QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: ['lead-timeline', variables.id] })
+    },
   })
 }
 
