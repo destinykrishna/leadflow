@@ -21,7 +21,7 @@ import { processEmailJob } from '../../src/queues/email.worker.js';
 import { triggerService } from '../../src/services/trigger.service.js';
 
 describe('Phase 3: Resend Email Delivery & Delivery Tracking Integration Tests', () => {
-  const TEST_SIGNING_SECRET = 'whsec_mfYJuTaBQOraAwRmBtjfjhCHmMYkfBp2';
+  const TEST_SIGNING_SECRET = 'test-webhook-signing-secret-only';
   const DEFAULT_PASSWORD = 'TestPassword123!';
   let passwordHash: string;
 
