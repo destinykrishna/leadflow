@@ -5,6 +5,7 @@ import {
 } from '../models/pipeline-trigger.model.js';
 import { Task, type TaskPriority, type ITaskDocument } from '../models/task.model.js';
 import { EmailTemplate } from '../models/email-template.model.js';
+import { EmailSuppression } from '../models/email-suppression.model.js';
 import { TriggerExecution } from '../models/trigger-execution.model.js';
 import { Brokerage } from '../models/brokerage.model.js';
 import { User, type IUserDocument } from '../models/user.model.js';
@@ -179,7 +180,7 @@ export class TriggerService {
           }
         } else if (trigger.actionType === 'SEND_EMAIL') {
           try {
-            await this.executeSendEmailAction({
+            const enqueued = await this.executeSendEmailAction({
               brokerageObjectId,
               brokerageIdStr,
               lead: params.lead,
@@ -191,7 +192,9 @@ export class TriggerService {
               simulateEmailFailure: params.simulateEmailFailure,
               simulateEmailTerminalFailure: params.simulateEmailTerminalFailure,
             });
-            summary.emailsEnqueued++;
+            if (enqueued) {
+              summary.emailsEnqueued++;
+            }
           } catch (emailErr) {
             summary.errors++;
             logger.error({ err: emailErr, triggerId: triggerIdStr }, 'Email dispatch trigger action failed');
@@ -386,7 +389,7 @@ export class TriggerService {
     executionId: Types.ObjectId;
     simulateEmailFailure?: boolean | undefined;
     simulateEmailTerminalFailure?: boolean | undefined;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const {
       brokerageIdStr,
       lead,
@@ -453,6 +456,33 @@ export class TriggerService {
       }
     }
 
+    // 3.5. Suppression check: Do not enqueue if recipient is suppressed for this brokerage
+    const isSuppressed = await EmailSuppression.exists(
+      withBrokerageScope(brokerageIdStr, {
+        email: recipientEmail.toLowerCase(),
+      })
+    );
+
+    if (isSuppressed) {
+      logger.warn(
+        {
+          brokerageId: brokerageIdStr,
+          leadId: lead._id.toString(),
+          recipient: maskEmail(recipientEmail),
+        },
+        'TriggerService: Skipping email dispatch; recipient is suppressed (previous bounce or complaint)'
+      );
+
+      await TriggerExecution.findByIdAndUpdate(executionId, {
+        $set: {
+          status: 'FAILED',
+          recipientEmail,
+          error: 'Recipient email is suppressed (previous bounce or complaint)',
+        },
+      });
+      return false;
+    }
+
     // 4. Enqueue to BullMQ asynchronously without blocking HTTP response
     const job = await enqueueEmailJob({
       brokerageId: brokerageIdStr,
@@ -503,6 +533,7 @@ export class TriggerService {
       },
       'TriggerService: Email job successfully dispatched to background queue'
     );
+    return true;
   }
 }
 

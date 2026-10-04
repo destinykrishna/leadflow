@@ -20,6 +20,7 @@ import {
   RefreshCw,
   XCircle,
   Archive,
+  Mail,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -40,6 +41,7 @@ import {
   useLead,
   useLeadTasks,
   useLeadDocuments,
+  useLeadEmails,
   useUpdateLeadWorkspaceStage,
   useArchiveLead,
   useUnarchiveLead,
@@ -108,6 +110,12 @@ export function LeadDetailView({
     isLoading: isDocsLoading,
     refetch: refetchDocs,
   } = useLeadDocuments(lead?._id)
+
+  const {
+    data: emails = [],
+    isLoading: isEmailsLoading,
+    refetch: refetchEmails,
+  } = useLeadEmails(lead?._id)
 
   const updateStageMutation = useUpdateLeadWorkspaceStage()
   const archiveMutation = useArchiveLead()
@@ -996,6 +1004,105 @@ export function LeadDetailView({
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Automated Email Delivery Tracking Section */}
+          <Card className="border border-border/80 p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-primary" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Email Communications ({emails.length})
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchEmails()}
+                className="h-6 text-[11px] text-muted-foreground hover:text-slate-900"
+              >
+                Refresh
+              </Button>
+            </div>
+
+            {isEmailsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : emails.length === 0 ? (
+              <EmptyState
+                icon={<Mail className="h-6 w-6 text-slate-400" />}
+                title="No Automated Emails Dispatched"
+                description="Transactional emails triggered by stage automations and their delivery status will appear here."
+                className="py-6"
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {emails.map((item) => (
+                  <div
+                    key={item._id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-border/60 bg-slate-50/50 p-3 text-xs hover:border-slate-300 transition-colors"
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div
+                        className={`h-2.5 w-2.5 rounded-full mt-1 shrink-0 ${
+                          item.status === 'DELIVERED'
+                            ? 'bg-emerald-500'
+                            : item.status === 'SENT'
+                            ? 'bg-blue-500'
+                            : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
+                            ? 'bg-rose-500'
+                            : 'bg-amber-400'
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-slate-900 truncate">
+                            {item.subject}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                            {item.provider}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                          <span>To: {item.recipientEmail}</span>
+                          {item.sentAt && (
+                            <span>• Sent {formatRelativeTime(item.sentAt)}</span>
+                          )}
+                          {item.deliveredAt && item.status === 'DELIVERED' && (
+                            <span>• Confirmed {formatRelativeTime(item.deliveredAt)}</span>
+                          )}
+                        </div>
+                        {(item.bounceReason || item.error) && (
+                          <div className="text-[11px] text-rose-600 mt-1 font-medium bg-rose-50 border border-rose-100 rounded px-2 py-0.5">
+                            {item.bounceReason || item.error}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      <Badge
+                        variant={
+                          item.status === 'DELIVERED'
+                            ? 'success'
+                            : item.status === 'SENT'
+                            ? 'default'
+                            : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
+                            ? 'danger'
+                            : 'warning'
+                        }
+                        size="sm"
+                        className="text-[10px]"
+                      >
+                        {item.status}
+                      </Badge>
                     </div>
                   </div>
                 ))}

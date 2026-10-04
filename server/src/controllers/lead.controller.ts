@@ -8,7 +8,9 @@ import {
   updateLeadStageSchema,
 } from '../validators/lead.validators.js';
 import { convertLeadSchema } from '../validators/client.validators.js';
-import { ValidationError, UnauthorizedError } from '../utils/errors.js';
+import { ValidationError, UnauthorizedError, NotFoundError } from '../utils/errors.js';
+import { EmailLog } from '../models/email-log.model.js';
+import { withBrokerageScope } from '../repositories/base.repository.js';
 
 export class LeadController {
   /**
@@ -250,6 +252,44 @@ export class LeadController {
         success: true,
         message: 'Advisor assigned to lead successfully',
         data: { lead },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Retrieves email delivery history for a lead.
+   * Scoped to the authenticated brokerage, anti-IDOR protected.
+   */
+  async getLeadEmails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const lead = await leadPipelineService.getLeadById(req.user, parsedParam.data.id);
+      if (!lead) {
+        throw new NotFoundError('Lead resource not found');
+      }
+
+      const emails = await EmailLog.find(
+        req.user.role === 'PLATFORM_ADMIN'
+          ? { leadId: new Types.ObjectId(parsedParam.data.id) }
+          : withBrokerageScope(req.user.brokerageId!, {
+              leadId: new Types.ObjectId(parsedParam.data.id),
+            })
+      ).sort({ createdAt: -1 });
+
+      res.status(200).json({
+        success: true,
+        data: emails,
+        count: emails.length,
       });
     } catch (error) {
       next(error);

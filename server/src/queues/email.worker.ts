@@ -2,8 +2,11 @@ import { Worker, type Job, UnrecoverableError, type WorkerOptions } from 'bullmq
 import { Types } from 'mongoose';
 import { Lead } from '../models/lead.model.js';
 import { TriggerExecution } from '../models/trigger-execution.model.js';
+import { EmailLog } from '../models/email-log.model.js';
+import { EmailSuppression } from '../models/email-suppression.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { isDatabaseConnected } from '../config/database.js';
+import { env } from '../config/env.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import { EMAIL_DELIVERY_QUEUE_NAME, type EmailJobPayload } from './email.queue.js';
 import { emailService } from '../services/email.service.js';
@@ -115,6 +118,53 @@ export async function processEmailJob(
     };
   }
 
+  // 3.5. Suppression check: If recipient is known to be bounced/complained in this brokerage, block dispatch
+  const isSuppressed = await EmailSuppression.exists(
+    withBrokerageScope(payload.brokerageId, {
+      email: payload.to.toLowerCase(),
+    })
+  );
+
+  if (isSuppressed) {
+    logger.warn(
+      {
+        brokerageId: payload.brokerageId,
+        recipient: maskedRecipient,
+        idempotencyKey: payload.idempotencyKey,
+      },
+      'EmailWorker: Recipient email is suppressed due to prior bounce/complaint; skipping delivery'
+    );
+
+    await TriggerExecution.findOneAndUpdate(
+      withBrokerageScope(payload.brokerageId, {
+        idempotencyKey: payload.idempotencyKey,
+      }),
+      {
+        $set: {
+          status: 'FAILED',
+          emailJobId: job.id,
+          recipientEmail: payload.to,
+          error: 'Recipient email is suppressed (previous bounce or complaint)',
+        },
+      }
+    ).catch(() => {});
+
+    await EmailLog.create({
+      brokerageId: new Types.ObjectId(payload.brokerageId),
+      leadId: new Types.ObjectId(payload.leadId),
+      triggerId: payload.triggerId && Types.ObjectId.isValid(payload.triggerId) ? new Types.ObjectId(payload.triggerId) : null,
+      templateId: payload.templateId && Types.ObjectId.isValid(payload.templateId) ? new Types.ObjectId(payload.templateId) : null,
+      recipientEmail: payload.to.toLowerCase(),
+      recipientName: payload.recipientName || null,
+      subject: payload.subject,
+      provider: env.EMAIL_PROVIDER === 'resend' ? 'RESEND' : 'MOCK',
+      status: 'FAILED',
+      error: 'Recipient email is suppressed (previous bounce or complaint)',
+    }).catch(() => {});
+
+    throw new UnrecoverableError('Recipient email is suppressed (previous bounce or complaint)');
+  }
+
   // 4. Dispatch email via EmailService
   try {
     const sendResult = await emailService.sendEmail({
@@ -130,7 +180,26 @@ export async function processEmailJob(
       simulateTerminalFailure: payload.simulateTerminalFailure,
     });
 
-    // 5. Update TriggerExecution to EXECUTED atomically
+    // 5. Create persistent tenant-scoped EmailLog record
+    const emailLog = await EmailLog.create({
+      brokerageId: new Types.ObjectId(payload.brokerageId),
+      leadId: new Types.ObjectId(payload.leadId),
+      triggerId: payload.triggerId && Types.ObjectId.isValid(payload.triggerId) ? new Types.ObjectId(payload.triggerId) : null,
+      templateId: payload.templateId && Types.ObjectId.isValid(payload.templateId) ? new Types.ObjectId(payload.templateId) : null,
+      recipientEmail: payload.to.toLowerCase(),
+      recipientName: payload.recipientName || null,
+      subject: payload.subject,
+      provider: env.EMAIL_PROVIDER === 'resend' ? 'RESEND' : 'MOCK',
+      providerMessageId: sendResult.messageId,
+      status: 'SENT',
+      sentAt: sendResult.sentAt,
+      metadata: {
+        jobId: job.id,
+        idempotencyKey: payload.idempotencyKey,
+      },
+    });
+
+    // 6. Update TriggerExecution to EXECUTED atomically
     await TriggerExecution.findOneAndUpdate(
       withBrokerageScope(payload.brokerageId, {
         idempotencyKey: payload.idempotencyKey,
@@ -139,6 +208,7 @@ export async function processEmailJob(
         $set: {
           status: 'EXECUTED',
           emailJobId: job.id,
+          emailLogId: emailLog._id,
           recipientEmail: payload.to,
           executedAt: sendResult.sentAt,
           error: null,
@@ -209,6 +279,23 @@ export async function processEmailJob(
           },
         }
       ).catch(() => {});
+
+      await EmailLog.create({
+        brokerageId: new Types.ObjectId(payload.brokerageId),
+        leadId: new Types.ObjectId(payload.leadId),
+        triggerId: payload.triggerId && Types.ObjectId.isValid(payload.triggerId) ? new Types.ObjectId(payload.triggerId) : null,
+        templateId: payload.templateId && Types.ObjectId.isValid(payload.templateId) ? new Types.ObjectId(payload.templateId) : null,
+        recipientEmail: payload.to.toLowerCase(),
+        recipientName: payload.recipientName || null,
+        subject: payload.subject,
+        provider: env.EMAIL_PROVIDER === 'resend' ? 'RESEND' : 'MOCK',
+        status: 'FAILED',
+        error: (error as Error).message || 'Delivery failed',
+        metadata: {
+          jobId: job.id,
+          idempotencyKey: payload.idempotencyKey,
+        },
+      }).catch(() => {});
     }
 
     throw error;

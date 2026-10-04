@@ -38,10 +38,27 @@ export interface AutomationEmailFailedPayload {
   message: string
 }
 
+export interface AutomationEmailDeliveredPayload {
+  brokerageId: string
+  leadId?: string
+  messageId: string
+  recipient: string
+  message: string
+}
+
+export interface AutomationEmailBouncedPayload {
+  brokerageId: string
+  leadId?: string
+  messageId: string
+  recipient: string
+  reason?: string
+  message: string
+}
+
 /**
- * Listens for real-time automation feedback from background trigger execution
- * and BullMQ email worker delivery confirmations, showing live toast notices
- * and invalidating task queries.
+ * Listens for real-time automation feedback from background trigger execution,
+ * BullMQ email worker delivery confirmations, and Resend delivery/bounce webhooks,
+ * showing live toast notices and invalidating task/email queries.
  */
 export function useAutomationSocket(enabled: boolean = true) {
   const queryClient = useQueryClient()
@@ -82,8 +99,12 @@ export function useAutomationSocket(enabled: boolean = true) {
         title: 'Email Confirmed',
         message: payload.message,
       })
+
+      if (payload.leadId) {
+        queryClient.invalidateQueries({ queryKey: ['lead-emails', payload.leadId] })
+      }
     },
-    [showToast],
+    [queryClient, showToast],
   )
 
   const handleEmailFailed = React.useCallback(
@@ -93,8 +114,42 @@ export function useAutomationSocket(enabled: boolean = true) {
         title: 'Email Delivery Failed',
         message: payload.message,
       })
+
+      if (payload.leadId) {
+        queryClient.invalidateQueries({ queryKey: ['lead-emails', payload.leadId] })
+      }
     },
-    [showToast],
+    [queryClient, showToast],
+  )
+
+  const handleEmailDelivered = React.useCallback(
+    (payload: AutomationEmailDeliveredPayload) => {
+      showToast({
+        type: 'success',
+        title: 'Email Delivered',
+        message: payload.message,
+      })
+
+      if (payload.leadId) {
+        queryClient.invalidateQueries({ queryKey: ['lead-emails', payload.leadId] })
+      }
+    },
+    [queryClient, showToast],
+  )
+
+  const handleEmailBounced = React.useCallback(
+    (payload: AutomationEmailBouncedPayload) => {
+      showToast({
+        type: 'error',
+        title: 'Email Bounced',
+        message: payload.message,
+      })
+
+      if (payload.leadId) {
+        queryClient.invalidateQueries({ queryKey: ['lead-emails', payload.leadId] })
+      }
+    },
+    [queryClient, showToast],
   )
 
   useSocketEvent<AutomationTaskCreatedPayload>(
@@ -118,6 +173,18 @@ export function useAutomationSocket(enabled: boolean = true) {
   useSocketEvent<AutomationEmailFailedPayload>(
     'automation:email_failed',
     handleEmailFailed,
+    enabled,
+  )
+
+  useSocketEvent<AutomationEmailDeliveredPayload>(
+    'automation:email_delivered',
+    handleEmailDelivered,
+    enabled,
+  )
+
+  useSocketEvent<AutomationEmailBouncedPayload>(
+    'automation:email_bounced',
+    handleEmailBounced,
     enabled,
   )
 }

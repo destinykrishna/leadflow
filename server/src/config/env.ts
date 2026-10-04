@@ -45,6 +45,12 @@ const envSchema = z.object({
   STALLED_DOCUMENT_RECOVERY_THRESHOLD_MS: z.coerce.number().int().nonnegative().default(300000),
   RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
   TRUST_PROXY: z.string().default('1'),
+  EMAIL_PROVIDER: z.enum(['mock', 'resend']).default('mock'),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_WEBHOOK_SIGNING_SECRET: z.string().optional(),
+  EMAIL_FROM_ADDRESS: z.string().default('notifications@leadflow.io'),
+  EMAIL_FROM_NAME: z.string().default('LeadFlow Notifications'),
+  EMAIL_REPLY_TO: z.string().optional(),
 });
 
 export const DEV_DEFAULT_SECRETS = {
@@ -53,14 +59,17 @@ export const DEV_DEFAULT_SECRETS = {
   COOKIE_SECRET: 'leadflow-secure-cookie-secret-key-development',
   IMAGEKIT_PUBLIC_KEY: 'public_mock_imagekit_key',
   IMAGEKIT_PRIVATE_KEY: 'private_mock_imagekit_key',
+  RESEND_API_KEY: 're_dev_mock_key_0000000000000000',
+  RESEND_WEBHOOK_SIGNING_SECRET: 'whsec_dev_mock_secret_00000000000000',
 } as const;
 
 /**
  * Validates security invariants when running in production mode:
  * - HARD-02: Fails startup if JWT, refresh-token, cookie, or ImageKit secrets use default development values
  * - HARD-05: Requires explicit HTTPS CORS origin, rejecting localhost/127.0.0.1/wildcard defaults
+ * - EMAIL-01: Prohibits mock email provider in production, enforcing real Resend API credentials and webhook secret
  */
-export function validateProductionSecurity(data: z.infer<typeof envSchema>): void {
+export function validateProductionSecurity(data: Partial<z.infer<typeof envSchema>>): void {
   if (data.NODE_ENV !== 'production') {
     return;
   }
@@ -83,6 +92,29 @@ export function validateProductionSecurity(data: z.infer<typeof envSchema>): voi
     secretViolations.push('IMAGEKIT_PUBLIC_KEY');
   }
 
+  // EMAIL-01: Production email provider validation
+  if (data.EMAIL_PROVIDER === 'mock') {
+    throw new Error(
+      'Production startup aborted: Insecure EMAIL_PROVIDER mock is prohibited in production. Set EMAIL_PROVIDER=resend and configure valid credentials.'
+    );
+  }
+
+  if (data.EMAIL_PROVIDER === 'resend') {
+    if (
+      !data.RESEND_API_KEY ||
+      data.RESEND_API_KEY === DEV_DEFAULT_SECRETS.RESEND_API_KEY ||
+      data.RESEND_API_KEY.length < 16
+    ) {
+      secretViolations.push('RESEND_API_KEY');
+    }
+    if (
+      !data.RESEND_WEBHOOK_SIGNING_SECRET ||
+      data.RESEND_WEBHOOK_SIGNING_SECRET === DEV_DEFAULT_SECRETS.RESEND_WEBHOOK_SIGNING_SECRET
+    ) {
+      secretViolations.push('RESEND_WEBHOOK_SIGNING_SECRET');
+    }
+  }
+
   if (secretViolations.length > 0) {
     throw new Error(
       `Production startup aborted: Insecure development/default secret detected for [${secretViolations.join(', ')}]. Provide dedicated, cryptographically strong secrets in production.`
@@ -90,7 +122,7 @@ export function validateProductionSecurity(data: z.infer<typeof envSchema>): voi
   }
 
   // 2. HARD-05: Production CORS origin validation
-  const origins = data.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+  const origins = (data.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
   if (origins.length === 0) {
     throw new Error(
       'Production startup aborted: CORS_ORIGIN is required in production. Must specify explicit HTTPS origin(s).'

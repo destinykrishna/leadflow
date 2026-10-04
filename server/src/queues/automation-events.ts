@@ -39,11 +39,30 @@ export interface AutomationEmailFailedPayload {
   message: string;
 }
 
+export interface AutomationEmailDeliveredPayload {
+  brokerageId: string;
+  leadId?: string | undefined;
+  messageId: string;
+  recipient: string;
+  message: string;
+}
+
+export interface AutomationEmailBouncedPayload {
+  brokerageId: string;
+  leadId?: string | undefined;
+  messageId: string;
+  recipient: string;
+  reason?: string | undefined;
+  message: string;
+}
+
 export type AutomationEventType =
   | 'automation:task_created'
   | 'automation:email_queued'
   | 'automation:email_sent'
-  | 'automation:email_failed';
+  | 'automation:email_failed'
+  | 'automation:email_delivered'
+  | 'automation:email_bounced';
 
 export interface AutomationEventEnvelope {
   event: AutomationEventType;
@@ -51,7 +70,9 @@ export interface AutomationEventEnvelope {
     | AutomationTaskCreatedPayload
     | AutomationEmailQueuedPayload
     | AutomationEmailSentPayload
-    | AutomationEmailFailedPayload;
+    | AutomationEmailFailedPayload
+    | AutomationEmailDeliveredPayload
+    | AutomationEmailBouncedPayload;
 }
 
 /**

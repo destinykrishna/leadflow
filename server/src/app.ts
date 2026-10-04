@@ -17,6 +17,7 @@ import { triggerRouter } from './routes/trigger.routes.js';
 import { emailTemplateRouter } from './routes/email-template.routes.js';
 import { advisorRouter } from './routes/advisor.routes.js';
 import { dashboardRouter } from './routes/dashboard.routes.js';
+import { emailWebhookRouter } from './routes/email-webhook.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { NotFoundError } from './utils/errors.js';
 
@@ -152,6 +153,7 @@ export function createApp(): Express {
   app.use('/api/email-templates', emailTemplateRouter);
   app.use('/api/advisors', advisorRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/webhooks/email', emailWebhookRouter);
 
   // 404 Handler
   app.use((_req, _res, next) => {

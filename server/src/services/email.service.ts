@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { Resend } from 'resend';
 import { UnrecoverableError } from 'bullmq';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -159,4 +160,153 @@ export class MockEmailService implements IEmailService {
   }
 }
 
-export const emailService = new MockEmailService();
+export class ResendEmailService implements IEmailService {
+  private resend: Resend | null = null;
+  private apiKey: string;
+  private defaultFrom: string;
+
+  constructor(apiKey?: string, defaultFrom?: string) {
+    this.apiKey = apiKey || env.RESEND_API_KEY || '';
+    this.defaultFrom = defaultFrom || `${env.EMAIL_FROM_NAME} <${env.EMAIL_FROM_ADDRESS}>`;
+    if (this.apiKey) {
+      this.resend = new Resend(this.apiKey);
+    }
+  }
+
+  async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+    const masked = maskEmail(options.to);
+    const from = options.from || this.defaultFrom;
+
+    if (!this.resend) {
+      if (!this.apiKey) {
+        throw new UnrecoverableError('Resend API key is not configured');
+      }
+      this.resend = new Resend(this.apiKey);
+    }
+
+    logger.info(
+      {
+        brokerageId: options.brokerageId,
+        leadId: options.leadId,
+        templateId: options.templateId,
+        recipientType: options.recipientType,
+        recipient: masked,
+        from,
+        subjectLength: options.subject.length,
+      },
+      'ResendEmailService: Preparing to dispatch email message via Resend'
+    );
+
+    try {
+      const isHtml = options.body.includes('<') && options.body.includes('>');
+      const htmlBody = isHtml
+        ? options.body
+        : `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${options.body}</div>`;
+
+      const tags: { name: string; value: string }[] = [
+        { name: 'brokerage_id', value: options.brokerageId },
+      ];
+      if (options.leadId) {
+        tags.push({ name: 'lead_id', value: options.leadId });
+      }
+      if (options.templateId) {
+        tags.push({ name: 'template_id', value: options.templateId });
+      }
+
+      const response = await this.resend.emails.send({
+        from,
+        to: [options.to],
+        subject: options.subject,
+        html: htmlBody,
+        text: options.body,
+        tags,
+        headers: {
+          'X-Entity-Ref-ID': options.leadId || options.brokerageId,
+        },
+        ...(env.EMAIL_REPLY_TO ? { replyTo: env.EMAIL_REPLY_TO } : {}),
+      });
+
+      if (response.error) {
+        const errMsg = response.error.message || 'Unknown Resend error';
+        const errName = String(response.error.name || '');
+        logger.error(
+          {
+            brokerageId: options.brokerageId,
+            recipient: masked,
+            errorName: errName,
+            errorMessage: errMsg,
+          },
+          'ResendEmailService: Resend dispatch error encountered'
+        );
+
+        // Terminal error classification (invalid domain, invalid recipient, unauthenticated)
+        if (
+          errName === 'validation_error' ||
+          errName === 'invalid_parameter' ||
+          errName === 'restricted_action' ||
+          errMsg.includes('not verified') ||
+          errMsg.includes('domain is not verified') ||
+          errMsg.includes('invalid')
+        ) {
+          throw new UnrecoverableError(`Resend terminal failure: ${errMsg}`);
+        }
+
+        // Transient error classification (rate limiting, timeout, network error)
+        throw new EmailProviderTransientError(`Resend transient failure: ${errMsg}`);
+      }
+
+      const messageId = response.data?.id || `msg_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+      const sentAt = new Date();
+
+      logger.info(
+        {
+          messageId,
+          brokerageId: options.brokerageId,
+          recipient: masked,
+        },
+        'ResendEmailService: Email successfully accepted by Resend'
+      );
+
+      return {
+        messageId,
+        sentAt,
+        status: 'SENT',
+      };
+    } catch (err: unknown) {
+      if (err instanceof UnrecoverableError || err instanceof EmailProviderTransientError) {
+        throw err;
+      }
+      const message = (err as Error)?.message || 'Unexpected error sending email';
+      logger.error({ err: message, brokerageId: options.brokerageId, recipient: masked }, 'ResendEmailService: Unexpected dispatch failure');
+      throw new EmailProviderTransientError(`Resend dispatch error: ${message}`);
+    }
+  }
+
+  getSentEmails(): SentEmailRecord[] {
+    return [];
+  }
+
+  clearSentEmails(): void {}
+
+  setSimulationMode(): void {}
+}
+
+export function createEmailService(): IEmailService {
+  if (env.EMAIL_PROVIDER === 'resend') {
+    return new ResendEmailService();
+  }
+  return new MockEmailService();
+}
+
+let activeEmailService: IEmailService = createEmailService();
+
+export function setEmailService(service: IEmailService): void {
+  activeEmailService = service;
+}
+
+export const emailService: IEmailService = {
+  sendEmail: (opts) => activeEmailService.sendEmail(opts),
+  getSentEmails: () => activeEmailService.getSentEmails(),
+  clearSentEmails: () => activeEmailService.clearSentEmails(),
+  setSimulationMode: (cfg) => activeEmailService.setSimulationMode(cfg),
+};

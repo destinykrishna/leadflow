@@ -246,3 +246,36 @@ export function useAssignAdvisor() {
     },
   })
 }
+
+export interface EmailLogItem {
+  _id: string
+  brokerageId: string
+  leadId: string
+  recipientEmail: string
+  recipientName?: string | null
+  subject: string
+  provider: 'MOCK' | 'RESEND'
+  providerMessageId?: string | null
+  status: 'QUEUED' | 'SENT' | 'DELIVERED' | 'BOUNCED' | 'COMPLAINED' | 'FAILED'
+  bounceType?: 'HARD' | 'SOFT' | null
+  bounceReason?: string | null
+  error?: string | null
+  sentAt?: string | null
+  deliveredAt?: string | null
+  bouncedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export function useLeadEmails(leadId?: string) {
+  return useQuery({
+    queryKey: ['lead-emails', leadId],
+    queryFn: async (): Promise<EmailLogItem[]> => {
+      if (!leadId) return []
+      const response = await api.get<ApiResponse<EmailLogItem[]>>(`/leads/${leadId}/emails`)
+      return response.data.data || []
+    },
+    enabled: Boolean(leadId),
+  })
+}
+

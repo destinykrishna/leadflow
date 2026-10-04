@@ -91,6 +91,15 @@ router.get(
   leadController.getLeadById.bind(leadController)
 );
 
+// Retrieve lead email communication history (anti-IDOR: tenant-scoped)
+router.get(
+  '/:id/emails',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.getLeadEmails.bind(leadController)
+);
+
 // Assign / reassign lead to an ACTIVE ADVISOR in the same brokerage (admin only)
 router.patch(
   '/:id/assign',

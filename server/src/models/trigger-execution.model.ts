@@ -14,6 +14,7 @@ export interface ITriggerExecution {
   status: TriggerExecutionStatus;
   taskId?: Types.ObjectId | null;
   emailJobId?: string | null;
+  emailLogId?: Types.ObjectId | null;
   recipientEmail?: string | null;
   error?: string | null;
   executedAt?: Date | null;
@@ -79,6 +80,11 @@ const triggerExecutionSchema = new Schema<ITriggerExecutionDocument>(
       type: String,
       default: null,
       trim: true,
+    },
+    emailLogId: {
+      type: Schema.Types.ObjectId,
+      ref: 'EmailLog',
+      default: null,
     },
     recipientEmail: {
       type: String,
