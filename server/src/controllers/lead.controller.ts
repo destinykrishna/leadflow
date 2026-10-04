@@ -12,6 +12,7 @@ import { convertLeadSchema } from '../validators/client.validators.js';
 import { ValidationError, UnauthorizedError, NotFoundError } from '../utils/errors.js';
 import { EmailLog } from '../models/email-log.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
+import { activityService } from '../services/activity.service.js';
 
 export class LeadController {
   /**
@@ -331,6 +332,42 @@ export class LeadController {
           lead: result.lead,
           previousStage: result.previousStage,
           currentStage: result.currentStage,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Retrieves paginated activity timeline for a lead.
+   * Scoped to the authenticated brokerage, anti-IDOR protected.
+   */
+  async getLeadTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const parsedParam = leadIdParamSchema.safeParse(req.params);
+      if (!parsedParam.success) {
+        throw new ValidationError('Invalid lead ID format', parsedParam.error.format());
+      }
+
+      const { page, limit } = req.query as { page?: string; limit?: string };
+      const result = await activityService.getLeadTimeline(req.user, parsedParam.data.id, {
+        page,
+        limit,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result.activities,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
         },
       });
     } catch (error) {

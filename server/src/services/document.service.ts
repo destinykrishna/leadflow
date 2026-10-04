@@ -13,6 +13,7 @@ import { authorizationService } from './authorization.service.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { enqueueDocumentProcessing } from '../queues/document.queue.js';
 import { emitDocumentStatusChanged } from '../queues/document-events.js';
+import { activityService } from './activity.service.js';
 import {
   ValidationError,
   NotFoundError,
@@ -248,6 +249,28 @@ export class DocumentService implements IDomainService {
         type: document.type,
         title: document.title,
         updatedAt: document.updatedAt,
+      });
+
+      // Record immutable activity log (failure isolated, never throws)
+      void activityService.logActivity({
+        brokerageId: targetBrokerageId,
+        entityType: 'DOCUMENT',
+        entityId: document._id,
+        leadId: targetLeadId || undefined,
+        clientId: targetClientId || undefined,
+        action: 'DOCUMENT_UPLOADED',
+        actor: {
+          id: caller.id,
+          name: caller.name,
+          role: caller.role,
+          email: caller.email,
+        },
+        metadata: {
+          title: document.title,
+          documentType: document.type,
+          fileSize: document.fileSize,
+          mimeType: document.mimeType,
+        },
       });
 
       // 7. Enqueue background verification job in BullMQ
@@ -611,6 +634,29 @@ export class DocumentService implements IDomainService {
       rejectionReason: reviewedDoc.rejectionReason,
       updatedAt: reviewedDoc.updatedAt,
     });
+
+    if (reviewedDoc.status === 'VERIFIED' || reviewedDoc.status === 'REJECTED') {
+      void activityService.logActivity({
+        brokerageId: reviewedDoc.brokerageId,
+        entityType: 'DOCUMENT',
+        entityId: reviewedDoc._id,
+        leadId: reviewedDoc.leadId || undefined,
+        clientId: reviewedDoc.clientId || undefined,
+        action: reviewedDoc.status === 'VERIFIED' ? 'DOCUMENT_VERIFIED' : 'DOCUMENT_REJECTED',
+        actor: {
+          id: caller.id,
+          name: caller.name,
+          role: caller.role,
+          email: caller.email,
+        },
+        metadata: {
+          title: reviewedDoc.title,
+          documentType: reviewedDoc.type,
+          verificationNotes: reviewedDoc.verificationNotes,
+          rejectionReason: reviewedDoc.rejectionReason,
+        },
+      });
+    }
 
     return reviewedDoc;
   }

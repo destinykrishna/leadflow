@@ -3,6 +3,7 @@ import { taskRepository } from '../repositories/task.repository.js';
 import { taskQuerySchema, updateTaskStatusSchema } from '../validators/task.validators.js';
 import { validateData } from '../validators/common.validators.js';
 import { NotFoundError } from '../utils/errors.js';
+import { activityService } from '../services/activity.service.js';
 
 export class TaskController {
   /**
@@ -62,6 +63,28 @@ export class TaskController {
       const updatedTask = await taskRepository.updateStatus(user, taskId, status);
       if (!updatedTask) {
         throw new NotFoundError('Task resource not found');
+      }
+
+      if (status === 'COMPLETED') {
+        void activityService.logActivity({
+          brokerageId: updatedTask.brokerageId,
+          entityType: 'TASK',
+          entityId: updatedTask._id,
+          leadId: (updatedTask.leadId as any)?._id || updatedTask.leadId || undefined,
+          clientId: (updatedTask.clientId as any)?._id || updatedTask.clientId || undefined,
+          action: 'TASK_COMPLETED',
+          actor: {
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            email: user.email,
+          },
+          metadata: {
+            title: updatedTask.title,
+            priority: updatedTask.priority,
+            completedAt: updatedTask.completedAt,
+          },
+        });
       }
 
       res.status(200).json({

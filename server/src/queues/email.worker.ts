@@ -13,6 +13,7 @@ import { emailService } from '../services/email.service.js';
 import { emitAutomationEvent } from './automation-events.js';
 import { maskEmail } from '../utils/mask.js';
 import { logger } from '../utils/logger.js';
+import { activityService } from '../services/activity.service.js';
 
 export interface EmailProcessingResult {
   jobId: string;
@@ -196,6 +197,27 @@ export async function processEmailJob(
       metadata: {
         jobId: job.id,
         idempotencyKey: payload.idempotencyKey,
+      },
+    });
+
+    // Record immutable activity log (failure isolated, never throws)
+    void activityService.logActivity({
+      brokerageId: new Types.ObjectId(payload.brokerageId),
+      entityType: 'EMAIL',
+      entityId: emailLog._id,
+      leadId: payload.leadId && Types.ObjectId.isValid(payload.leadId) ? new Types.ObjectId(payload.leadId) : null,
+      action: 'EMAIL_SENT',
+      actor: {
+        id: null,
+        name: 'Automation Worker',
+        role: 'SYSTEM',
+        email: null,
+      },
+      metadata: {
+        recipientEmail: payload.to,
+        recipientName: payload.recipientName || null,
+        subject: payload.subject,
+        messageId: sendResult.messageId,
       },
     });
 

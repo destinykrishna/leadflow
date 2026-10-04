@@ -22,6 +22,7 @@ import {
   Archive,
   Mail,
   RotateCcw,
+  Activity,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -53,6 +54,8 @@ import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
+import { useLeadTimeline } from '@/features/admin/api/audit.api'
+import { ActivityTimeline } from '@/components/common/ActivityTimeline'
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   PAYSLIP: 'Salary Slip / Form 16',
@@ -119,6 +122,13 @@ export function LeadDetailView({
     refetch: refetchEmails,
   } = useLeadEmails(lead?._id)
 
+  const {
+    data: timelineData,
+    isLoading: isTimelineLoading,
+    refetch: refetchTimeline,
+  } = useLeadTimeline(lead?._id)
+  const timelineActivities = (timelineData?.data as any) || []
+
   const updateStageMutation = useUpdateLeadWorkspaceStage()
   const archiveMutation = useArchiveLead()
   const unarchiveMutation = useUnarchiveLead()
@@ -175,6 +185,7 @@ export function LeadDetailView({
       })
       refetchLead()
       refetchTasks()
+      refetchTimeline()
     } catch (err: unknown) {
       const errObj = err as {
         response?: { status?: number; data?: { error?: { code?: string; message?: string } } }
@@ -652,9 +663,9 @@ export function LeadDetailView({
             <div className="flex items-center gap-2.5">
               <XCircle className="h-4 w-4 shrink-0 text-rose-600" />
               <div>
-                <span className="font-semibold">Closed Lost</span>
+                <span className="font-semibold">Terminal State: Closed Lost</span>
                 <p className="text-[11px] text-rose-700 mt-0.5">
-                  This inquiry was closed as lost. You can reopen the inquiry to resume active qualification, or archive it to hide it from active views.
+                  This lead has been archived as lost. You can reopen the inquiry to resume active qualification, or archive it to hide it from active views.
                 </p>
               </div>
             </div>
@@ -1161,6 +1172,33 @@ export function LeadDetailView({
               </div>
             )}
           </Card>
+
+          {/* Chronological Activity & Audit Timeline */}
+          <Card className="border border-border/80 p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Activity & Audit Timeline ({timelineActivities.length})
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchTimeline()}
+                className="h-6 text-[11px] text-muted-foreground hover:text-slate-900"
+              >
+                Refresh
+              </Button>
+            </div>
+
+            <ActivityTimeline
+              activities={timelineActivities}
+              isLoading={isTimelineLoading}
+              emptyTitle="No Activity Recorded"
+              emptyDescription="Stage progressions, document decisions, and advisor assignments will appear here."
+            />
+          </Card>
         </div>
 
         {/* Right Column (1 span): Stage Actions, Score, Assignment */}
@@ -1195,7 +1233,8 @@ export function LeadDetailView({
                 {lead.status === 'LOST' ? (
                   <div className="space-y-2.5">
                     <div className="rounded-lg bg-rose-50/70 border border-rose-100 p-2.5 text-center text-[11px] text-rose-800">
-                      Closed Lost: Inquiry is currently inactive.
+                      <span>Closed Lost: Inquiry is currently inactive.</span>
+                      <div className="text-[11px] text-slate-600 mt-1 font-normal">Terminal Stage: No outgoing transitions permitted.</div>
                     </div>
                     {isStaffRole && (
                       <Button

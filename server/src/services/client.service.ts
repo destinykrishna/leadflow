@@ -8,6 +8,7 @@ import { clientRepository } from '../repositories/client.repository.js';
 import { authorizationService } from './authorization.service.js';
 import { emitPipelineStageChanged } from './lead-pipeline.service.js';
 import { triggerService } from './trigger.service.js';
+import { activityService } from './activity.service.js';
 import { hashPassword } from '../utils/password.js';
 import {
   ConflictError,
@@ -307,6 +308,27 @@ export class ClientService implements IDomainService {
         },
         'Successfully converted lead to client'
       );
+
+      // Record immutable activity log (failure isolated, never throws)
+      void activityService.logActivity({
+        brokerageId: lead.brokerageId,
+        entityType: 'CLIENT',
+        entityId: newClient._id,
+        leadId: lead._id,
+        clientId: newClient._id,
+        action: 'LEAD_CONVERTED',
+        actor: {
+          id: caller.id,
+          name: caller.name,
+          role: caller.role,
+          email: caller.email,
+        },
+        metadata: {
+          clientType: newClient.type,
+          isNewUser,
+          clientUserId: clientUserId.toString(),
+        },
+      });
 
       return {
         client: newClient,

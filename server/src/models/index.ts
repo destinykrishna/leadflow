@@ -10,3 +10,4 @@ export * from './trigger-execution.model.js';
 export * from './session.model.js';
 export * from './email-log.model.js';
 export * from './email-suppression.model.js';
+export * from './activity-log.model.js';

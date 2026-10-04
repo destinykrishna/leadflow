@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { clientService } from '../services/client.service.js';
+import { activityService } from '../services/activity.service.js';
 import { convertLeadSchema } from '../validators/client.validators.js';
 import { UnauthorizedError, ValidationError } from '../utils/errors.js';
 
@@ -96,6 +97,38 @@ export class ClientController {
       res.status(201).json({
         success: true,
         data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Retrieves paginated activity timeline for a client case.
+   * Access restricted to PLATFORM_ADMIN, BROKERAGE_ADMIN, and ADVISOR.
+   */
+  async getClientTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const id = typeof req.params.id === 'string' ? req.params.id : '';
+      const { page, limit } = req.query as { page?: string; limit?: string };
+      const result = await activityService.getClientTimeline(req.user, id, {
+        page,
+        limit,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result.activities,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
       });
     } catch (error) {
       next(error);

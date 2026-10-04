@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Info,
   AlertTriangle,
+  Activity,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -44,6 +45,8 @@ import type { ClientType, ClientStatus } from '@/types/client.types'
 import type { DocumentItem, DocumentType } from '@/types/document.types'
 import { STAGE_DEFINITIONS } from '@/types/pipeline.types'
 import { sanitizeIndianMortgageText, formatUserEmail } from '@/lib/presentation'
+import { useClientTimeline } from '@/features/admin/api/audit.api'
+import { ActivityTimeline } from '@/components/common/ActivityTimeline'
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   PAYSLIP: 'Salary Slip / Form 16',
@@ -143,6 +146,14 @@ export function ClientDetailView({
     leadId,
     enabled: Boolean(client?._id),
   })
+
+  // 6. Fetch Case Activity & Audit Timeline
+  const {
+    data: timelineData,
+    isLoading: isTimelineLoading,
+    refetch: refetchTimeline,
+  } = useClientTimeline(client?._id || clientId)
+  const timelineActivities = (timelineData?.data as any) || []
 
   // Local UI states
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false)
@@ -981,6 +992,33 @@ export function ClientDetailView({
                 </div>
               )}
             </div>
+          </Card>
+
+          {/* Chronological Case Activity & Audit Timeline */}
+          <Card className="p-5 border border-border/80 shadow-2xs bg-white">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold text-slate-900">
+                  Case Activity & Audit Timeline ({timelineActivities.length})
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchTimeline()}
+                className="h-7 px-2 text-xs gap-1 text-slate-600 hover:text-slate-900"
+              >
+                Refresh
+              </Button>
+            </div>
+
+            <ActivityTimeline
+              activities={timelineActivities}
+              isLoading={isTimelineLoading}
+              emptyTitle="No Recorded Case Activity"
+              emptyDescription="Document uploads, verification decisions, and case milestones will appear here."
+            />
           </Card>
         </div>
 

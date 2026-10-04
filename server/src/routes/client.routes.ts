@@ -39,6 +39,15 @@ router.post(
   clientController.convertLeadToClient.bind(clientController)
 );
 
+// Get client case activity timeline (staff only: PLATFORM_ADMIN, BROKERAGE_ADMIN, ADVISOR)
+router.get(
+  '/:id/timeline',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  clientController.getClientTimeline.bind(clientController)
+);
+
 // Get client by ID (Clients restricted to own record; Advisors/Admins restricted to own brokerage)
 router.get(
   '/:id',

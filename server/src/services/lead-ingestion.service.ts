@@ -3,6 +3,7 @@ import { Lead, type ILeadDocument } from '../models/lead.model.js';
 import { leadRepository, type IngestLeadResult } from '../repositories/lead.repository.js';
 import { normalizeIncomingLeadPayload, type NormalizedLeadData } from '../validators/lead.validators.js';
 import { triggerService } from './trigger.service.js';
+import { activityService } from './activity.service.js';
 import { emitPipelineStageChanged } from './lead-pipeline.service.js';
 import { logger } from '../utils/logger.js';
 import { maskEmail } from '../utils/mask.js';
@@ -103,6 +104,30 @@ export class LeadIngestionService {
         },
         lead: result.lead,
         timestamp: new Date(),
+      });
+
+      // Record immutable activity log (failure isolated, never throws)
+      void activityService.logActivity({
+        brokerageId:
+          typeof brokerageId === 'string'
+            ? new Types.ObjectId(brokerageId)
+            : brokerageId,
+        entityType: 'LEAD',
+        entityId: result.lead._id,
+        leadId: result.lead._id,
+        action: 'LEAD_CREATED',
+        actor: {
+          id: null,
+          name: result.isReInquiry ? 'Webhook Ingestion (Re-inquiry)' : 'Webhook Ingestion',
+          role: 'SYSTEM',
+          email: null,
+        },
+        metadata: {
+          source: result.lead.source,
+          score: result.lead.score,
+          isReInquiry: result.isReInquiry ?? false,
+          isAlreadyKnown: result.isAlreadyKnown ?? false,
+        },
       });
 
       // Execute configured stage automation triggers (e.g. welcome email, 2h call task) non-blocking

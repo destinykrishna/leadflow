@@ -8,6 +8,7 @@ import { withBrokerageScope } from '../repositories/base.repository.js';
 import type { PipelineQuery } from '../validators/lead.validators.js';
 import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { triggerService } from './trigger.service.js';
+import { activityService } from './activity.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface LeadStageChangedEvent {
@@ -205,6 +206,25 @@ export class LeadPipelineService {
       timestamp: new Date(),
     });
 
+    // Record immutable activity log (failure isolated, never throws)
+    void activityService.logActivity({
+      brokerageId: userContext.brokerageId || result.lead!.brokerageId.toString(),
+      entityType: 'LEAD',
+      entityId: result.lead!._id,
+      leadId: result.lead!._id,
+      action: 'STAGE_CHANGED',
+      actor: {
+        id: userContext.id,
+        name: userContext.name,
+        role: userContext.role,
+        email: userContext.email,
+      },
+      metadata: {
+        previousStage: result.previousStage,
+        newStage: result.currentStage,
+      },
+    });
+
     // Execute configured stage automation triggers (tasks & emails) non-blocking
     triggerService
       .handleStageTransition({
@@ -336,6 +356,25 @@ export class LeadPipelineService {
       'Lead advisor assignment updated'
     );
 
+    // Record immutable activity log (failure isolated, never throws)
+    void activityService.logActivity({
+      brokerageId: leadBrokerageId,
+      entityType: 'LEAD',
+      entityId: updatedLead._id,
+      leadId: updatedLead._id,
+      action: 'ADVISOR_ASSIGNED',
+      actor: {
+        id: userContext.id,
+        name: userContext.name,
+        role: userContext.role,
+        email: userContext.email,
+      },
+      metadata: {
+        advisorId: advisor._id.toString(),
+        advisorName: advisor.name,
+      },
+    });
+
     return updatedLead;
   }
 
@@ -388,6 +427,26 @@ export class LeadPipelineService {
       },
       lead: result.lead!,
       timestamp: new Date(),
+    });
+
+    // Record immutable activity log (failure isolated, never throws)
+    void activityService.logActivity({
+      brokerageId: userContext.brokerageId || result.lead!.brokerageId.toString(),
+      entityType: 'LEAD',
+      entityId: result.lead!._id,
+      leadId: result.lead!._id,
+      action: 'LEAD_REOPENED',
+      actor: {
+        id: userContext.id,
+        name: userContext.name,
+        role: userContext.role,
+        email: userContext.email,
+      },
+      metadata: {
+        previousStage: 'LOST',
+        newStage: 'NEW',
+        reason: reason || null,
+      },
     });
 
     // Execute configured stage automation triggers for NEW stage non-blocking

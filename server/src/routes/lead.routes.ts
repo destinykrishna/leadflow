@@ -100,6 +100,15 @@ router.get(
   leadController.getLeadEmails.bind(leadController)
 );
 
+// Retrieve lead activity timeline (anti-IDOR: tenant-scoped, staff only)
+router.get(
+  '/:id/timeline',
+  authenticate,
+  requireActiveUser,
+  requireRoles('PLATFORM_ADMIN', 'BROKERAGE_ADMIN', 'ADVISOR'),
+  leadController.getLeadTimeline.bind(leadController)
+);
+
 // Assign / reassign lead to an ACTIVE ADVISOR in the same brokerage (admin only)
 router.patch(
   '/:id/assign',
