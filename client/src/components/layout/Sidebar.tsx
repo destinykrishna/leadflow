@@ -25,6 +25,7 @@ import {
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
+import { formatRoleLabel } from '@/lib/presentation'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -51,21 +52,6 @@ export function Sidebar({
 }: SidebarProps) {
   const { user, logout } = useAuth()
   const modKey = isMac ? '⌘' : 'Ctrl'
-
-  const formatRoleLabel = (role?: string) => {
-    switch (role) {
-      case 'PLATFORM_ADMIN':
-        return 'Superadmin'
-      case 'BROKERAGE_ADMIN':
-        return 'Brokerage Admin'
-      case 'ADVISOR':
-        return 'Mortgage Advisor'
-      case 'CLIENT':
-        return 'Client'
-      default:
-        return 'User'
-    }
-  }
 
   // Generate navigation links based on user role
   const getNavSections = () => {

@@ -94,3 +94,40 @@ export function formatUserEmail(email?: string | null): string {
   if (!email) return ''
   return sanitizeIndianMortgageText(email)
 }
+
+/**
+ * Standardizes user role display labels across the application.
+ */
+export function formatRoleLabel(role?: string): string {
+  switch (role) {
+    case 'PLATFORM_ADMIN':
+      return 'Platform Admin'
+    case 'BROKERAGE_ADMIN':
+      return 'Brokerage Admin'
+    case 'ADVISOR':
+      return 'Mortgage Advisor'
+    case 'CLIENT':
+      return 'Client'
+    default:
+      return 'User'
+  }
+}
+
+/**
+ * Standardizes user role badge variant styling.
+ */
+export function getRoleBadgeVariant(role?: string): 'default' | 'neutral' | 'success' | 'warning' | 'danger' {
+  switch (role) {
+    case 'PLATFORM_ADMIN':
+      return 'danger'
+    case 'BROKERAGE_ADMIN':
+      return 'default'
+    case 'ADVISOR':
+      return 'success'
+    case 'CLIENT':
+      return 'neutral'
+    default:
+      return 'neutral'
+  }
+}
+

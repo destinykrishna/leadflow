@@ -23,7 +23,13 @@ import { api } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useMyCase } from '@/features/clients/api/clients.api'
 import type { ApiResponse } from '@/types/api.types'
-import { formatBrokerageName, formatUserEmail, sanitizeIndianMortgageText } from '@/lib/presentation'
+import {
+  formatBrokerageName,
+  formatUserEmail,
+  sanitizeIndianMortgageText,
+  formatRoleLabel,
+  getRoleBadgeVariant,
+} from '@/lib/presentation'
 
 interface ProfileSettingsModalProps {
   open: boolean
@@ -73,36 +79,6 @@ export function ProfileSettingsModal({
     navigator.clipboard.writeText(text)
     setCopiedField(fieldName)
     setTimeout(() => setCopiedField(null), 2000)
-  }
-
-  const getRoleBadgeVariant = (role?: string) => {
-    switch (role) {
-      case 'PLATFORM_ADMIN':
-        return 'danger'
-      case 'BROKERAGE_ADMIN':
-        return 'default'
-      case 'ADVISOR':
-        return 'success'
-      case 'CLIENT':
-        return 'neutral'
-      default:
-        return 'neutral'
-    }
-  }
-
-  const formatRoleLabel = (role?: string) => {
-    switch (role) {
-      case 'PLATFORM_ADMIN':
-        return 'Platform Superadmin'
-      case 'BROKERAGE_ADMIN':
-        return 'Brokerage Administrator'
-      case 'ADVISOR':
-        return 'Mortgage Advisor'
-      case 'CLIENT':
-        return 'Mortgage Client / Borrower'
-      default:
-        return 'User'
-    }
   }
 
   const getRolePermissions = (role?: string): string[] => {

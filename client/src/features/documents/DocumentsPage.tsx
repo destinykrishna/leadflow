@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -227,10 +228,11 @@ export function DocumentsPage() {
 
           {/* Type Filter */}
           <div className="w-full md:w-56">
-            <select
+            <Select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Filter by document category"
+              className="w-full h-9"
             >
               <option value="ALL">All Categories</option>
               {DOCUMENT_TYPES.map((type) => (
@@ -238,7 +240,7 @@ export function DocumentsPage() {
                   {DOCUMENT_TYPE_LABELS[type]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 

@@ -24,6 +24,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -155,29 +156,31 @@ export function AuditPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full sm:w-auto flex-1">
-            <select
+            <Select
               value={selectedAction}
               onChange={handleActionChange}
-              className="h-8 rounded-md border border-input bg-white px-2.5 text-xs text-slate-800 shadow-2xs focus:border-primary focus:outline-hidden"
+              aria-label="Filter by activity action"
+              className="h-8"
             >
               {ACTION_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
 
-            <select
+            <Select
               value={selectedEntity}
               onChange={handleEntityChange}
-              className="h-8 rounded-md border border-input bg-white px-2.5 text-xs text-slate-800 shadow-2xs focus:border-primary focus:outline-hidden"
+              aria-label="Filter by entity type"
+              className="h-8"
             >
               {ENTITY_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {(selectedAction || selectedEntity) && (

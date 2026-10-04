@@ -56,6 +56,7 @@ import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
 import { CreateTaskModal } from '@/features/tasks/components/CreateTaskModal'
+import { ConfirmModal } from '@/components/common/ConfirmModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
 import { useLeadTimeline } from '@/features/admin/api/audit.api'
 import { ActivityTimeline } from '@/components/common/ActivityTimeline'
@@ -149,6 +150,7 @@ export function LeadDetailView({
   const { showToast } = useToast()
   const [isConvertModalOpen, setIsConvertModalOpen] = React.useState(false)
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = React.useState(false)
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = React.useState(false)
   const [isEditingNotes, setIsEditingNotes] = React.useState(false)
   const [noteText, setNoteText] = React.useState('')
   const [isSavingNotes, setIsSavingNotes] = React.useState(false)
@@ -565,11 +567,7 @@ export function LeadDetailView({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  if (window.confirm(`Archive inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}?`)) {
-                    archiveMutation.mutate(lead._id)
-                  }
-                }}
+                onClick={() => setIsArchiveConfirmOpen(true)}
                 disabled={archiveMutation.isPending}
                 className="gap-1.5 text-xs h-8 text-slate-600 hover:text-amber-700 hover:border-amber-300"
                 title="Archive Lead (excludes from active pipeline)"
@@ -1655,6 +1653,22 @@ export function LeadDetailView({
           initialLeadId={lead._id}
           initialLeadName={[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
           defaultAssignedTo={assignedAdvisor?._id}
+        />
+      )}
+
+      {/* Archive Lead Confirmation */}
+      {isStaffRole && (
+        <ConfirmModal
+          isOpen={isArchiveConfirmOpen}
+          onClose={() => setIsArchiveConfirmOpen(false)}
+          onConfirm={async () => {
+            await archiveMutation.mutateAsync(lead._id)
+          }}
+          title="Archive Lead Inquiry"
+          description={`Are you sure you want to archive the inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'this lead'}? It will be excluded from the active pipeline board.`}
+          confirmLabel="Archive Lead"
+          variant="warning"
+          isLoading={archiveMutation.isPending}
         />
       )}
     </div>

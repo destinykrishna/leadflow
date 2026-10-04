@@ -15,9 +15,11 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { ConfirmModal } from '@/components/common/ConfirmModal'
 import { formatCurrency, formatRelativeTime } from '@/lib/format'
 import {
   ORDERED_STAGES,
@@ -47,6 +49,7 @@ export function LeadsPage() {
   const [selectedAdvisor, setSelectedAdvisor] = React.useState<string>('ALL')
   const [viewScope, setViewScope] = React.useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
   const [page, setPage] = React.useState(1)
+  const [leadToArchive, setLeadToArchive] = React.useState<Lead | null>(null)
   const limit = 25
 
   // Debounce search input to avoid spamming server queries
@@ -176,57 +179,60 @@ export function LeadsPage() {
             <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             
             {/* Status Dropdown */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value)
-                setPage(1)
-              }}
-              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
-              title="Filter by Stage"
-            >
-              <option value="ALL">All Stages</option>
-              {ORDERED_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {STAGE_DEFINITIONS[s]?.label || s}
-                </option>
-              ))}
-            </select>
+            <div className="w-36">
+              <Select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value)
+                  setPage(1)
+                }}
+                aria-label="Filter by stage"
+              >
+                <option value="ALL">All Stages</option>
+                {ORDERED_STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {STAGE_DEFINITIONS[s]?.label || s}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
             {/* Source Dropdown */}
-            <select
-              value={selectedSource}
-              onChange={(e) => {
-                setSelectedSource(e.target.value)
-                setPage(1)
-              }}
-              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
-              title="Filter by Inbound Source"
-            >
-              {LEAD_SOURCES.map((src) => (
-                <option key={src.value} value={src.value}>
-                  {src.label}
-                </option>
-              ))}
-            </select>
+            <div className="w-36">
+              <Select
+                value={selectedSource}
+                onChange={(e) => {
+                  setSelectedSource(e.target.value)
+                  setPage(1)
+                }}
+                aria-label="Filter by inbound source"
+              >
+                {LEAD_SOURCES.map((src) => (
+                  <option key={src.value} value={src.value}>
+                    {src.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
             {/* Advisor Dropdown */}
-            <select
-              value={selectedAdvisor}
-              onChange={(e) => {
-                setSelectedAdvisor(e.target.value)
-                setPage(1)
-              }}
-              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9 max-w-[140px] truncate"
-              title="Filter by Assigned Advisor"
-            >
-              <option value="ALL">All Advisors</option>
-              {activeAdvisors.map((adv) => (
-                <option key={adv._id || adv.id} value={adv._id || adv.id}>
-                  {adv.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-40">
+              <Select
+                value={selectedAdvisor}
+                onChange={(e) => {
+                  setSelectedAdvisor(e.target.value)
+                  setPage(1)
+                }}
+                aria-label="Filter by assigned advisor"
+              >
+                <option value="ALL">All Advisors</option>
+                {activeAdvisors.map((adv) => (
+                  <option key={adv._id || adv.id} value={adv._id || adv.id}>
+                    {adv.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -244,11 +250,46 @@ export function LeadsPage() {
 
       {/* Main Leads Table / List */}
       {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-        </div>
+        <Card className="border border-border/80 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border/80 bg-slate-50/70 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Borrower</th>
+                  <th className="py-3 px-4">Current Stage</th>
+                  <th className="py-3 px-4">Target Loan</th>
+                  <th className="py-3 px-4">Score</th>
+                  <th className="py-3 px-4">Source</th>
+                  <th className="py-3 px-4">Assigned Advisor</th>
+                  <th className="py-3 px-4 text-right">Inquiry Date</th>
+                  <th className="py-3 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <Skeleton className="h-7 w-7 rounded-full shrink-0" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-3.5 w-32" />
+                          <Skeleton className="h-2.5 w-24" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-16" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-8" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-4 w-14 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-24" /></td>
+                    <td className="py-3.5 px-4 text-right"><Skeleton className="h-3 w-16 ml-auto" /></td>
+                    <td className="py-3.5 px-4 text-center"><Skeleton className="h-6 w-6 rounded-md mx-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       ) : isError ? (
         <ErrorState
           title="Failed to Load Leads"
@@ -309,7 +350,16 @@ export function LeadsPage() {
                     <tr
                       key={lead._id}
                       onClick={() => navigate(`/app/leads/${lead._id}`)}
-                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/app/leads/${lead._id}`)
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View lead inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}`}
+                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group focus:outline-none focus:bg-slate-100/70"
                     >
                       {/* Borrower Name & Email */}
                       <td className="py-3 px-4">
@@ -319,7 +369,7 @@ export function LeadsPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5 font-semibold text-slate-900 group-hover:text-primary transition-colors">
-                              <span>
+                              <span className="group-hover:underline">
                                 {[lead.firstName, lead.lastName].filter(Boolean).join(' ')}
                               </span>
                               {isConverted && (
@@ -430,9 +480,7 @@ export function LeadsPage() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (window.confirm(`Archive inquiry for ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}?`)) {
-                                  archiveMutation.mutate(lead._id)
-                                }
+                                setLeadToArchive(lead)
                               }}
                               disabled={archiveMutation.isPending}
                               className="h-7 w-7 p-0 text-slate-400 hover:text-amber-600 transition-colors"
@@ -483,6 +531,22 @@ export function LeadsPage() {
           </div>
         </Card>
       )}
+
+      {/* Archive Lead Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(leadToArchive)}
+        onClose={() => setLeadToArchive(null)}
+        onConfirm={async () => {
+          if (!leadToArchive) return
+          await archiveMutation.mutateAsync(leadToArchive._id)
+          setLeadToArchive(null)
+        }}
+        title="Archive Borrower Inquiry"
+        description={`Are you sure you want to archive the inquiry for ${[leadToArchive?.firstName, leadToArchive?.lastName].filter(Boolean).join(' ')}? It will be safely moved out of the active pipeline board into archive storage.`}
+        confirmText="Archive Inquiry"
+        variant="warning"
+        isLoading={archiveMutation.isPending}
+      />
     </div>
   )
 }

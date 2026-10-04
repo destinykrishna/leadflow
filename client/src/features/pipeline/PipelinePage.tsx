@@ -14,6 +14,7 @@ import { Kanban, AlertCircle, AlertTriangle, CheckCircle2, X } from 'lucide-reac
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Button } from '@/components/ui/Button'
 import {
   ORDERED_STAGES,
   STAGE_DEFINITIONS,
@@ -463,6 +464,19 @@ export function PipelinePage() {
               icon={<Kanban className="h-8 w-8 text-slate-400" />}
               title="Pipeline Is Empty"
               description="No borrower inquiries have entered the qualification pipeline yet. Ingest leads via webhooks or create leads in the Leads section to begin."
+            />
+          </div>
+        ) : isFiltered && totalFilteredLeads === 0 ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <EmptyState
+              icon={<Kanban className="h-8 w-8 text-slate-400" />}
+              title="No Matching Leads"
+              description="No borrower inquiries match your active search or filter criteria. Try adjusting or resetting your filters."
+              action={
+                <Button variant="outline" size="sm" onClick={handleClearFilters} className="text-xs">
+                  Reset Filters
+                </Button>
+              }
             />
           </div>
         ) : (

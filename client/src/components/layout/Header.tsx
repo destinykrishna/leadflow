@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { formatRoleLabel, getRoleBadgeVariant } from '@/lib/presentation'
 
 interface HeaderProps {
   onOpenMobile?: () => void
@@ -51,36 +52,6 @@ export function Header({
     if (pathname.includes('/health')) return 'System Health'
     if (pathname.includes('/audit')) return 'Audit Logs'
     return 'Workspace'
-  }
-
-  const getRoleBadgeVariant = (role?: string) => {
-    switch (role) {
-      case 'PLATFORM_ADMIN':
-        return 'danger'
-      case 'BROKERAGE_ADMIN':
-        return 'default'
-      case 'ADVISOR':
-        return 'success'
-      case 'CLIENT':
-        return 'neutral'
-      default:
-        return 'neutral'
-    }
-  }
-
-  const formatRoleLabel = (role?: string) => {
-    switch (role) {
-      case 'PLATFORM_ADMIN':
-        return 'Platform Admin'
-      case 'BROKERAGE_ADMIN':
-        return 'Brokerage Admin'
-      case 'ADVISOR':
-        return 'Advisor'
-      case 'CLIENT':
-        return 'Client'
-      default:
-        return 'User'
-    }
   }
 
   const currentTitle = getPageTitle(location.pathname)

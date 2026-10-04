@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { CommandPalette } from '@/components/common/CommandPalette'
@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 
 export function AppLayout() {
   useAutomationSocket()
+  const location = useLocation()
+  const isPipeline = location.pathname.startsWith('/app/pipeline')
 
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
@@ -92,7 +94,12 @@ export function AppLayout() {
           onOpenProfile={() => setProfileModalOpen(true)}
           isMac={isMac}
         />
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main
+          className={cn(
+            'flex-1 p-4 md:p-6 lg:p-8 w-full min-w-0',
+            isPipeline ? 'max-w-none' : 'max-w-7xl mx-auto',
+          )}
+        >
           <Outlet />
         </main>
       </div>

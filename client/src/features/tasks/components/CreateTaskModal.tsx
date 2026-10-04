@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/hooks/useAuth'
 import { useAdvisorsList } from '@/features/team/api/team.api'
 import { useCreateTask } from '../api/tasks.api'
@@ -180,17 +181,19 @@ export function CreateTaskModal({
           {/* Priority & Due Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Priority</label>
-              <select
+              <label htmlFor="task-priority" className="text-xs font-semibold text-slate-700">Priority</label>
+              <Select
+                id="task-priority"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full h-9 rounded-md border border-input bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-primary focus:outline-hidden"
+                aria-label="Priority"
+                className="w-full text-xs"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium (Standard)</option>
                 <option value="HIGH">High</option>
                 <option value="URGENT">Urgent</option>
-              </select>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
@@ -209,15 +212,17 @@ export function CreateTaskModal({
 
           {/* Assigned Advisor */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+            <label htmlFor="task-assigned-to" className="text-xs font-semibold text-slate-700 flex items-center gap-1">
               <User className="h-3 w-3 text-slate-400" />
               <span>Assigned Advisor</span> <span className="text-rose-500">*</span>
             </label>
-            <select
+            <Select
+              id="task-assigned-to"
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
               disabled={isAdvisorsLoading || advisors.length === 0}
-              className="w-full h-9 rounded-md border border-input bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-primary focus:outline-hidden disabled:bg-slate-50"
+              aria-label="Assigned Advisor"
+              className="w-full text-xs"
             >
               {advisors.length === 0 ? (
                 <option value="">No active advisors found</option>
@@ -228,7 +233,7 @@ export function CreateTaskModal({
                   </option>
                 ))
               )}
-            </select>
+            </Select>
           </div>
 
           {/* Description */}

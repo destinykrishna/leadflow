@@ -1,7 +1,15 @@
 import * as React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { X, Zap, CheckSquare, Mail, Loader2, AlertCircle } from 'lucide-react'
+import { Zap, CheckSquare, Mail, Loader2, AlertCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { useCreateTrigger } from '../api/triggers.api'
 import { useEmailTemplates } from '@/features/templates/api/templates.api'
 import type { TriggerActionType, TriggerRecipientType } from '@/types/trigger.types'
@@ -93,45 +101,30 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs animate-in fade-in-0" />
-        <Dialog.Content
-          aria-describedby="create-trigger-desc"
-          className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-xl animate-in fade-in-0 zoom-in-95 duration-150 focus:outline-hidden max-h-[90vh] overflow-y-auto"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                <Zap className="h-5 w-5" />
-              </div>
-              <div>
-                <Dialog.Title className="text-base font-bold text-slate-900 leading-tight">
-                  New Stage Automation Rule
-                </Dialog.Title>
-                <p id="create-trigger-desc" className="text-xs text-muted-foreground mt-0.5">
-                  Trigger an automated advisor task or email dispatch on pipeline transitions
-                </p>
-              </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20">
+              <Zap className="h-5 w-5" />
             </div>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </Dialog.Close>
+            <div>
+              <DialogTitle className="text-base font-bold text-slate-900 leading-tight">
+                New Stage Automation Rule
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Trigger an automated advisor task or email dispatch on pipeline transitions
+              </DialogDescription>
+            </div>
           </div>
+        </DialogHeader>
 
-          {serverError && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{serverError}</span>
-            </div>
-          )}
+        {serverError && (
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             {/* Rule Name */}
@@ -139,13 +132,13 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
               <label htmlFor="trigger-name" className="block text-xs font-semibold text-slate-700">
                 Rule Name <span className="text-rose-500">*</span>
               </label>
-              <input
+              <Input
                 id="trigger-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Schedule loan proposal call on Qualified"
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-hidden"
+                className="mt-1"
               />
               {errors.name && <p className="text-[11px] text-rose-600 mt-1">{errors.name}</p>}
             </div>
@@ -153,14 +146,14 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
             {/* Stages Selection */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="from-stage" className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="from-stage" className="block text-xs font-semibold text-slate-700 mb-1">
                   From Stage (Optional)
                 </label>
-                <select
+                <Select
                   id="from-stage"
                   value={fromStage}
                   onChange={(e) => setFromStage(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                  aria-label="From Stage"
                 >
                   <option value="">Any Stage (Wildcard)</option>
                   {STAGES.map((s) => (
@@ -168,25 +161,25 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
                       {s.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
-                <label htmlFor="to-stage" className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="to-stage" className="block text-xs font-semibold text-slate-700 mb-1">
                   To Stage (Target) <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   id="to-stage"
                   value={toStage}
                   onChange={(e) => setToStage(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                  aria-label="To Stage"
                 >
                   {STAGES.map((s) => (
                     <option key={s.value} value={s.value}>
                       {s.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {errors.toStage && <p className="text-[11px] text-rose-600 mt-1">{errors.toStage}</p>}
               </div>
             </div>
@@ -239,47 +232,47 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
                   <label htmlFor="task-title" className="block text-xs font-medium text-slate-700">
                     Task Title
                   </label>
-                  <input
+                  <Input
                     id="task-title"
                     type="text"
                     value={taskTitle}
                     onChange={(e) => setTaskTitle(e.target.value)}
                     placeholder="e.g. Call borrower to discuss loan options"
-                    className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                    className="mt-1"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="task-priority" className="block text-xs font-medium text-slate-700">
+                    <label htmlFor="task-priority" className="block text-xs font-medium text-slate-700 mb-1">
                       Priority
                     </label>
-                    <select
+                    <Select
                       id="task-priority"
                       value={taskPriority}
                       onChange={(e) =>
                         setTaskPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')
                       }
-                      className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                      aria-label="Task Priority"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
                       <option value="HIGH">High</option>
                       <option value="URGENT">Urgent</option>
-                    </select>
+                    </Select>
                   </div>
 
                   <div>
                     <label htmlFor="task-offset" className="block text-xs font-medium text-slate-700">
                       Due In (Days)
                     </label>
-                    <input
+                    <Input
                       id="task-offset"
                       type="number"
                       min={0}
                       value={dueDaysOffset}
                       onChange={(e) => setDueDaysOffset(Number(e.target.value))}
-                      className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                      className="mt-1"
                     />
                   </div>
                 </div>
@@ -294,7 +287,7 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
                     value={taskDescription}
                     onChange={(e) => setTaskDescription(e.target.value)}
                     placeholder="Instructions for the assigned mortgage advisor..."
-                    className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden resize-none"
+                    className="mt-1 block w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none shadow-2xs"
                   />
                 </div>
               </div>
@@ -305,14 +298,14 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
               <div className="space-y-3 rounded-lg border border-border bg-slate-50/60 p-3.5">
                 <div className="text-xs font-bold text-slate-800">Email Dispatch Settings</div>
                 <div>
-                  <label htmlFor="email-template" className="block text-xs font-medium text-slate-700">
+                  <label htmlFor="email-template" className="block text-xs font-medium text-slate-700 mb-1">
                     Email Template
                   </label>
-                  <select
+                  <Select
                     id="email-template"
                     value={templateId}
                     onChange={(e) => setTemplateId(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                    aria-label="Email Template"
                   >
                     {templates.length === 0 ? (
                       <option value="">No templates available</option>
@@ -323,22 +316,22 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
                         </option>
                       ))
                     )}
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
-                  <label htmlFor="recipient-type" className="block text-xs font-medium text-slate-700">
+                  <label htmlFor="recipient-type" className="block text-xs font-medium text-slate-700 mb-1">
                     Send Email To
                   </label>
-                  <select
+                  <Select
                     id="recipient-type"
                     value={recipientType}
                     onChange={(e) => setRecipientType(e.target.value as TriggerRecipientType)}
-                    className="mt-1 block w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                    aria-label="Recipient Type"
                   >
                     <option value="LEAD">Borrower / Lead (Email on record)</option>
                     <option value="AGENT">Assigned Mortgage Advisor</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
             )}
@@ -360,8 +353,7 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
               </Button>
             </div>
           </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogContent>
+      </Dialog>
   )
 }

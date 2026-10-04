@@ -1,7 +1,12 @@
 import * as React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
 import {
-  X,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/Dialog'
+import {
   Mail,
   Loader2,
   AlertCircle,
@@ -10,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { useCreateEmailTemplate, useUpdateEmailTemplate } from '../api/templates.api'
 import type { IEmailTemplate } from '@/types/template.types'
 import {
@@ -143,45 +149,30 @@ export function TemplateEditorModal({
   const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs animate-in fade-in-0" />
-        <Dialog.Content
-          aria-describedby="template-editor-desc"
-          className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-xl animate-in fade-in-0 zoom-in-95 duration-150 focus:outline-hidden max-h-[90vh] overflow-y-auto"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
-                <Mail className="h-5 w-5" />
-              </div>
-              <div>
-                <Dialog.Title className="text-base font-bold text-slate-900 leading-tight">
-                  {isEditing ? 'Edit Email Template' : 'New Email Template'}
-                </Dialog.Title>
-                <p id="template-editor-desc" className="text-xs text-muted-foreground mt-0.5">
-                  Standardized client communication templates for pipeline notifications
-                </p>
-              </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+              <Mail className="h-5 w-5" />
             </div>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </Dialog.Close>
+            <div>
+              <DialogTitle className="text-base font-bold text-slate-900 leading-tight">
+                {isEditing ? 'Edit Email Template' : 'New Email Template'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Standardized client communication templates for pipeline notifications
+              </DialogDescription>
+            </div>
           </div>
+        </DialogHeader>
 
-          {serverError && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{serverError}</span>
-            </div>
-          )}
+        {serverError && (
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             {/* Name & Slug */}
@@ -190,13 +181,13 @@ export function TemplateEditorModal({
                 <label htmlFor="template-name" className="block text-xs font-semibold text-slate-700">
                   Template Name <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   id="template-name"
                   type="text"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="e.g. Proposal Ready Notification"
-                  className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-hidden"
+                  className="mt-1"
                 />
                 {errors.name && <p className="text-[11px] text-rose-600 mt-1">{errors.name}</p>}
               </div>
@@ -205,16 +196,14 @@ export function TemplateEditorModal({
                 <label htmlFor="template-slug" className="block text-xs font-semibold text-slate-700">
                   Slug (Identifier) <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   id="template-slug"
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value.toLowerCase())}
                   placeholder="e.g. proposal-ready-notification"
                   disabled={isEditing}
-                  className={`mt-1 block w-full font-mono rounded-lg border border-border px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-hidden ${
-                    isEditing ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
-                  }`}
+                  className="mt-1 font-mono disabled:opacity-60"
                 />
                 {errors.slug && <p className="text-[11px] text-rose-600 mt-1">{errors.slug}</p>}
               </div>
@@ -225,13 +214,13 @@ export function TemplateEditorModal({
               <label htmlFor="template-subject" className="block text-xs font-semibold text-slate-700">
                 Email Subject Line <span className="text-rose-500">*</span>
               </label>
-              <input
+              <Input
                 id="template-subject"
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Your Home Loan Proposal is Ready, {{lead.firstName}}!"
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-hidden"
+                className="mt-1"
               />
               {errors.subject && <p className="text-[11px] text-rose-600 mt-1">{errors.subject}</p>}
             </div>
@@ -330,8 +319,7 @@ export function TemplateEditorModal({
               </Button>
             </div>
           </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogContent>
+      </Dialog>
   )
 }

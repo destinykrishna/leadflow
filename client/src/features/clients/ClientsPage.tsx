@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -182,41 +183,77 @@ export function ClientsPage() {
 
         {/* Status Dropdown Filter */}
         <div className="flex items-center gap-2">
-          <Filter className="h-3.5 w-3.5 text-slate-400" />
-          <select
+          <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          <Select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="rounded-md border border-border bg-white px-3 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+            aria-label="Filter by case status"
+            className="w-36 h-9"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active Cases</option>
             <option value="INACTIVE">Inactive Cases</option>
             <option value="ARCHIVED">Archived</option>
-          </select>
+          </Select>
 
           {/* Profile Type Dropdown Filter */}
-          <select
+          <Select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="rounded-md border border-border bg-white px-3 py-1.5 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-9"
+            aria-label="Filter by client type"
+            className="w-40 h-9"
           >
             <option value="ALL">All Client Types</option>
             <option value="BUYER">Buyers</option>
             <option value="SELLER">Sellers</option>
             <option value="BOTH">Buyer & Seller</option>
             <option value="OTHER">Other / Special</option>
-          </select>
+          </Select>
         </div>
       </div>
 
       {/* 4. Main Clients Table / Card List */}
       {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-        </div>
+        <Card className="border border-border/80 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border/80 bg-slate-50/70 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Borrower / Client</th>
+                  <th className="py-3 px-4">Profile Type</th>
+                  <th className="py-3 px-4">Case Status</th>
+                  <th className="py-3 px-4">Inquiry Origin</th>
+                  <th className="py-3 px-4">Location</th>
+                  <th className="py-3 px-4">Advisor</th>
+                  <th className="py-3 px-4 text-right">Created</th>
+                  <th className="py-3 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <tr key={index} className="animate-pulse">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-3 w-36" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-24" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-20" /></td>
+                    <td className="py-3.5 px-4"><Skeleton className="h-3.5 w-24" /></td>
+                    <td className="py-3.5 px-4 text-right"><Skeleton className="h-3.5 w-16 ml-auto" /></td>
+                    <td className="py-3.5 px-4 text-center"><Skeleton className="h-7 w-16 mx-auto rounded-md" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       ) : isError ? (
         <ErrorState
           title="Failed to Load Clients"
@@ -284,8 +321,17 @@ export function ClientsPage() {
                   return (
                     <tr
                       key={client._id}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View client case for ${client.firstName} ${client.lastName}`}
                       onClick={() => navigate(`/app/clients/${client._id}`)}
-                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/app/clients/${client._id}`)
+                        }
+                      }}
+                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group focus:outline-hidden focus:bg-slate-50"
                     >
                       {/* Borrower Name, Avatar, & Email */}
                       <td className="py-3 px-4">

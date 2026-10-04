@@ -95,6 +95,7 @@ export function PipelineHeader({
             <select
               value={sourceFilter}
               onChange={(e) => onSourceFilterChange(e.target.value)}
+              aria-label="Filter by lead source"
               className="h-9 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
             >
               <option value="">All Sources</option>
@@ -112,6 +113,7 @@ export function PipelineHeader({
           <select
             value={minLoanFilter}
             onChange={(e) => onMinLoanFilterChange(Number(e.target.value))}
+            aria-label="Filter by minimum loan volume"
             className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
           >
             <option value="0">All Loan Sizes</option>
@@ -125,6 +127,7 @@ export function PipelineHeader({
             <select
               value={sortBy}
               onChange={(e) => onSortByChange(e.target.value)}
+              aria-label="Sort pipeline leads"
               className="h-9 rounded-lg border border-border bg-card pl-7 pr-6 text-xs text-foreground font-medium transition-colors hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
             >
               <option value="default">Newest Inquiries</option>

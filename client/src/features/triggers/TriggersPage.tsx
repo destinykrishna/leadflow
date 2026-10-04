@@ -9,6 +9,8 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
+import { ConfirmModal } from '@/components/common/ConfirmModal'
 import { useAuth } from '@/hooks/useAuth'
 import {
   useTriggers,
@@ -45,6 +47,7 @@ export function TriggersPage() {
 
   const [togglingId, setTogglingId] = React.useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
+  const [triggerToDelete, setTriggerToDelete] = React.useState<string | null>(null)
   const [previewTemplate, setPreviewTemplate] = React.useState<{
     name: string
     slug?: string
@@ -87,12 +90,16 @@ export function TriggersPage() {
     }
   }
 
-  // Handle delete
-  const handleDeleteTrigger = async (id: string) => {
+  // Handle delete modal open
+  const handleDeleteTrigger = (id: string) => {
     if (!canMutate) return
-    if (window.confirm('Are you sure you want to delete this stage automation rule?')) {
-      await deleteMutation.mutateAsync(id)
-    }
+    setTriggerToDelete(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!triggerToDelete) return
+    await deleteMutation.mutateAsync(triggerToDelete)
+    setTriggerToDelete(null)
   }
 
   // Filtered triggers list
@@ -215,29 +222,27 @@ export function TriggersPage() {
           </div>
 
           {/* Action Type Filter */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
-            <select
+          <div className="flex items-center gap-1.5 text-xs w-44">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <Select
               value={filters.actionType}
               onChange={(e) =>
                 handleFilterChange({ actionType: e.target.value as 'ALL' | TriggerActionType })
               }
               aria-label="Filter by action type"
-              className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-900 focus:outline-hidden"
             >
               <option value="ALL">All Actions</option>
               <option value="CREATE_TASK">Auto-Create Task</option>
               <option value="SEND_EMAIL">Send Email</option>
-            </select>
+            </Select>
           </div>
 
           {/* Stage Filter */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <select
+          <div className="flex items-center gap-1.5 text-xs w-36">
+            <Select
               value={filters.stage}
               onChange={(e) => handleFilterChange({ stage: e.target.value })}
               aria-label="Filter by pipeline stage"
-              className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-900 focus:outline-hidden"
             >
               <option value="ALL">All Stages</option>
               <option value="NEW">New Lead</option>
@@ -247,23 +252,22 @@ export function TriggersPage() {
               <option value="NEGOTIATION">Negotiation</option>
               <option value="WON">Won</option>
               <option value="LOST">Lost</option>
-            </select>
+            </Select>
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <select
+          <div className="flex items-center gap-1.5 text-xs w-32">
+            <Select
               value={filters.status}
               onChange={(e) =>
                 handleFilterChange({ status: e.target.value as 'ALL' | 'ACTIVE' | 'PAUSED' })
               }
               aria-label="Filter by trigger status"
-              className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-900 focus:outline-hidden"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active Only</option>
               <option value="PAUSED">Paused Only</option>
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -380,6 +384,18 @@ export function TriggersPage() {
         isOpen={Boolean(previewTemplate)}
         onClose={() => setPreviewTemplate(null)}
         template={previewTemplate}
+      />
+
+      {/* Delete Trigger Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(triggerToDelete)}
+        onClose={() => setTriggerToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Automation Rule"
+        description="Are you sure you want to delete this stage automation rule? Any tasks or emails associated with this rule will no longer be dispatched automatically upon stage movements."
+        confirmText="Delete Rule"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
       />
     </div>
   )

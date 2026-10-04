@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { useUploadClientDocument } from '../api/clients.api'
 import {
@@ -338,19 +339,21 @@ export function UploadDocumentModal({
 
             {/* Document Classification Selector */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Document Type</label>
-              <select
+              <label htmlFor="upload-doc-type" className="text-xs font-semibold text-slate-700">Document Type</label>
+              <Select
+                id="upload-doc-type"
                 value={docType}
                 onChange={(e) => setDocType(e.target.value as DocumentType)}
                 disabled={uploadMutation.isPending}
-                className="w-full rounded-md border border-border bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                aria-label="Document Type"
+                className="w-full text-xs"
               >
                 {DOCUMENT_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {DOCUMENT_TYPE_LABELS[type]?.label || type}
                   </option>
                 ))}
-              </select>
+              </Select>
               <p className="text-[11px] text-muted-foreground">
                 {DOCUMENT_TYPE_LABELS[docType]?.desc}
               </p>
