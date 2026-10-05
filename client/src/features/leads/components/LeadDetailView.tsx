@@ -60,17 +60,7 @@ import { ConfirmModal } from '@/components/common/ConfirmModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
 import { useLeadTimeline } from '@/features/admin/api/audit.api'
 import { ActivityTimeline } from '@/components/common/ActivityTimeline'
-
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  PAYSLIP: 'Salary Slip / Form 16',
-  BANK_STATEMENT: 'Bank Statement (6M)',
-  ID_PROOF: 'PAN / Aadhaar / Passport',
-  INCOME_PROOF: 'Income Proof / ITR',
-  CONTRACT: 'Agreement to Sale',
-  TAX_RETURN: 'Income Tax Return (ITR-V)',
-  PROPERTY_DETAILS: 'Property Documents',
-  OTHER: 'Other Document',
-}
+import { DOCUMENT_TYPE_LABELS } from '@/types/document.types'
 
 export interface LeadDetailViewProps {
   leadId: string

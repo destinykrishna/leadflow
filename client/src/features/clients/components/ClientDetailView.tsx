@@ -42,22 +42,11 @@ import { UploadDocumentModal } from './UploadDocumentModal'
 import { ClientDocumentChecklistCard } from './ClientDocumentChecklistCard'
 import { ReviewDocumentModal } from '@/features/documents/components/ReviewDocumentModal'
 import type { ClientType, ClientStatus } from '@/types/client.types'
-import type { DocumentItem, DocumentType } from '@/types/document.types'
+import { type DocumentItem, type DocumentType, DOCUMENT_TYPE_LABELS } from '@/types/document.types'
 import { STAGE_DEFINITIONS } from '@/types/pipeline.types'
 import { sanitizeIndianMortgageText, formatUserEmail } from '@/lib/presentation'
 import { useClientTimeline } from '@/features/admin/api/audit.api'
 import { ActivityTimeline } from '@/components/common/ActivityTimeline'
-
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  PAYSLIP: 'Salary Slip / Form 16',
-  BANK_STATEMENT: 'Bank Statement (6M)',
-  ID_PROOF: 'PAN / Aadhaar / Passport',
-  INCOME_PROOF: 'Income Proof / ITR',
-  CONTRACT: 'Agreement to Sale',
-  TAX_RETURN: 'Income Tax Return (ITR-V)',
-  PROPERTY_DETAILS: 'Property Documents',
-  OTHER: 'Other Document',
-}
 
 export interface ClientDetailViewProps {
   clientId: string

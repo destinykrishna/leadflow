@@ -95,9 +95,10 @@ export function TeamPage() {
     return map
   }, [workloadData])
 
-  // Summary counts from server aggregation
-  const activeCount = advisors.filter((a) => a.status === 'ACTIVE').length
-  const inactiveCount = advisors.filter((a) => a.status === 'INACTIVE').length
+  // Summary counts from server workload aggregation (invariant to table filters)
+  const globalTotalAdvisors = workloadData?.summary.totalAdvisors ?? totalCount
+  const activeCount = workloadData?.summary.activeAdvisors ?? advisors.filter((a) => a.status === 'ACTIVE').length
+  const inactiveCount = Math.max(0, globalTotalAdvisors - activeCount)
   const totalActiveAssignedLeads = workloadData?.summary.totalActiveAssignedLeads ?? 0
   const totalPendingTasks = workloadData?.summary.totalPendingTasks ?? 0
   const totalOverdueTasks = workloadData?.summary.totalOverdueTasks ?? 0
@@ -213,7 +214,7 @@ export function TeamPage() {
                 </div>
               </div>
               <div className="text-xl font-bold text-slate-900 mt-1">
-                {isLoading ? <Skeleton className="h-6 w-8 inline-block" /> : totalCount}
+                {isLoading ? <Skeleton className="h-6 w-8 inline-block" /> : globalTotalAdvisors}
               </div>
               <span className="text-[11px] text-muted-foreground mt-0.5 block">
                 Brokerage team

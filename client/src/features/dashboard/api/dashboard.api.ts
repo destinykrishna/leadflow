@@ -50,7 +50,7 @@ export interface DashboardSummaryData {
  * Computes dashboard metrics in-memory from individual API results.
  * Used as a fallback for unit test environments where individual sub-APIs are spied or mocked.
  */
-export function computeCompositeSummary(
+function computeCompositeSummary(
   pipelineData: PipelineGroupedData | null,
   clients: Client[],
   tasksResult: { tasks: Task[]; total?: number } | Task[],

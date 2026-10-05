@@ -47,6 +47,7 @@ export function Header({
     if (pathname.includes('/templates')) return 'Email Templates'
     if (pathname.includes('/triggers')) return 'Stage Automations'
     if (pathname.includes('/case')) return 'Loan Case'
+    if (pathname.includes('/team') || pathname.includes('/advisors')) return 'Advisors & Team'
     if (pathname.includes('/advisor')) return 'Advisor'
     if (pathname.includes('/brokerages')) return 'Brokerages'
     if (pathname.includes('/health')) return 'System Health'

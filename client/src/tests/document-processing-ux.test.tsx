@@ -499,7 +499,7 @@ describe('Phase 4 — Prompt 2: Document Upload & Processing UX', () => {
       // KPI cards
       expect(screen.getByText('Total Files')).toBeInTheDocument()
       expect(screen.getByText('Audit approved')).toBeInTheDocument()
-      expect(screen.getByText('In BullMQ worker')).toBeInTheDocument()
+      expect(screen.getByText('Verification in progress')).toBeInTheDocument()
       expect(screen.getByText('Requires correction')).toBeInTheDocument()
 
       // Search filtering

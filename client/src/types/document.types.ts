@@ -11,6 +11,17 @@ export const DOCUMENT_TYPES = [
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  IDENTIFICATION: 'Identity Proof (PAN / Aadhaar / Passport)',
+  PAYSLIP: 'Salary Slip / Form 16',
+  BANK_STATEMENT: 'Bank Statement (6M)',
+  INCOME_PROOF: 'Income Proof / ITR',
+  CONTRACT: 'Agreement to Sale',
+  TAX_RETURN: 'Income Tax Return (ITR-V)',
+  PROPERTY_DETAILS: 'Property Documents',
+  OTHER: 'Other Document',
+}
+
 export const DOCUMENT_STATUSES = [
   'PENDING',
   'PROCESSING',

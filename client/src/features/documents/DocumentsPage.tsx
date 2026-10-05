@@ -31,22 +31,10 @@ import {
 import { useDocumentSocket } from './hooks/useDocumentSocket'
 import {
   DOCUMENT_TYPES,
+  DOCUMENT_TYPE_LABELS,
   type DocumentItem,
-  type DocumentType,
-  type DocumentStatus,
 } from '@/types/document.types'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
-
-const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  IDENTIFICATION: 'Identity Proof (PAN / Aadhaar / Passport)',
-  PAYSLIP: 'Salary Slip / Form 16',
-  BANK_STATEMENT: 'Bank Account Statement (6 Months)',
-  INCOME_PROOF: 'Income Proof / ITR Statement',
-  CONTRACT: 'Agreement to Sale / Allotment Letter',
-  TAX_RETURN: 'Income Tax Return (ITR-V & 26AS)',
-  PROPERTY_DETAILS: 'Property Title Deeds & Layout',
-  OTHER: 'Other Financial Records',
-}
 
 export function DocumentsPage() {
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -58,7 +46,7 @@ export function DocumentsPage() {
   const [reviewDoc, setReviewDoc] = React.useState<DocumentItem | null>(null)
   const [reviewAction, setReviewAction] = React.useState<'APPROVE' | 'REJECT' | null>(null)
 
-  // 1. Fetch brokerage documents
+  // 1. Fetch all brokerage documents (KPI strip reflects true global brokerage counts)
   const {
     data: documents = [],
     isLoading,
@@ -66,14 +54,7 @@ export function DocumentsPage() {
     error,
     refetch,
     isFetching,
-  } = useDocuments(
-    selectedStatus !== 'ALL' || selectedType !== 'ALL'
-      ? {
-          status: selectedStatus !== 'ALL' ? (selectedStatus as DocumentStatus) : undefined,
-          type: selectedType !== 'ALL' ? (selectedType as DocumentType) : undefined,
-        }
-      : undefined
-  )
+  } = useDocuments()
 
   // 2. Real-time updates via Socket.IO
   useDocumentSocket({ enabled: true })
@@ -102,9 +83,15 @@ export function DocumentsPage() {
     }
   }
 
-  // Filter in-memory by search query
+  // Filter in-memory by status, document type, and search query for the list
   const filteredDocuments = React.useMemo(() => {
     return documents.filter((doc) => {
+      if (selectedStatus !== 'ALL' && doc.status !== selectedStatus) {
+        return false
+      }
+      if (selectedType !== 'ALL' && doc.type !== selectedType) {
+        return false
+      }
       if (!searchQuery.trim()) return true
       const q = searchQuery.toLowerCase()
       const titleMatch = doc.title?.toLowerCase().includes(q)
@@ -112,7 +99,7 @@ export function DocumentsPage() {
       const keyMatch = doc.fileKey?.toLowerCase().includes(q)
       return titleMatch || typeMatch || keyMatch
     })
-  }, [documents, searchQuery])
+  }, [documents, selectedStatus, selectedType, searchQuery])
 
   // Aggregate KPI counts
   const totalCount = documents.length
@@ -132,7 +119,7 @@ export function DocumentsPage() {
               Document Verification
             </h1>
             <Badge variant="neutral" size="sm">
-              Automated Verification<span className="sr-only">BullMQ Automated</span>
+              Automated Verification
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -189,7 +176,7 @@ export function DocumentsPage() {
             <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
           </div>
           <div className="mt-2 text-xl font-bold text-blue-950">{processingCount}</div>
-          <span className="text-[11px] text-blue-700">In BullMQ worker</span>
+          <span className="text-[11px] text-blue-700">Verification in progress</span>
         </Card>
 
         <Card className="p-3.5 border border-slate-200/80 shadow-2xs bg-slate-50/50">
@@ -198,7 +185,7 @@ export function DocumentsPage() {
             <Clock className="h-4 w-4 text-slate-500" />
           </div>
           <div className="mt-2 text-xl font-bold text-slate-900">{pendingCount}</div>
-          <span className="text-[11px] text-slate-600">Queued in worker</span>
+          <span className="text-[11px] text-slate-600">Verification queued</span>
         </Card>
 
         <Card className="p-3.5 border border-rose-200/80 shadow-2xs bg-rose-50/30">

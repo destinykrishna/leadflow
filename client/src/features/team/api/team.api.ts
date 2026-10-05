@@ -9,7 +9,6 @@ import type {
   PaginatedAdvisorsResponse,
 } from '@/types/advisor.types'
 import type { BrokerageItem } from '@/types/brokerage.types'
-import type { PipelineGroupedData } from '@/types/pipeline.types'
 
 export const teamApi = {
   getAdvisors: async (query?: ListAdvisorsQuery): Promise<PaginatedAdvisorsResponse> => {
@@ -79,15 +78,6 @@ export const teamApi = {
         },
       }
     )
-  },
-
-  getPipelineSummary: async (): Promise<PipelineGroupedData | null> => {
-    try {
-      const response = await api.get<ApiResponse<PipelineGroupedData>>('/leads/pipeline')
-      return response.data.data || null
-    } catch {
-      return null
-    }
   },
 }
 
@@ -162,13 +152,5 @@ export function useBrokerageDetails(brokerageId?: string | null) {
     queryFn: () => (brokerageId ? teamApi.getBrokerageDetails(brokerageId) : null),
     enabled: Boolean(brokerageId),
     staleTime: 60000,
-  })
-}
-
-export function usePipelineSummary() {
-  return useQuery({
-    queryKey: ['team-pipeline-summary'],
-    queryFn: teamApi.getPipelineSummary,
-    staleTime: 45000,
   })
 }

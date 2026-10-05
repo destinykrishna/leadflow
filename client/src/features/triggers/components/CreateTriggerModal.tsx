@@ -52,6 +52,24 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [serverError, setServerError] = React.useState<string | null>(null)
 
+  // Reset form state and errors when the modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setName('')
+      setToStage('QUALIFIED')
+      setFromStage('')
+      setActionType('CREATE_TASK')
+      setTaskTitle('')
+      setTaskDescription('')
+      setTaskPriority('MEDIUM')
+      setDueDaysOffset(1)
+      setTemplateId(templates.length > 0 ? templates[0]._id : '')
+      setRecipientType('LEAD')
+      setErrors({})
+      setServerError(null)
+    }
+  }, [isOpen])
+
   // Auto-set templateId when templates load
   React.useEffect(() => {
     if (templates.length > 0 && !templateId) {
