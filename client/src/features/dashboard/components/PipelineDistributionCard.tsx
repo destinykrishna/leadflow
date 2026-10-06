@@ -1,8 +1,12 @@
+import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'motion/react'
 import { ArrowUpRight } from 'lucide-react'
+import gsap from 'gsap'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/format'
+import { prefersReducedMotion } from '@/lib/motion'
 import type { DashboardMetrics } from '../api/dashboard.api'
 
 interface PipelineDistributionCardProps {
@@ -21,6 +25,28 @@ const STAGE_BAR_COLORS: Record<string, string> = {
 
 export function PipelineDistributionCard({ metrics }: PipelineDistributionCardProps) {
   const navigate = useNavigate()
+  const barRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (!barRef.current || prefersReducedMotion()) return
+    const segments = barRef.current.children
+    if (segments.length === 0) return
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        segments,
+        { scaleX: 0, transformOrigin: 'left center' },
+        {
+          scaleX: 1,
+          duration: 0.45,
+          ease: 'power2.out',
+          stagger: 0.04,
+        },
+      )
+    }, barRef)
+
+    return () => ctx.revert()
+  }, [metrics.totalLeads])
 
   return (
     <Card className="transition-all duration-150">
@@ -61,14 +87,20 @@ export function PipelineDistributionCard({ metrics }: PipelineDistributionCardPr
         {/* Segmented Progress Bar */}
         {metrics.totalLeads > 0 ? (
           <div className="space-y-2">
-            <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 p-0.5 shadow-2xs gap-0.5">
+            <div ref={barRef} className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 p-0.5 shadow-2xs gap-0.5">
               {metrics.stageBreakdown.map((item) => {
                 if (item.count === 0) return null
                 return (
-                  <div
+                  <motion.div
                     key={item.stage}
-                    style={{ width: `${Math.max(item.percentage, 3)}%` }}
-                    className={`h-full rounded-sm transition-all duration-300 ${
+                    initial={false}
+                    animate={{ width: `${Math.max(item.percentage, 3)}%` }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 350,
+                      damping: 30,
+                    }}
+                    className={`h-full rounded-sm ${
                       STAGE_BAR_COLORS[item.stage] || 'bg-slate-400'
                     }`}
                     title={`${item.label}: ${item.count} leads (${item.percentage}%) • ${formatCurrency(item.totalVolume)}`}

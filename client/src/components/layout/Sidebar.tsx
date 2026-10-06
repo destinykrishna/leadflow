@@ -23,9 +23,11 @@ import {
   LogOut,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { motion } from 'motion/react'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatRoleLabel } from '@/lib/presentation'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -51,6 +53,7 @@ export function Sidebar({
   isMac = false,
 }: SidebarProps) {
   const { user, logout } = useAuth()
+  const reducedMotion = usePrefersReducedMotion()
   const modKey = isMac ? '⌘' : 'Ctrl'
 
   // Generate navigation links based on user role
@@ -183,19 +186,30 @@ export function Sidebar({
                 onClick={onCloseMobile}
                 className={({ isActive }) =>
                   cn(
-                    'group flex items-center rounded-md text-xs font-medium transition-colors duration-150',
+                    'relative group flex items-center rounded-md text-xs font-medium transition-colors duration-150',
                     isCollapsed
                       ? 'justify-center p-2.5'
                       : 'justify-between px-2.5 py-2',
                     isActive
-                      ? 'bg-slate-900 text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                      ? 'text-white font-semibold'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <div className="flex items-center gap-2.5 truncate">
+                    {isActive && (
+                      <motion.div
+                        layoutId={reducedMotion ? undefined : 'sidebar-active-pill'}
+                        className="absolute inset-0 rounded-md bg-slate-900 shadow-2xs z-0"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 450,
+                          damping: 35,
+                        }}
+                      />
+                    )}
+                    <div className="relative z-10 flex items-center gap-2.5 truncate">
                       <item.icon
                         className={cn(
                           'h-4 w-4 shrink-0 transition-colors',
@@ -208,7 +222,7 @@ export function Sidebar({
                     {!isCollapsed && item.shortcut && (
                       <span
                         className={cn(
-                          'hidden group-hover:inline-block font-mono text-[9px] tracking-wider opacity-60',
+                          'relative z-10 hidden group-hover:inline-block font-mono text-[9px] tracking-wider opacity-60',
                           isActive ? 'text-white' : 'text-slate-400',
                         )}
                       >

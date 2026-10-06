@@ -30,6 +30,8 @@ import {
   PIPELINE_QUERY_KEY,
 } from './api/pipeline.api'
 import { leadsApi } from '@/features/leads/api/leads.api'
+import { motion } from 'motion/react'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { usePipelineSocket } from './hooks/usePipelineSocket'
 import { PipelineHeader } from './components/PipelineHeader'
 import { DroppableColumn } from './components/DroppableColumn'
@@ -56,7 +58,7 @@ export function PipelinePage() {
   const updateStageMutation = useUpdateLeadStage()
 
   // Connect Socket.IO for real-time remote stage updates
-  usePipelineSocket(true)
+  const { highlightedLeadId } = usePipelineSocket(true)
 
   // Configure drag sensors with activation threshold so clicks don't conflict with dragging
   const sensors = useSensors(
@@ -379,137 +381,186 @@ export function PipelinePage() {
     ? Object.values(filteredPipeline).reduce((acc, list) => acc + list.length, 0)
     : data?.total || 0
 
+  const reducedMotion = usePrefersReducedMotion()
+  const isDrawerOpen = Boolean(selectedLeadId)
+
   return (
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-[calc(100dvh-7.5rem)] flex-col space-y-3">
-        {/* Top Header */}
-        <PipelineHeader
-          totalLeads={totalFilteredLeads}
-          totalVolume={totalVolume}
-          search={search}
-          onSearchChange={setSearch}
-          sourceFilter={sourceFilter}
-          onSourceFilterChange={setSourceFilter}
-          minLoanFilter={minLoanFilter}
-          onMinLoanFilterChange={setMinLoanFilter}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-          onClearFilters={handleClearFilters}
-          isFiltered={isFiltered}
-          stageCounts={stageCounts}
-          onJumpToStage={handleJumpToStage}
-          onRefresh={refetch}
-          isLoading={isLoading}
-        />
+      <div className="relative">
+        <motion.div
+          animate={{
+            scale: !reducedMotion && isDrawerOpen ? 0.985 : 1,
+            opacity: !reducedMotion && isDrawerOpen ? 0.94 : 1,
+            filter: !reducedMotion && isDrawerOpen ? 'brightness(0.97)' : 'brightness(1)',
+          }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          style={{ transformOrigin: 'left center' }}
+          className="flex h-[calc(100dvh-7.5rem)] flex-col space-y-3 transition-[filter]"
+        >
+          {/* Top Header */}
+          <PipelineHeader
+            totalLeads={totalFilteredLeads}
+            totalVolume={totalVolume}
+            search={search}
+            onSearchChange={setSearch}
+            sourceFilter={sourceFilter}
+            onSourceFilterChange={setSourceFilter}
+            minLoanFilter={minLoanFilter}
+            onMinLoanFilterChange={setMinLoanFilter}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+            onClearFilters={handleClearFilters}
+            isFiltered={isFiltered}
+            stageCounts={stageCounts}
+            onJumpToStage={handleJumpToStage}
+            onRefresh={refetch}
+            isLoading={isLoading}
+          />
 
-        {/* Feedback Alert Notice */}
-        {feedback && (
-          <div
-            className={`flex items-center justify-between rounded-lg px-3.5 py-2 text-xs font-medium animate-in fade-in-50 duration-150 ${
-              feedback.type === 'error'
-                ? 'border border-rose-200 bg-rose-50 text-rose-800'
-                : feedback.type === 'warning'
-                ? 'border border-amber-200 bg-amber-50 text-amber-800'
-                : feedback.type === 'success'
-                ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border border-blue-200 bg-blue-50 text-blue-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {feedback.type === 'error' ? (
-                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-              ) : feedback.type === 'warning' ? (
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-              ) : feedback.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-              ) : (
-                <AlertCircle className="h-4 w-4 shrink-0 text-blue-600" />
-              )}
-              <span>{feedback.text}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setFeedback(null)}
-              className="rounded p-0.5 opacity-70 hover:opacity-100 focus:outline-none"
+          {/* Feedback Alert Notice */}
+          {feedback && (
+            <div
+              className={`flex items-center justify-between rounded-lg px-3.5 py-2 text-xs font-medium animate-in fade-in-50 duration-150 ${
+                feedback.type === 'error'
+                  ? 'border border-rose-200 bg-rose-50 text-rose-800'
+                  : feedback.type === 'warning'
+                  ? 'border border-amber-200 bg-amber-50 text-amber-800'
+                  : feedback.type === 'success'
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border border-blue-200 bg-blue-50 text-blue-800'
+              }`}
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Main Kanban Columns */}
-        {isLoading ? (
-          <div className="flex flex-1 gap-3.5 overflow-x-auto pb-4 pt-1">
-            {ORDERED_STAGES.map((stage) => (
-              <div
-                key={stage}
-                className="flex h-full w-72 shrink-0 flex-col rounded-xl border border-border/70 bg-slate-100/40 p-3 space-y-3"
-              >
-                <div className="flex items-center justify-between pb-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-6 rounded-full" />
-                </div>
-                <Skeleton className="h-28 w-full rounded-lg" />
-                <Skeleton className="h-28 w-full rounded-lg" />
+              <div className="flex items-center gap-2">
+                {feedback.type === 'error' ? (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                ) : feedback.type === 'warning' ? (
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                ) : feedback.type === 'success' ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-blue-600" />
+                )}
+                <span>{feedback.text}</span>
               </div>
-            ))}
-          </div>
-        ) : data?.total === 0 ? (
-          <div className="flex flex-1 items-center justify-center">
-            <EmptyState
-              icon={<Kanban className="h-8 w-8 text-slate-400" />}
-              title="Pipeline Is Empty"
-              description="No borrower inquiries have entered the qualification pipeline yet. Ingest leads via webhooks or create leads in the Leads section to begin."
-            />
-          </div>
-        ) : isFiltered && totalFilteredLeads === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-16">
-            <EmptyState
-              icon={<Kanban className="h-8 w-8 text-slate-400" />}
-              title="No Matching Leads"
-              description="No borrower inquiries match your active search or filter criteria. Try adjusting or resetting your filters."
-              action={
-                <Button variant="outline" size="sm" onClick={handleClearFilters} className="text-xs">
-                  Reset Filters
-                </Button>
-              }
-            />
-          </div>
-        ) : (
-          <div className="flex flex-1 gap-3.5 overflow-x-auto pb-4 pt-1">
-            {ORDERED_STAGES.map((stage) => (
-              <DroppableColumn
-                key={stage}
-                stage={stage}
-                leads={filteredPipeline?.[stage] || []}
-                totalCount={data?.counts?.[stage]}
-                hasMore={Boolean(data?.hasMore?.[stage])}
-                isLoadingMore={loadingStage === stage}
-                onLoadMore={() => handleLoadMore(stage)}
-                activeLead={activeLead}
-                onLeadClick={(lead) => setSelectedLeadId(lead._id)}
-              />
-            ))}
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => setFeedback(null)}
+                className="rounded p-0.5 opacity-70 hover:opacity-100 focus:outline-none"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
-        {/* Restrained Drag Overlay */}
-        <DragOverlay dropAnimation={null}>
+          {/* Main Kanban Columns */}
+          {isLoading ? (
+            <div className="flex flex-1 gap-3.5 overflow-x-auto pb-4 pt-1">
+              {ORDERED_STAGES.map((stage) => {
+                const stageDef = STAGE_DEFINITIONS[stage]
+                return (
+                  <div
+                    key={stage}
+                    className="flex h-full w-72 shrink-0 flex-col rounded-xl border border-border/80 bg-slate-100/70 p-2.5 space-y-2.5 shadow-2xs"
+                  >
+                    {/* Skeleton Column Header */}
+                    <div className="flex items-center justify-between px-1.5 py-1">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full bg-slate-300 animate-pulse" />
+                        <span className="text-xs font-bold text-slate-500">
+                          {stageDef?.label || stage}
+                        </span>
+                        <Skeleton className="h-4.5 w-5 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3.5 w-12 rounded" />
+                    </div>
+
+                    {/* Skeleton Cards */}
+                    <div className="flex-1 space-y-2.5 overflow-hidden">
+                      <div className="rounded-lg border border-border/70 bg-card p-3 space-y-2.5 shadow-2xs">
+                        <div className="flex items-start justify-between">
+                          <Skeleton className="h-4 w-28 rounded" />
+                          <Skeleton className="h-4 w-12 rounded-full" />
+                        </div>
+                        <Skeleton className="h-3 w-20 rounded" />
+                        <div className="space-y-1.5 pt-1">
+                          <Skeleton className="h-2.5 w-full rounded" />
+                          <Skeleton className="h-2.5 w-24 rounded" />
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-card p-3 space-y-2.5 shadow-2xs">
+                        <div className="flex items-start justify-between">
+                          <Skeleton className="h-4 w-24 rounded" />
+                          <Skeleton className="h-4 w-12 rounded-full" />
+                        </div>
+                        <Skeleton className="h-3 w-16 rounded" />
+                        <div className="space-y-1.5 pt-1">
+                          <Skeleton className="h-2.5 w-full rounded" />
+                          <Skeleton className="h-2.5 w-20 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : data?.total === 0 ? (
+            <div className="flex flex-1 items-center justify-center">
+              <EmptyState
+                icon={<Kanban className="h-8 w-8 text-slate-400" />}
+                title="Pipeline Is Empty"
+                description="No borrower inquiries have entered the qualification pipeline yet. Ingest leads via webhooks or create leads in the Leads section to begin."
+              />
+            </div>
+          ) : isFiltered && totalFilteredLeads === 0 ? (
+            <div className="flex flex-1 items-center justify-center py-16">
+              <EmptyState
+                icon={<Kanban className="h-8 w-8 text-slate-400" />}
+                title="No Matching Leads"
+                description="No borrower inquiries match your active search or filter criteria. Try adjusting or resetting your filters."
+                action={
+                  <Button variant="outline" size="sm" onClick={handleClearFilters} className="text-xs">
+                    Reset Filters
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <div className="flex flex-1 gap-3.5 overflow-x-auto pb-4 pt-1">
+              {ORDERED_STAGES.map((stage) => (
+                <DroppableColumn
+                  key={stage}
+                  stage={stage}
+                  leads={filteredPipeline?.[stage] || []}
+                  totalCount={data?.counts?.[stage]}
+                  hasMore={Boolean(data?.hasMore?.[stage])}
+                  isLoadingMore={loadingStage === stage}
+                  onLoadMore={() => handleLoadMore(stage)}
+                  activeLead={activeLead}
+                  highlightedLeadId={highlightedLeadId}
+                  onLeadClick={(lead) => setSelectedLeadId(lead._id)}
+                />
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Drag Overlay rendered outside the scaled/transformed motion container */}
+        <DragOverlay dropAnimation={null} zIndex={100}>
           {activeLead ? (
-            <div className="w-68 rotate-1 scale-[1.02] shadow-xl border-primary/50 opacity-95">
+            <div className="w-68 rotate-1 scale-[1.02] shadow-xl border-primary/50 opacity-95 pointer-events-none">
               <LeadCard lead={activeLead} />
             </div>
           ) : null}
         </DragOverlay>
 
-        {/* Slide-over Dedicated Lead Workspace Drawer */}
+        {/* Slide-over Dedicated Lead Workspace Drawer outside the receding container */}
         <LeadDetailDrawer
           leadId={selectedLeadId}
-          isOpen={Boolean(selectedLeadId)}
+          isOpen={isDrawerOpen}
           onClose={() => setSelectedLeadId(null)}
         />
       </div>

@@ -10,9 +10,15 @@ import type {
 
 export function usePipelineSocket(enabled: boolean = true) {
   const queryClient = useQueryClient()
+  const [highlightedLeadId, setHighlightedLeadId] = React.useState<string | null>(null)
 
   const handleStageChanged = React.useCallback(
     (payload: PipelineStageChangedBroadcastPayload) => {
+      setHighlightedLeadId(payload.leadId)
+      setTimeout(() => {
+        setHighlightedLeadId((prev) => (prev === payload.leadId ? null : prev))
+      }, 1800)
+
       queryClient.setQueriesData<PipelineGroupedData>(
         { queryKey: PIPELINE_QUERY_KEY },
         (oldData) => {
@@ -97,4 +103,6 @@ export function usePipelineSocket(enabled: boolean = true) {
     handleStageChanged,
     enabled,
   )
+
+  return { highlightedLeadId }
 }

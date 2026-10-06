@@ -2,21 +2,26 @@ import { User, Phone, Mail, Clock } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatCurrency, formatRelativeTime } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { Lead } from '@/types/pipeline.types'
 
 interface LeadCardProps {
   lead: Lead
   onClick?: () => void
+  isHighlighted?: boolean
 }
 
-export function LeadCard({ lead, onClick }: LeadCardProps) {
+export function LeadCard({ lead, onClick, isHighlighted = false }: LeadCardProps) {
   const loanAmount = Number(lead.customFields?.loanAmount)
   const isHighValue = loanAmount >= 500000
 
   return (
     <Card
       onClick={onClick}
-      className="group relative cursor-pointer border border-border/80 bg-card p-3.5 shadow-2xs transition-all duration-150 hover:border-slate-400 hover:shadow-xs select-none"
+      className={cn(
+        'group relative cursor-pointer border border-border/80 bg-card p-3.5 shadow-2xs transition-all duration-150 hover:border-slate-400 hover:shadow-xs select-none',
+        isHighlighted && 'ring-2 ring-primary border-primary animate-pulse-subtle shadow-xs',
+      )}
     >
       <div className="space-y-2.5">
         {/* Borrower Name & Source Badge */}

@@ -123,3 +123,68 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes scaleInModal {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleOutModal {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+@keyframes ringPulseSubtle {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+/* Radix Dialog animations with spring pop */
+[data-state=open].dialog-overlay-animate {
+  animation: fadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+[data-state=closed].dialog-overlay-animate {
+  animation: fadeOut 150ms ease-out forwards;
+}
+
+[data-state=open].dialog-content-animate {
+  animation: scaleInModal 220ms cubic-bezier(0.18, 0.89, 0.32, 1.15) forwards;
+}
+[data-state=closed].dialog-content-animate {
+  animation: scaleOutModal 150ms ease-out forwards;
+}
+
+/* Dialog open depth recoil on underlying workspace */
+main {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), filter 220ms ease-out;
+  transform-origin: center top;
+}
+body[data-scroll-locked] main {
+  transform: scale(0.992);
+  filter: brightness(0.98);
+}
+
+.animate-pulse-subtle {
+  animation: ringPulseSubtle 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Prefers-reduced-motion: reduce global safeguard */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

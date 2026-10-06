@@ -324,7 +324,7 @@ export function DocumentsPage() {
                   {/* Left Column: Icon and Info */}
                   <div className="flex items-start gap-3.5 flex-1 min-w-0">
                     <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl mt-0.5 ${
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl mt-0.5 transition-all duration-200 ease-out ${
                         isVerified
                           ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                           : isRejected

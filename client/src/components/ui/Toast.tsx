@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   CheckCircle2,
   Mail,
@@ -6,6 +7,7 @@ import {
   AlertTriangle,
   X,
 } from 'lucide-react'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error'
@@ -37,6 +39,7 @@ export function useToast(): ToastContextValue {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastItem[]>([])
+  const reducedMotion = usePrefersReducedMotion()
 
   const dismissToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -94,36 +97,51 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-live="polite"
         className="fixed bottom-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            role="status"
-            className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg backdrop-blur-xs transition-all duration-200 animate-in fade-in slide-in-from-bottom-3',
-              getTypeStyles(toast.type),
-            )}
-          >
-            <div className="pt-0.5">{getIcon(toast.type)}</div>
-            <div className="flex-1 min-w-0">
-              {toast.title && (
-                <h4 className="text-xs font-semibold text-slate-900 leading-tight">
-                  {toast.title}
-                </h4>
+        <AnimatePresence mode="popLayout">
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              role="status"
+              layout={!reducedMotion}
+              initial={{
+                opacity: 0,
+                y: reducedMotion ? 0 : 16,
+                scale: reducedMotion ? 1 : 0.96,
+              }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{
+                opacity: 0,
+                x: reducedMotion ? 0 : 20,
+                scale: reducedMotion ? 1 : 0.94,
+              }}
+              transition={{ duration: reducedMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className={cn(
+                'pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg backdrop-blur-xs',
+                getTypeStyles(toast.type),
               )}
-              <p className={cn('text-xs text-slate-700 leading-snug', toast.title ? 'mt-0.5' : '')}>
-                {toast.message}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => dismissToast(toast.id)}
-              className="text-slate-400 hover:text-slate-600 rounded p-0.5 transition-colors shrink-0"
-              aria-label="Dismiss notification"
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ))}
+              <div className="pt-0.5">{getIcon(toast.type)}</div>
+              <div className="flex-1 min-w-0">
+                {toast.title && (
+                  <h4 className="text-xs font-semibold text-slate-900 leading-tight">
+                    {toast.title}
+                  </h4>
+                )}
+                <p className={cn('text-xs text-slate-700 leading-snug', toast.title ? 'mt-0.5' : '')}>
+                  {toast.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => dismissToast(toast.id)}
+                className="text-slate-400 hover:text-slate-600 rounded p-0.5 transition-colors shrink-0"
+                aria-label="Dismiss notification"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   )

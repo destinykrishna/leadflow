@@ -1,6 +1,9 @@
+import * as React from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { Search, RotateCw, X, Filter, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/format'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { ORDERED_STAGES, STAGE_DEFINITIONS, type LeadStatus } from '@/types/pipeline.types'
 
 interface PipelineHeaderProps {
@@ -40,14 +43,47 @@ export function PipelineHeader({
   onRefresh,
   isLoading,
 }: PipelineHeaderProps) {
+  const reducedMotion = usePrefersReducedMotion()
+  const prevTotalRef = React.useRef(totalLeads)
+  const hasLoadedOnceRef = React.useRef(!isLoading && totalLeads > 0)
+  const isIncrement = totalLeads >= prevTotalRef.current
+
+  React.useEffect(() => {
+    if (!isLoading && totalLeads > 0) {
+      hasLoadedOnceRef.current = true
+    }
+    prevTotalRef.current = totalLeads
+  }, [totalLeads, isLoading])
+
+  const shouldAnimateCount = !reducedMotion && hasLoadedOnceRef.current && !isLoading
+
   return (
     <div className="space-y-2.5 pb-2 border-b border-border/70">
       {/* Top row: Title, Total Volume & Action Buttons */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-bold tracking-tight text-slate-900">Pipeline Board</h1>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-            {totalLeads} {totalLeads === 1 ? 'Lead' : 'Leads'}
+          <span className="relative flex h-6 min-w-[70px] items-center justify-center overflow-hidden rounded-full bg-slate-100 px-2.5 text-xs font-semibold text-slate-700">
+            {isLoading ? (
+              <span className="inline-block text-slate-400">— Leads</span>
+            ) : shouldAnimateCount ? (
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={totalLeads}
+                  initial={{ y: isIncrement ? 10 : -10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: isIncrement ? -10 : 10, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="inline-block"
+                >
+                  {totalLeads} {totalLeads === 1 ? 'Lead' : 'Leads'}
+                </motion.span>
+              </AnimatePresence>
+            ) : (
+              <span className="inline-block">
+                {totalLeads} {totalLeads === 1 ? 'Lead' : 'Leads'}
+              </span>
+            )}
           </span>
           {isFiltered && (
             <span className="rounded-full bg-blue-50 text-primary border border-blue-200 px-2 py-0.5 text-[11px] font-medium">

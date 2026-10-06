@@ -24,6 +24,8 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { formatDate } from '@/lib/format'
 import { formatUserEmail } from '@/lib/presentation'
 import { useAdvisorsList, useAdvisorWorkload } from './api/team.api'
+import { motion, AnimatePresence } from 'motion/react'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { CreateAdvisorModal } from './components/CreateAdvisorModal'
 import { AdvisorCreatedSuccessModal } from './components/AdvisorCreatedSuccessModal'
 import { EditAdvisorModal } from './components/EditAdvisorModal'
@@ -34,6 +36,7 @@ import type { AdvisorItem } from '@/types/advisor.types'
 type ActiveTab = 'advisors' | 'lead-source'
 
 export function TeamPage() {
+  const reducedMotion = usePrefersReducedMotion()
   const [activeTab, setActiveTab] = React.useState<ActiveTab>('advisors')
 
   const [search, setSearch] = React.useState('')
@@ -174,15 +177,22 @@ export function TeamPage() {
         <button
           type="button"
           onClick={() => setActiveTab('advisors')}
-          className={`flex items-center gap-2 py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors -mb-px ${
+          className={`relative flex items-center gap-2 py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'advisors'
-              ? 'border-primary text-primary'
+              ? 'text-primary'
               : 'border-transparent text-muted-foreground hover:text-slate-900'
           }`}
         >
-          <Users className="h-4 w-4" />
-          <span>Advisors Directory</span>
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700">
+          {activeTab === 'advisors' && (
+            <motion.div
+              layoutId="team-active-tab-indicator"
+              className="absolute inset-x-0 bottom-[-2px] h-0.5 bg-primary z-10"
+              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            />
+          )}
+          <Users className="h-4 w-4 relative z-20" />
+          <span className="relative z-20">Advisors Directory</span>
+          <span className="relative z-20 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700">
             {totalCount}
           </span>
         </button>
@@ -190,14 +200,21 @@ export function TeamPage() {
         <button
           type="button"
           onClick={() => setActiveTab('lead-source')}
-          className={`flex items-center gap-2 py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors -mb-px ${
+          className={`relative flex items-center gap-2 py-2.5 px-4 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'lead-source'
-              ? 'border-primary text-primary'
+              ? 'text-primary'
               : 'border-transparent text-muted-foreground hover:text-slate-900'
           }`}
         >
-          <FileSpreadsheet className="h-4 w-4" />
-          <span>Google Forms Lead Source</span>
+          {activeTab === 'lead-source' && (
+            <motion.div
+              layoutId="team-active-tab-indicator"
+              className="absolute inset-x-0 bottom-[-2px] h-0.5 bg-primary z-10"
+              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            />
+          )}
+          <FileSpreadsheet className="h-4 w-4 relative z-20" />
+          <span className="relative z-20">Google Forms Lead Source</span>
         </button>
       </div>
 
@@ -382,17 +399,26 @@ export function TeamPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {advisors.map((advisor) => {
-                      const advisorId = advisor.id || advisor._id || ''
-                      const isInactive = advisor.status === 'INACTIVE'
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {advisors.map((advisor) => {
+                        const advisorId = advisor.id || advisor._id || ''
+                        const isInactive = advisor.status === 'INACTIVE'
 
-                      return (
-                        <tr
-                          key={advisorId}
-                          className={`hover:bg-slate-50/80 transition-colors ${
-                            isInactive ? 'bg-slate-50/40 text-slate-500' : ''
-                          }`}
-                        >
+                        return (
+                          <motion.tr
+                            key={advisorId}
+                            layout={reducedMotion ? false : 'position'}
+                            initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={reducedMotion ? undefined : { opacity: 0, scale: 0.96 }}
+                            transition={{
+                              layout: { type: 'spring', stiffness: 400, damping: 32 },
+                              opacity: { duration: 0.18 },
+                            }}
+                            className={`hover:bg-slate-50/80 transition-colors ${
+                              isInactive ? 'bg-slate-50/40 text-slate-500' : ''
+                            }`}
+                          >
                           {/* Name & Email */}
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2.5">
@@ -542,9 +568,10 @@ export function TeamPage() {
                               </Button>
                             </div>
                           </td>
-                        </tr>
-                      )
-                    })}
+                          </motion.tr>
+                        )
+                      })}
+                    </AnimatePresence>
                   </tbody>
                 </table>
               </div>

@@ -1,6 +1,9 @@
+import * as React from 'react'
 import { useDroppable } from '@dnd-kit/core'
+import { motion, AnimatePresence } from 'motion/react'
 import { Ban, CheckCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import {
   STAGE_DEFINITIONS,
   isValidStageTransition,
@@ -18,6 +21,7 @@ interface DroppableColumnProps {
   hasMore?: boolean
   isLoadingMore?: boolean
   onLoadMore?: () => void
+  highlightedLeadId?: string | null
 }
 
 const STAGE_DOT_COLORS: Record<LeadStatus, string> = {
@@ -39,11 +43,21 @@ export function DroppableColumn({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  highlightedLeadId,
 }: DroppableColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
     data: { stage },
   })
+
+  const reducedMotion = usePrefersReducedMotion()
+  const currentCount = totalCount !== undefined ? totalCount : leads.length
+  const prevCountRef = React.useRef(currentCount)
+  const isIncrement = currentCount >= prevCountRef.current
+
+  React.useEffect(() => {
+    prevCountRef.current = currentCount
+  }, [currentCount])
 
   const stageDef = STAGE_DEFINITIONS[stage]
   const totalVolume = leads.reduce(
@@ -88,8 +102,27 @@ export function DroppableColumn({
           <h2 className="text-xs font-bold text-slate-900 truncate tracking-tight">
             {stageDef?.label || stage}
           </h2>
-          <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-slate-200/80 px-1.5 text-[10px] font-semibold text-slate-700">
-            {totalCount !== undefined ? totalCount : leads.length}
+          <span className="relative flex h-4.5 min-w-[18px] items-center justify-center overflow-hidden rounded-full bg-slate-200/80 px-1.5 text-[10px] font-semibold text-slate-700">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={currentCount}
+                initial={
+                  reducedMotion
+                    ? false
+                    : { y: isIncrement ? 8 : -8, opacity: 0 }
+                }
+                animate={{ y: 0, opacity: 1 }}
+                exit={
+                  reducedMotion
+                    ? undefined
+                    : { y: isIncrement ? -8 : 8, opacity: 0 }
+                }
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="inline-block"
+              >
+                {currentCount}
+              </motion.span>
+            </AnimatePresence>
           </span>
         </div>
 
@@ -126,13 +159,33 @@ export function DroppableColumn({
             </span>
           </div>
         ) : (
-          leads.map((lead) => (
-            <DraggableLeadCard
-              key={lead._id}
-              lead={lead}
-              onClick={() => onLeadClick?.(lead)}
-            />
-          ))
+          <>
+            {isOver && isValidDrop && activeLead && !isSameStage && (
+              <motion.div
+                layout="position"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                className="rounded-lg border-2 border-dashed border-primary/50 bg-primary/10 p-3.5 min-h-[84px] flex items-center justify-center text-xs font-medium text-primary shadow-2xs"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                  <span className="truncate">
+                    Drop &quot;{activeLead.firstName} {activeLead.lastName || ''}&quot; here
+                  </span>
+                </div>
+              </motion.div>
+            )}
+            {leads.map((lead) => (
+              <DraggableLeadCard
+                key={lead._id}
+                lead={lead}
+                onClick={() => onLeadClick?.(lead)}
+                isHighlighted={lead._id === highlightedLeadId}
+              />
+            ))}
+          </>
         )}
 
         {hasMore && (
