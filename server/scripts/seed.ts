@@ -13,6 +13,7 @@ import {
   Session,
 } from '../src/models/index.js'
 import { hashPassword } from '../src/utils/password.js'
+import { DEFAULT_TRANSACTIONAL_EMAIL_TEMPLATE } from '../src/utils/email-layout.js'
 
 async function seed() {
   console.log(`Connecting to MongoDB at: ${env.MONGODB_URI}...`)
@@ -148,11 +149,7 @@ async function seed() {
   // 9. Email Template & Pipeline Trigger
   await EmailTemplate.create({
     brokerageId: brokerageA._id,
-    name: 'New Inquiry Confirmation',
-    slug: 'new-inquiry-confirmation',
-    subject: 'Welcome to Berlin Expat Mortgages, {{lead.firstName}}',
-    body: '<p>Hi {{lead.firstName}}, thank you for submitting your mortgage inquiry. Your dedicated advisor {{advisor.name}} will contact you shortly.</p>',
-    variables: ['lead.firstName', 'advisor.name'],
+    ...DEFAULT_TRANSACTIONAL_EMAIL_TEMPLATE,
   })
 
   await PipelineTrigger.create({

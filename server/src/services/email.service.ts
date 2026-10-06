@@ -4,6 +4,7 @@ import { UnrecoverableError } from 'bullmq';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { maskEmail } from '../utils/mask.js';
+import { wrapTransactionalEmail } from '../utils/email-layout.js';
 
 export interface SendEmailOptions {
   to: string;
@@ -199,9 +200,12 @@ export class ResendEmailService implements IEmailService {
 
     try {
       const isHtml = options.body.includes('<') && options.body.includes('>');
-      const htmlBody = isHtml
+      const rawContent = isHtml
         ? options.body
-        : `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${options.body}</div>`;
+        : `<p style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">${options.body}</p>`;
+      const htmlBody = wrapTransactionalEmail(rawContent, {
+        subject: options.subject,
+      });
 
       const tags: { name: string; value: string }[] = [
         { name: 'brokerage_id', value: options.brokerageId },
@@ -292,6 +296,9 @@ export class ResendEmailService implements IEmailService {
 }
 
 export function createEmailService(): IEmailService {
+  if (env.isTest) {
+    return new MockEmailService();
+  }
   if (env.EMAIL_PROVIDER === 'resend') {
     return new ResendEmailService();
   }
