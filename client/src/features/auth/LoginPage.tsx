@@ -225,7 +225,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                    className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -258,7 +258,7 @@ export function LoginPage() {
 
         {/* Subtle Demo Role Switcher */}
         <div className="space-y-2 pt-1 text-center">
-          <p className="text-[11px] font-medium text-slate-500">Quick sign-in with demo accounts:</p>
+          <p className="text-[11px] font-medium text-slate-600">Quick sign-in with demo accounts:</p>
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {DEMO_PRESETS.map((preset) => (
               <button
@@ -268,7 +268,7 @@ export function LoginPage() {
                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border ${
                   activePreset === preset.role
                     ? 'border-primary bg-primary/10 text-primary font-semibold'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {preset.label}
