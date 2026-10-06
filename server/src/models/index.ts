@@ -11,3 +11,4 @@ export * from './session.model.js';
 export * from './email-log.model.js';
 export * from './email-suppression.model.js';
 export * from './activity-log.model.js';
+export * from './form.model.js';
