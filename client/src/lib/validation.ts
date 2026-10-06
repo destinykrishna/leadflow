@@ -322,3 +322,140 @@ export const updateAdvisorFormSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 })
 
+/* =========================================================================
+ * Form Schemas (Client-Side)
+ * ========================================================================= */
+
+export const FORM_STATUS_VALUES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const
+export const FORM_FIELD_TYPE_VALUES = [
+  'text',
+  'email',
+  'phone',
+  'number',
+  'textarea',
+  'select',
+] as const
+
+export const formFieldClientSchema = z.object({
+  fieldKey: z
+    .string()
+    .trim()
+    .min(1, 'Field key is required')
+    .max(50, 'Field key cannot exceed 50 characters')
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'Field key may only contain alphanumeric characters, underscores, and hyphens',
+    ),
+  label: z
+    .string()
+    .trim()
+    .min(1, 'Field label is required')
+    .max(100, 'Field label cannot exceed 100 characters'),
+  type: z.enum(FORM_FIELD_TYPE_VALUES).default('text'),
+  required: z.boolean().default(false),
+  order: z.number().int().min(0).default(0),
+  placeholder: z.string().trim().max(100).optional(),
+  helpText: z.string().trim().max(200).optional(),
+  options: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+})
+
+export type FormFieldClientInput = z.infer<typeof formFieldClientSchema>
+
+function checkUniqueFieldKeys(fields?: FormFieldClientInput[]): boolean {
+  if (!fields || fields.length === 0) return true
+  const keys = new Set<string>()
+  for (const field of fields) {
+    const lower = field.fieldKey.toLowerCase()
+    if (keys.has(lower)) {
+      return false
+    }
+    keys.add(lower)
+  }
+  return true
+}
+
+export const createFormClientSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Title is required')
+      .max(100, 'Title cannot exceed 100 characters'),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1, 'Slug is required')
+      .max(100, 'Slug cannot exceed 100 characters')
+      .regex(
+        /^[a-z0-9-]+$/,
+        'Slug must be lowercase alphanumeric and may contain hyphens',
+      ),
+    description: z
+      .string()
+      .trim()
+      .max(500, 'Description cannot exceed 500 characters')
+      .optional()
+      .or(z.literal('')),
+    status: z.enum(FORM_STATUS_VALUES).default('DRAFT'),
+    fields: z.array(formFieldClientSchema).max(30, 'Forms cannot exceed 30 fields').default([]),
+    submitButtonText: z
+      .string()
+      .trim()
+      .max(50, 'Submit button text cannot exceed 50 characters')
+      .default('Submit'),
+    successMessage: z
+      .string()
+      .trim()
+      .max(200, 'Success message cannot exceed 200 characters')
+      .default('Thank you for your submission.'),
+  })
+  .refine((data) => checkUniqueFieldKeys(data.fields), {
+    message: 'Field keys within a form must be unique',
+    path: ['fields'],
+  })
+
+export const updateFormClientSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Title cannot be empty')
+      .max(100, 'Title cannot exceed 100 characters')
+      .optional(),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1, 'Slug cannot be empty')
+      .max(100, 'Slug cannot exceed 100 characters')
+      .regex(
+        /^[a-z0-9-]+$/,
+        'Slug must be lowercase alphanumeric and may contain hyphens',
+      )
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .max(500, 'Description cannot exceed 500 characters')
+      .optional()
+      .or(z.literal('')),
+    status: z.enum(FORM_STATUS_VALUES).optional(),
+    fields: z.array(formFieldClientSchema).max(30, 'Forms cannot exceed 30 fields').optional(),
+    submitButtonText: z
+      .string()
+      .trim()
+      .max(50, 'Submit button text cannot exceed 50 characters')
+      .optional(),
+    successMessage: z
+      .string()
+      .trim()
+      .max(200, 'Success message cannot exceed 200 characters')
+      .optional(),
+  })
+  .refine((data) => (data.fields ? checkUniqueFieldKeys(data.fields) : true), {
+    message: 'Field keys within a form must be unique',
+    path: ['fields'],
+  })
+
+

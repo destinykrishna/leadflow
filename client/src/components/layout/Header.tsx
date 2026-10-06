@@ -44,6 +44,7 @@ export function Header({
     if (pathname.includes('/clients')) return 'Clients'
     if (pathname.includes('/documents')) return 'Documents'
     if (pathname.includes('/tasks')) return 'Tasks'
+    if (pathname.includes('/forms')) return 'Lead Capture Forms'
     if (pathname.includes('/templates')) return 'Email Templates'
     if (pathname.includes('/triggers')) return 'Stage Automations'
     if (pathname.includes('/case')) return 'Loan Case'

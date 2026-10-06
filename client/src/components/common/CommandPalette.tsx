@@ -23,6 +23,7 @@ import {
   LogOut,
   Check,
   User,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -198,6 +199,15 @@ export function CommandPalette({
           shortcut: ['G', 'T'],
           keywords: 'todo checklist overdue follow-up reminders',
           action: () => nav('/app/tasks'),
+        },
+        {
+          id: 'nav-forms',
+          label: 'Lead Capture Forms',
+          category: 'Navigation',
+          icon: FileSpreadsheet,
+          shortcut: ['G', 'F'],
+          keywords: 'forms lead capture intake questionnaire builder public survey',
+          action: () => nav('/app/forms'),
         },
         {
           id: 'nav-templates',

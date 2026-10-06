@@ -30,6 +30,9 @@ const DocumentsPage = React.lazy(() =>
 const TasksPage = React.lazy(() =>
   import('@/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })),
 )
+const FormsPage = React.lazy(() =>
+  import('@/features/forms/FormsPage').then((m) => ({ default: m.FormsPage })),
+)
 const TemplatesPage = React.lazy(() =>
   import('@/features/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })),
 )
@@ -91,6 +94,8 @@ function RouteTitleSync() {
       document.title = 'Documents · LeadFlow'
     } else if (pathname === '/app/tasks') {
       document.title = 'Tasks · LeadFlow'
+    } else if (pathname === '/app/forms' || pathname.startsWith('/app/forms/')) {
+      document.title = 'Forms · LeadFlow'
     } else if (pathname === '/app/templates') {
       document.title = 'Templates · LeadFlow'
     } else if (pathname === '/app/triggers') {
@@ -141,6 +146,7 @@ export function AppRoutes() {
               <Route path="/app/clients/:id" element={<ClientDetailPage />} />
               <Route path="/app/documents" element={<DocumentsPage />} />
               <Route path="/app/tasks" element={<TasksPage />} />
+              <Route path="/app/forms" element={<FormsPage />} />
               <Route path="/app/templates" element={<TemplatesPage />} />
               <Route path="/app/triggers" element={<TriggersPage />} />
 

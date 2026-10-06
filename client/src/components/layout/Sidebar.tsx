@@ -21,6 +21,7 @@ import {
   User as UserIcon,
   Settings,
   LogOut,
+  FileSpreadsheet,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { motion } from 'motion/react'
@@ -94,6 +95,7 @@ export function Sidebar({
       { label: 'Clients', to: '/app/clients', icon: Briefcase, shortcut: 'G C' },
       { label: 'Documents', to: '/app/documents', icon: FileText, shortcut: 'G D' },
       { label: 'Tasks', to: '/app/tasks', icon: CheckSquare, shortcut: 'G T' },
+      { label: 'Forms', to: '/app/forms', icon: FileSpreadsheet, shortcut: 'G F' },
     ]
 
     const sections = [
