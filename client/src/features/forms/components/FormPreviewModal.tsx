@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
-import { getApiOrigin } from '@/lib/api'
 import type { IForm, IFormField } from '@/types/form.types'
 
 interface FormPreviewModalProps {
@@ -56,7 +55,8 @@ export function FormPreviewModal({
   const sortedFields: IFormField[] = [...form.fields].sort((a, b) => a.order - b.order)
 
   const identifier = brokerageIdentifier || form.brokerageId || 'brokerage'
-  const publicLink = `${getApiOrigin()}/api/forms/public/${identifier}/${form.slug}`
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const publicLink = `${origin}/forms/${identifier}/${form.slug}`
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicLink)

@@ -67,6 +67,9 @@ const AuditPage = React.lazy(() =>
 const NotFoundPage = React.lazy(() =>
   import('@/features/misc/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
+const PublicFormPage = React.lazy(() =>
+  import('@/features/forms/public/PublicFormPage').then((m) => ({ default: m.PublicFormPage })),
+)
 import { useLocation } from 'react-router-dom'
 import * as React from 'react'
 
@@ -78,6 +81,8 @@ function RouteTitleSync() {
 
     if (pathname === '/login') {
       document.title = 'Sign In · LeadFlow'
+    } else if (pathname.startsWith('/forms/')) {
+      document.title = 'Questionnaire · LeadFlow'
     } else if (pathname === '/app/dashboard') {
       document.title = 'Dashboard · LeadFlow'
     } else if (pathname === '/app/pipeline') {
@@ -130,6 +135,7 @@ export function AppRoutes() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forms/:brokerageIdentifier/:slug" element={<PublicFormPage />} />
 
           {/* Root redirector */}
           <Route path="/" element={<RootRedirect />} />

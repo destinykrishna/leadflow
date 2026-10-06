@@ -267,7 +267,7 @@ export function LoginPage() {
                 onClick={() => handleApplyPreset(preset)}
                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border ${
                   activePreset === preset.role
-                    ? 'border-blue-600/30 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-300 font-semibold'
+                    ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-xs'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >

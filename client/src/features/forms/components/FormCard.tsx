@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { formatRelativeTime } from '@/lib/format'
-import { getApiOrigin } from '@/lib/api'
 
 interface FormCardProps {
   form: IForm
@@ -42,7 +41,8 @@ export function FormCard({
   const [copiedLink, setCopiedLink] = React.useState(false)
 
   const identifier = brokerageIdentifier || form.brokerageId || 'brokerage'
-  const publicLink = `${getApiOrigin()}/api/forms/public/${identifier}/${form.slug}`
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const publicLink = `${origin}/forms/${identifier}/${form.slug}`
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.stopPropagation()

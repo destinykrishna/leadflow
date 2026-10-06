@@ -65,3 +65,37 @@ export interface FormQueryParams {
   sort?: 'createdAt' | 'updatedAt' | 'title' | 'submissionCount'
   order?: 'asc' | 'desc'
 }
+
+export interface IPublicFormField {
+  fieldKey: string
+  label: string
+  type: string
+  required: boolean
+  order: number
+  placeholder?: string
+  helpText?: string
+  options?: string[]
+}
+
+export interface IPublicFormView {
+  id: string
+  brokerageId: string
+  brokerageName: string
+  title: string
+  slug: string
+  description?: string
+  fields: IPublicFormField[]
+  submitButtonText: string
+}
+
+export interface PublicFormSubmissionPayload {
+  responses: Record<string, string | number | boolean | null>
+  _hp?: string
+  hp_website?: string
+}
+
+export interface PublicSubmissionResponse {
+  success: boolean
+  message: string
+}
+

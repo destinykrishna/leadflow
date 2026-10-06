@@ -340,7 +340,7 @@ describe('Phase 2 — Forms Management UI Tests', () => {
       fireEvent.click(copyBtn)
 
       expect(writeTextMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/forms/public/berlin-capital/nri-home-loan'),
+        expect.stringContaining('/forms/berlin-capital/nri-home-loan'),
       )
       await waitFor(() => {
         expect(screen.getByText('Copied')).toBeInTheDocument()
