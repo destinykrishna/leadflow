@@ -123,13 +123,18 @@ export function validateProductionSecurity(data: Partial<z.infer<typeof envSchem
     );
   }
 
-  // 2. HARD-05: Production CORS origin validation
-  const origins = (data.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
-  if (origins.length === 0) {
-    throw new Error(
-      'Production startup aborted: CORS_ORIGIN is required in production. Must specify explicit HTTPS origin(s).'
-    );
-  }
+  // 2. HARD-05: Production CORS origin validation (enforced on web API services, bypassed for dedicated workers)
+  const isWorkerProcess =
+    process.env.IS_WORKER === 'true' ||
+    Boolean(process.argv[1]?.includes('worker'));
+
+  if (!isWorkerProcess) {
+    const origins = (data.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
+    if (origins.length === 0) {
+      throw new Error(
+        'Production startup aborted: CORS_ORIGIN is required in production. Must specify explicit HTTPS origin(s).'
+      );
+    }
 
   for (const origin of origins) {
     const lower = origin.toLowerCase();
@@ -150,6 +155,7 @@ export function validateProductionSecurity(data: Partial<z.infer<typeof envSchem
       );
     }
   }
+}
 }
 
 const parsed = envSchema.safeParse(process.env);
