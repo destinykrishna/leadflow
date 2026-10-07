@@ -183,4 +183,76 @@ describe('AI-3: Advisor Document Intelligence Review UI', () => {
     const input = screen.getByPlaceholderText(/Salary slips are password-protected/i) as HTMLInputElement
     expect(input.value).toBe('Illegible or blurry scan')
   })
+
+  // AI-4 Cross-Document Review Signals UI Tests
+  describe('AI-4: Cross-Document Review Signals Display', () => {
+    it('displays "No cross-document inconsistencies detected" when reviewSignals is empty', () => {
+      const cleanDoc: DocumentItem = {
+        ...mockSalarySlipDoc,
+        extractedData: {
+          ...mockSalarySlipDoc.extractedData!,
+          reviewSignals: [],
+        },
+      }
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <DocumentIntelligencePanel document={cleanDoc} />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByText('Cross-Document Review Signals')).toBeDefined()
+      expect(
+        screen.getByText('No cross-document inconsistencies detected')
+      ).toBeDefined()
+    })
+
+    it('renders neutral advisory review signals when inconsistencies are detected', () => {
+      const flaggedDoc: DocumentItem = {
+        ...mockSalarySlipDoc,
+        extractedData: {
+          ...mockSalarySlipDoc.extractedData!,
+          reviewSignals: [
+            {
+              id: 'sig_1',
+              type: 'IDENTITY_MISMATCH',
+              severity: 'WARNING',
+              message: 'Identity information differs across documents',
+              details: 'Borrower name on this document differs from PAN Card.',
+              field: 'borrowerName',
+              relatedDocumentIds: ['doc-999'],
+              relatedDocumentTitles: ['PAN Card'],
+            },
+            {
+              id: 'sig_2',
+              type: 'INCOME_INCONSISTENCY',
+              severity: 'WARNING',
+              message: 'Income figures may require review',
+              details: 'Extracted annual income figures differ significantly between Salary Slip and Tax Return.',
+              field: 'grossIncome',
+              relatedDocumentIds: ['doc-888'],
+              relatedDocumentTitles: ['ITR Assessment'],
+            },
+          ],
+        },
+      }
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <DocumentIntelligencePanel document={flaggedDoc} />
+        </QueryClientProvider>
+      )
+
+      expect(screen.getByText('2 signals')).toBeDefined()
+      expect(
+        screen.getByText('Identity information differs across documents')
+      ).toBeDefined()
+      expect(screen.getByText('Income figures may require review')).toBeDefined()
+      expect(
+        screen.getByText('Borrower name on this document differs from PAN Card.')
+      ).toBeDefined()
+      expect(screen.getByText('PAN Card')).toBeDefined()
+      expect(screen.getByText('ITR Assessment')).toBeDefined()
+    })
+  })
 })

@@ -55,9 +55,28 @@ export interface IDocumentExtractedFields {
   employeeId?: IExtractedField<string> | null;
 }
 
+export type ReviewSignalType =
+  | 'IDENTITY_MISMATCH'
+  | 'INCOME_INCONSISTENCY'
+  | 'DOCUMENT_TYPE_MISMATCH';
+
+export type ReviewSignalSeverity = 'WARNING' | 'INFO';
+
+export interface IReviewSignal {
+  id: string;
+  type: ReviewSignalType;
+  severity: ReviewSignalSeverity;
+  message: string;
+  details: string;
+  field: string;
+  relatedDocumentIds?: string[];
+  relatedDocumentTitles?: string[];
+}
+
 export interface IDocumentExtractedData {
   classification: IDocumentClassification;
   fields: IDocumentExtractedFields;
+  reviewSignals?: IReviewSignal[];
   extractedAt: Date;
   modelVersion: string;
 }
@@ -248,6 +267,24 @@ const documentSchema = new Schema<IDocumentDocument>(
               type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
               default: null,
             },
+          },
+          reviewSignals: {
+            type: [
+              new Schema(
+                {
+                  id: { type: String, required: true },
+                  type: { type: String, required: true },
+                  severity: { type: String, required: true },
+                  message: { type: String, required: true },
+                  details: { type: String, required: true },
+                  field: { type: String, required: true },
+                  relatedDocumentIds: { type: [String], default: [] },
+                  relatedDocumentTitles: { type: [String], default: [] },
+                },
+                { _id: false }
+              ),
+            ],
+            default: [],
           },
           extractedAt: { type: Date, default: Date.now },
           modelVersion: { type: String, default: 'rule-engine-1.0' },

@@ -4,6 +4,7 @@ import type {
   IDocumentClassification,
   IDocumentExtractedFields,
   IExtractedField,
+  IReviewSignal,
 } from '../models/document.model.js';
 import { logger } from '../utils/logger.js';
 
@@ -541,10 +542,258 @@ export class DocumentIntelligenceService {
     return {
       classification,
       fields,
+      reviewSignals: [],
       extractedAt: new Date(),
       modelVersion: CURRENT_MODEL_VERSION,
     };
   }
+
+  /**
+   * Checks document-type consistency between declared and detected types.
+   */
+  /**
+   * Checks document-type consistency between declared and detected types.
+   */
+  checkDocumentTypeConsistency(target: ConsistencyCheckDocument): IReviewSignal[] {
+    const signals: IReviewSignal[] = [];
+    const detectedType = target.extractedData?.classification?.detectedType;
+    const classificationStatus = target.extractedData?.classification?.status;
+
+    if (classificationStatus === 'RECOGNIZED' && detectedType) {
+      if (target.type !== detectedType) {
+        // Exception: INCOME_PROOF, PAYSLIP, and TAX_RETURN are compatible domain categories
+        const isCompatibleAlias =
+          (target.type === 'INCOME_PROOF' && (detectedType === 'PAYSLIP' || detectedType === 'TAX_RETURN')) ||
+          ((target.type === 'PAYSLIP' || target.type === 'TAX_RETURN') && detectedType === 'INCOME_PROOF');
+
+        if (!isCompatibleAlias) {
+          signals.push({
+            id: 'sig_doc_type_mismatch',
+            type: 'DOCUMENT_TYPE_MISMATCH',
+            severity: 'INFO',
+            message: 'Declared document type differs from detected type',
+            details: `Document was uploaded as ${target.type}, but automated pre-checks detected ${detectedType} with high confidence.`,
+            field: 'type',
+            relatedDocumentIds: [target._id.toString()],
+            relatedDocumentTitles: [target.title || target.type],
+          });
+        }
+      }
+    }
+
+    return signals;
+  }
+
+  /**
+   * Checks identity consistency across documents belonging to the same client/case.
+   */
+  checkIdentityConsistency(
+    target: ConsistencyCheckDocument,
+    siblings: ConsistencyCheckDocument[]
+  ): IReviewSignal[] {
+    const signals: IReviewSignal[] = [];
+    const targetFields = target.extractedData?.fields;
+    if (!targetFields) return signals;
+
+    const targetName = targetFields.borrowerName?.value;
+    const targetPan = targetFields.pan?.value?.toUpperCase();
+    const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+    for (const sib of siblings) {
+      const sibFields = sib.extractedData?.fields;
+      if (!sibFields) continue;
+
+      // 1. Borrower Name Check
+      const sibName = sibFields.borrowerName?.value;
+      if (targetName && sibName) {
+        if (!areNamesCompatible(targetName, sibName)) {
+          signals.push({
+            id: `sig_identity_name_${sib._id}`,
+            type: 'IDENTITY_MISMATCH',
+            severity: 'WARNING',
+            message: 'Identity information differs across documents',
+            details: `Borrower name on this document differs from ${sib.title || sib.type}.`,
+            field: 'borrowerName',
+            relatedDocumentIds: [sib._id.toString()],
+            relatedDocumentTitles: [sib.title || sib.type],
+          });
+        }
+      }
+
+      // 2. PAN Check (strict format comparison when both are valid 10-char PANs)
+      const sibPan = sibFields.pan?.value?.toUpperCase();
+      if (targetPan && sibPan) {
+        if (PAN_REGEX.test(targetPan) && PAN_REGEX.test(sibPan) && targetPan !== sibPan) {
+          signals.push({
+            id: `sig_identity_pan_${sib._id}`,
+            type: 'IDENTITY_MISMATCH',
+            severity: 'WARNING',
+            message: 'Identity information differs across documents',
+            details: `PAN identifier on this document differs from ${sib.title || sib.type}.`,
+            field: 'pan',
+            relatedDocumentIds: [sib._id.toString()],
+            relatedDocumentTitles: [sib.title || sib.type],
+          });
+        }
+      }
+    }
+
+    return signals;
+  }
+
+  /**
+   * Checks income consistency between Salary Slip and Tax Return (ITR).
+   */
+  checkIncomeConsistency(
+    target: ConsistencyCheckDocument,
+    siblings: ConsistencyCheckDocument[]
+  ): IReviewSignal[] {
+    const signals: IReviewSignal[] = [];
+    const targetFields = target.extractedData?.fields;
+    if (!targetFields) return signals;
+
+    const targetType = target.extractedData?.classification?.detectedType || target.type;
+
+    for (const sib of siblings) {
+      const sibFields = sib.extractedData?.fields;
+      if (!sibFields) continue;
+
+      const sibType = sib.extractedData?.classification?.detectedType || sib.type;
+
+      // Cross-compare between Salary Slip and Tax Return (ITR)
+      let salaryDoc: ConsistencyCheckDocument | null = null;
+      let itrDoc: ConsistencyCheckDocument | null = null;
+
+      const isTargetPayslip = targetType === 'PAYSLIP' || target.type === 'PAYSLIP';
+      const isTargetTaxReturn = targetType === 'TAX_RETURN' || target.type === 'TAX_RETURN';
+      const isSibPayslip = sibType === 'PAYSLIP' || sib.type === 'PAYSLIP';
+      const isSibTaxReturn = sibType === 'TAX_RETURN' || sib.type === 'TAX_RETURN';
+
+      if (isTargetPayslip && isSibTaxReturn) {
+        salaryDoc = target;
+        itrDoc = sib;
+      } else if (isTargetTaxReturn && isSibPayslip) {
+        salaryDoc = sib;
+        itrDoc = target;
+      }
+
+      if (salaryDoc && itrDoc) {
+        const monthlySalary =
+          salaryDoc.extractedData?.fields?.grossIncome?.value ||
+          salaryDoc.extractedData?.fields?.netIncome?.value;
+        const annualItr = itrDoc.extractedData?.fields?.grossIncome?.value;
+
+        if (monthlySalary && annualItr && monthlySalary > 0 && annualItr > 0) {
+          const annualizedSalary = monthlySalary * 12;
+          const maxVal = Math.max(annualizedSalary, annualItr);
+          const minVal = Math.min(annualizedSalary, annualItr);
+          const ratio = maxVal / minVal;
+
+          // Significant mismatch: more than 2.0x difference (e.g. >100% variance)
+          if (ratio > 2.0) {
+            signals.push({
+              id: `sig_income_${sib._id}`,
+              type: 'INCOME_INCONSISTENCY',
+              severity: 'WARNING',
+              message: 'Income figures may require review',
+              details: `Extracted annual income figures differ significantly between Salary Slip and Tax Return (${sib.title || sib.type}).`,
+              field: 'grossIncome',
+              relatedDocumentIds: [sib._id.toString()],
+              relatedDocumentTitles: [sib.title || sib.type],
+            });
+          }
+        }
+      }
+    }
+
+    return signals;
+  }
+
+  /**
+   * Evaluates all cross-document consistency review signals with strict tenant isolation.
+   */
+  evaluateConsistency(
+    target: ConsistencyCheckDocument,
+    siblings: ConsistencyCheckDocument[]
+  ): IReviewSignal[] {
+    // Strict tenant boundary isolation defense: filter out any cross-tenant or self references
+    const targetBrokerage = target.brokerageId?.toString();
+    const isolatedSiblings = siblings.filter(
+      (s) =>
+        s.brokerageId?.toString() === targetBrokerage &&
+        s._id?.toString() !== target._id?.toString()
+    );
+
+    const signals: IReviewSignal[] = [
+      ...this.checkDocumentTypeConsistency(target),
+      ...this.checkIdentityConsistency(target, isolatedSiblings),
+      ...this.checkIncomeConsistency(target, isolatedSiblings),
+    ];
+
+    // Deduplicate by signal id
+    const seen = new Set<string>();
+    return signals.filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }
+}
+
+export interface ConsistencyCheckDocument {
+  _id: string | { toString(): string };
+  brokerageId: string | { toString(): string };
+  type: DocumentType;
+  title?: string;
+  extractedData?: IDocumentExtractedData | null;
+}
+
+export function normalizeNameTokens(rawName: string): string[] {
+  if (!rawName) return [];
+  const cleaned = rawName
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .trim();
+  const titleWords = new Set(['mr', 'mrs', 'ms', 'dr', 'shri', 'smt', 'kumar', 'kumari']);
+  return cleaned
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !titleWords.has(w));
+}
+
+export function areNamesCompatible(nameA: string, nameB: string): boolean {
+  if (!nameA || !nameB) return true;
+  const tokensA = normalizeNameTokens(nameA);
+  const tokensB = normalizeNameTokens(nameB);
+  if (tokensA.length === 0 || tokensB.length === 0) return true;
+
+  // Exact match
+  if (tokensA.join(' ') === tokensB.join(' ')) return true;
+  if (tokensA.slice().sort().join(' ') === tokensB.slice().sort().join(' ')) return true;
+
+  // Single token containment (e.g. "sharma" in ["rahul", "sharma"])
+  if (tokensA.length === 1 && tokensB.includes(tokensA[0]!)) return true;
+  if (tokensB.length === 1 && tokensA.includes(tokensB[0]!)) return true;
+
+  // Initial matching (e.g. "r sharma" vs "rahul sharma")
+  const lastA = tokensA[tokensA.length - 1];
+  const lastB = tokensB[tokensB.length - 1];
+  if (lastA === lastB) {
+    const firstA = tokensA[0]!;
+    const firstB = tokensB[0]!;
+    if (firstA === firstB || firstA[0] === firstB[0]) {
+      return true;
+    }
+  }
+
+  // Token overlap check
+  const setA = new Set(tokensA);
+  const common = tokensB.filter((t) => setA.has(t));
+  const minLen = Math.min(tokensA.length, tokensB.length);
+  if (common.length >= Math.ceil(minLen / 2) && common.length >= 1) {
+    return true;
+  }
+
+  return false;
 }
 
 export const documentIntelligenceService = new DocumentIntelligenceService();

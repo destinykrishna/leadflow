@@ -68,9 +68,28 @@ export interface DocumentExtractedFields {
   employeeId?: ExtractedField<string> | null
 }
 
+export type ReviewSignalType =
+  | 'IDENTITY_MISMATCH'
+  | 'INCOME_INCONSISTENCY'
+  | 'DOCUMENT_TYPE_MISMATCH'
+
+export type ReviewSignalSeverity = 'INFO' | 'WARNING'
+
+export interface ReviewSignal {
+  id: string
+  type: ReviewSignalType
+  severity: ReviewSignalSeverity
+  message: string
+  details: string
+  field: string
+  relatedDocumentIds?: string[]
+  relatedDocumentTitles?: string[]
+}
+
 export interface DocumentExtractedData {
   classification: DocumentClassification
   fields: DocumentExtractedFields
+  reviewSignals?: ReviewSignal[]
   extractedAt: string
   modelVersion: string
 }

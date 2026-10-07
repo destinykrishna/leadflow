@@ -370,6 +370,68 @@ export function DocumentIntelligencePanel({
           />
         </div>
       </div>
+
+      {/* Cross-Document Review Signals */}
+      {(() => {
+        const signals = extracted?.reviewSignals || []
+        return (
+          <div className="space-y-2 pt-2 border-t border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-slate-500" />
+                <span>Cross-Document Review Signals</span>
+              </div>
+              {signals.length > 0 && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                  {signals.length} {signals.length === 1 ? 'signal' : 'signals'}
+                </span>
+              )}
+            </div>
+
+            {signals.length === 0 ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50/70 border border-emerald-200/80 text-[11px] text-emerald-800">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span>No cross-document inconsistencies detected</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {signals.map((sig) => (
+                  <div
+                    key={sig.id}
+                    className="flex items-start gap-2.5 p-2.5 rounded-lg bg-amber-50/60 border border-amber-200 text-xs"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-amber-950">{sig.message}</span>
+                        <span className="text-[10px] font-medium text-amber-700 uppercase bg-amber-100/80 px-1 rounded">
+                          {sig.severity === 'INFO' ? 'Notice' : 'Review'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-snug">
+                        {sig.details}
+                      </p>
+                      {sig.relatedDocumentTitles && sig.relatedDocumentTitles.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px] text-amber-800/80">
+                          <span className="font-medium">Compared with:</span>
+                          {sig.relatedDocumentTitles.map((title, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-white/80 border border-amber-200 px-1 py-0.5 rounded text-amber-900 font-medium"
+                            >
+                              {title}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

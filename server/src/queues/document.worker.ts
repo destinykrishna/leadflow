@@ -294,6 +294,54 @@ export async function processDocumentJob(
     }
   }
 
+  // 7b. Cross-Document Consistency & Review Signals
+  if (extractedData) {
+    try {
+      const siblingFilter: any = { _id: { $ne: doc._id } };
+      if (doc.clientId) {
+        siblingFilter.clientId = doc.clientId;
+      } else if (doc.leadId) {
+        siblingFilter.leadId = doc.leadId;
+      }
+
+      let siblingDocs: any[] = [];
+      if (doc.clientId || doc.leadId) {
+        siblingDocs = await DocumentModel.find(
+          withBrokerageScope(payload.brokerageId, siblingFilter)
+        );
+      }
+
+      const signals = documentIntelligenceService.evaluateConsistency(
+        {
+          _id: doc._id,
+          brokerageId: payload.brokerageId,
+          type: doc.type,
+          title: doc.title,
+          extractedData,
+        },
+        siblingDocs
+      );
+
+      extractedData.reviewSignals = signals;
+
+      if (signals.length > 0) {
+        logger.info(
+          {
+            documentId: doc._id,
+            signalCount: signals.length,
+            signalTypes: signals.map((s) => s.type),
+          },
+          'Cross-document review signals detected'
+        );
+      }
+    } catch (consistencyErr: any) {
+      logger.warn(
+        { documentId: doc._id, err: consistencyErr.message },
+        'Cross-document consistency evaluation encountered non-fatal error'
+      );
+    }
+  }
+
   // 8. Successful Technical Pre-Checks -> PENDING_REVIEW
   const pendingReviewDoc = await DocumentModel.findOneAndUpdate(
     withBrokerageScope(payload.brokerageId, {
