@@ -2,7 +2,7 @@ import { Worker, type Job, UnrecoverableError, type WorkerOptions } from 'bullmq
 import { Types } from 'mongoose';
 import { env } from '../config/env.js';
 import { isDatabaseConnected } from '../config/database.js';
-import { Document as DocumentModel, type DocumentStatus } from '../models/document.model.js';
+import { Document as DocumentModel, type DocumentStatus, type IDocumentExtractedData } from '../models/document.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import {
@@ -12,6 +12,7 @@ import {
 import { emitDocumentStatusChanged } from './document-events.js';
 import { documentRecoveryService } from './document-recovery.service.js';
 import { ocrService } from '../services/ocr.service.js';
+import { documentIntelligenceService } from '../services/document-intelligence.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface DocumentProcessingResult {
@@ -271,7 +272,29 @@ export async function processDocumentJob(
     verificationNotes = `Automated OCR check incomplete (${ocrErr.message}). Queued for human verification.`;
   }
 
-  // 7. Successful Technical Pre-Checks -> PENDING_REVIEW
+  // 7. Structured Document Intelligence (Classification & Extraction)
+  let extractedData: IDocumentExtractedData | null = null;
+  if (ocrResultText) {
+    try {
+      extractedData = documentIntelligenceService.process(ocrResultText, doc.type);
+      if (
+        extractedData.classification.status === 'RECOGNIZED' &&
+        extractedData.classification.detectedType
+      ) {
+        verificationNotes = `Automated technical pre-checks passed. Classified as ${extractedData.classification.detectedType} (confidence: ${Math.round(extractedData.classification.confidence * 100)}%). Awaiting human verification.`;
+      } else if (extractedData.classification.status === 'UNKNOWN') {
+        verificationNotes =
+          'Automated technical pre-checks passed. Document category unclassified. Awaiting human verification.';
+      }
+    } catch (intelErr: any) {
+      logger.warn(
+        { documentId: doc._id, err: intelErr.message },
+        'Document intelligence extraction encountered non-fatal error'
+      );
+    }
+  }
+
+  // 8. Successful Technical Pre-Checks -> PENDING_REVIEW
   const pendingReviewDoc = await DocumentModel.findOneAndUpdate(
     withBrokerageScope(payload.brokerageId, {
       _id: doc._id,
@@ -282,6 +305,7 @@ export async function processDocumentJob(
         status: 'PENDING_REVIEW',
         verificationNotes,
         ...(ocrResultText ? { ocrText: ocrResultText } : {}),
+        ...(extractedData ? { extractedData } : {}),
       },
       $inc: { __v: 1 },
     },
