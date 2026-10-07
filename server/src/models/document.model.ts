@@ -36,6 +36,7 @@ export interface IDocument {
   verifiedAt?: Date;
   verifiedBy?: Types.ObjectId | null;
   rejectionReason?: string | null;
+  ocrText?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -128,12 +129,19 @@ const documentSchema = new Schema<IDocumentDocument>(
       maxlength: [1000, 'Rejection reason cannot exceed 1000 characters'],
       default: null,
     },
+    ocrText: {
+      type: String,
+      trim: true,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: true,
     toJSON: {
       transform(_doc, ret: Record<string, unknown>) {
         delete ret.fileUrl;
+        delete ret.ocrText;
         return ret;
       },
     },

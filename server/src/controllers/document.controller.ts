@@ -16,6 +16,7 @@ function sanitizeDocumentResponse<T extends Record<string, any>>(doc: T): Record
   const obj = doc && typeof (doc as any).toJSON === 'function' ? (doc as any).toJSON() : { ...doc };
   delete obj.fileUrl;
   delete obj.downloadUrl;
+  delete obj.ocrText;
   return obj;
 }
 

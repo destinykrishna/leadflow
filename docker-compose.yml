@@ -68,6 +68,8 @@ services:
       dockerfile: Dockerfile.worker
     container_name: leadflow-worker
     restart: unless-stopped
+    ports:
+      - "5001:5001"
     environment:
       - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/leadflow

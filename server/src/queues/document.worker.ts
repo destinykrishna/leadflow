@@ -11,6 +11,7 @@ import {
 } from './document.queue.js';
 import { emitDocumentStatusChanged } from './document-events.js';
 import { documentRecoveryService } from './document-recovery.service.js';
+import { ocrService } from '../services/ocr.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface DocumentProcessingResult {
@@ -164,21 +165,9 @@ export async function processDocumentJob(
     }
   }
 
-  // 5. Realistic Slow Document Verification Simulation
-  const delayMs =
-    payload.processingDelayMs !== undefined
-      ? payload.processingDelayMs
-      : env.isTest
-        ? 50
-        : env.DOCUMENT_PROCESSING_DELAY_MS;
+  // 5. Support for Simulated Processing Failures & Rejections (Preserves Test Hooks)
 
-  if (delayMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-  }
-
-  // 6. Support for Simulated Processing Failures & Rejections
-
-  // 6a. Simulated Transient Failure (triggers bounded BullMQ retries with exponential backoff)
+  // 5a. Simulated Transient Failure (triggers bounded BullMQ retries with exponential backoff)
   const isSimulatedTransientFailure =
     payload.simulateFailure === true || doc.title.toLowerCase().includes('[fail-transient]');
 
@@ -192,7 +181,7 @@ export async function processDocumentJob(
     );
   }
 
-  // 6b. Simulated Terminal Rejection (document is unreadable or fails compliance check)
+  // 5b. Simulated Terminal Rejection (document is unreadable or fails compliance check)
   const isSimulatedTerminalRejection =
     payload.simulateTerminalRejection === true ||
     doc.title.toLowerCase().includes('[reject]') ||
@@ -244,7 +233,45 @@ export async function processDocumentJob(
     };
   }
 
-  // 6c. Successful Technical Pre-Checks -> PENDING_REVIEW
+  // 5c. Optional Delay Hook (Preserves test hooks for intermediate status inspection)
+  if (payload.processingDelayMs !== undefined && payload.processingDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, payload.processingDelayMs));
+  }
+
+  // 6. Real Tesseract OCR Execution (Replaces legacy simulated delay)
+  let ocrResultText: string | null = null;
+  let verificationNotes = 'Automated technical pre-checks passed. Awaiting human verification.';
+
+  try {
+    const ocrResult = await ocrService.processDocument(doc);
+    if (ocrResult.ocrText) {
+      ocrResultText = ocrResult.ocrText;
+    }
+    if (ocrResult.summary) {
+      verificationNotes = ocrResult.summary;
+    }
+  } catch (ocrErr: any) {
+    // If it is an explicit OCR timeout or download timeout, rethrow so BullMQ retries with exponential backoff
+    if (
+      ocrErr.code === 'STORAGE_DOWNLOAD_TIMEOUT' ||
+      ocrErr.code === 'OCR_PROCESS_TIMEOUT' ||
+      ocrErr.message?.includes('timed out')
+    ) {
+      logger.warn(
+        { documentId: doc._id, err: ocrErr.message },
+        'Transient OCR timeout encountered; failing job for bounded BullMQ retry'
+      );
+      throw ocrErr;
+    }
+
+    logger.warn(
+      { documentId: doc._id, err: ocrErr.message },
+      'OCR execution encountered non-fatal error; proceeding to human verification queue'
+    );
+    verificationNotes = `Automated OCR check incomplete (${ocrErr.message}). Queued for human verification.`;
+  }
+
+  // 7. Successful Technical Pre-Checks -> PENDING_REVIEW
   const pendingReviewDoc = await DocumentModel.findOneAndUpdate(
     withBrokerageScope(payload.brokerageId, {
       _id: doc._id,
@@ -253,7 +280,8 @@ export async function processDocumentJob(
     {
       $set: {
         status: 'PENDING_REVIEW',
-        verificationNotes: 'Automated technical pre-checks passed. Awaiting human verification.',
+        verificationNotes,
+        ...(ocrResultText ? { ocrText: ocrResultText } : {}),
       },
       $inc: { __v: 1 },
     },
