@@ -1199,6 +1199,7 @@ export function ClientDetailView({
           refetchDocs()
         }}
         onSuccess={() => {
+          setIsUploadModalOpen(false)
           setInitialDocType(undefined)
           refetchDocs()
         }}
