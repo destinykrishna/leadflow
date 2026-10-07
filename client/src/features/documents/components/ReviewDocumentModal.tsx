@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { DocumentIntelligencePanel } from './DocumentIntelligencePanel'
 import { useReviewDocument } from '../api/documents.api'
 import type { DocumentItem } from '@/types/document.types'
 
@@ -89,7 +90,7 @@ export function ReviewDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div
@@ -123,6 +124,9 @@ export function ReviewDocumentModal({
               <span className="font-mono text-[11px]">{document.status}</span>
             </div>
           </div>
+
+          {/* Automated Document Intelligence Panel */}
+          <DocumentIntelligencePanel document={document} />
 
           {errorMsg && (
             <div className="rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800 flex items-start gap-2">

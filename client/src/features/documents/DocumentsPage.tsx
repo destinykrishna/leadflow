@@ -12,6 +12,7 @@ import {
   Check,
   User,
   FolderOpen,
+  Sparkles,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -396,6 +397,21 @@ export function DocumentsPage() {
                             doc.status
                           )}
                         </Badge>
+                        {doc.extractedData?.classification?.status === 'RECOGNIZED' &&
+                          doc.extractedData.classification.detectedType && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20"
+                              title={`AI Confidence: ${Math.round(
+                                doc.extractedData.classification.confidence * 100
+                              )}%`}
+                            >
+                              <Sparkles className="h-2.5 w-2.5 text-purple-600" />
+                              <span>AI: {doc.extractedData.classification.detectedType}</span>
+                              <span className="text-purple-500 font-normal">
+                                ({Math.round(doc.extractedData.classification.confidence * 100)}%)
+                              </span>
+                            </span>
+                          )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
