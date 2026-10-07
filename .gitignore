@@ -63,3 +63,7 @@ INTERVIEW_GUIDE.md
 FREE_DEPLOYMENT_GUIDE.md
 SENIOR_ENGINEERING_TRADEOFFS.md
 QA_TESTING_MANUAL.md
+
+# Synthetic OCR test documents
+leadflow_ocr_test_*.png
+leadflow_ocr_test_salary_slip.png
