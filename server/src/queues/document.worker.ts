@@ -2,7 +2,7 @@ import { Worker, type Job, UnrecoverableError, type WorkerOptions } from 'bullmq
 import { Types } from 'mongoose';
 import { env } from '../config/env.js';
 import { isDatabaseConnected } from '../config/database.js';
-import { Document as DocumentModel, type DocumentStatus, type IDocumentExtractedData } from '../models/document.model.js';
+import { Document as DocumentModel, type DocumentStatus } from '../models/document.model.js';
 import { withBrokerageScope } from '../repositories/base.repository.js';
 import { getBullMQConnectionOptions } from './redis.connection.js';
 import {
@@ -11,8 +11,6 @@ import {
 } from './document.queue.js';
 import { emitDocumentStatusChanged } from './document-events.js';
 import { documentRecoveryService } from './document-recovery.service.js';
-import { ocrService } from '../services/ocr.service.js';
-import { documentIntelligenceService } from '../services/document-intelligence.service.js';
 import { logger } from '../utils/logger.js';
 
 export interface DocumentProcessingResult {
@@ -166,9 +164,21 @@ export async function processDocumentJob(
     }
   }
 
-  // 5. Support for Simulated Processing Failures & Rejections (Preserves Test Hooks)
+  // 5. Realistic Slow Document Verification Simulation
+  const delayMs =
+    payload.processingDelayMs !== undefined
+      ? payload.processingDelayMs
+      : env.isTest
+        ? 50
+        : env.DOCUMENT_PROCESSING_DELAY_MS;
 
-  // 5a. Simulated Transient Failure (triggers bounded BullMQ retries with exponential backoff)
+  if (delayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  // 6. Support for Simulated Processing Failures & Rejections
+
+  // 6a. Simulated Transient Failure (triggers bounded BullMQ retries with exponential backoff)
   const isSimulatedTransientFailure =
     payload.simulateFailure === true || doc.title.toLowerCase().includes('[fail-transient]');
 
@@ -182,7 +192,7 @@ export async function processDocumentJob(
     );
   }
 
-  // 5b. Simulated Terminal Rejection (document is unreadable or fails compliance check)
+  // 6b. Simulated Terminal Rejection (document is unreadable or fails compliance check)
   const isSimulatedTerminalRejection =
     payload.simulateTerminalRejection === true ||
     doc.title.toLowerCase().includes('[reject]') ||
@@ -234,115 +244,7 @@ export async function processDocumentJob(
     };
   }
 
-  // 5c. Optional Delay Hook (Preserves test hooks for intermediate status inspection)
-  if (payload.processingDelayMs !== undefined && payload.processingDelayMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, payload.processingDelayMs));
-  }
-
-  // 6. Real Tesseract OCR Execution (Replaces legacy simulated delay)
-  let ocrResultText: string | null = null;
-  let verificationNotes = 'Automated technical pre-checks passed. Awaiting human verification.';
-
-  try {
-    const ocrResult = await ocrService.processDocument(doc);
-    if (ocrResult.ocrText) {
-      ocrResultText = ocrResult.ocrText;
-    }
-    if (ocrResult.summary) {
-      verificationNotes = ocrResult.summary;
-    }
-  } catch (ocrErr: any) {
-    // If it is an explicit OCR timeout or download timeout, rethrow so BullMQ retries with exponential backoff
-    if (
-      ocrErr.code === 'STORAGE_DOWNLOAD_TIMEOUT' ||
-      ocrErr.code === 'OCR_PROCESS_TIMEOUT' ||
-      ocrErr.message?.includes('timed out')
-    ) {
-      logger.warn(
-        { documentId: doc._id, err: ocrErr.message },
-        'Transient OCR timeout encountered; failing job for bounded BullMQ retry'
-      );
-      throw ocrErr;
-    }
-
-    logger.warn(
-      { documentId: doc._id, err: ocrErr.message },
-      'OCR execution encountered non-fatal error; proceeding to human verification queue'
-    );
-    verificationNotes = `Automated OCR check incomplete (${ocrErr.message}). Queued for human verification.`;
-  }
-
-  // 7. Structured Document Intelligence (Classification & Extraction)
-  let extractedData: IDocumentExtractedData | null = null;
-  if (ocrResultText) {
-    try {
-      extractedData = documentIntelligenceService.process(ocrResultText, doc.type);
-      if (
-        extractedData.classification.status === 'RECOGNIZED' &&
-        extractedData.classification.detectedType
-      ) {
-        verificationNotes = `Automated technical pre-checks passed. Classified as ${extractedData.classification.detectedType} (confidence: ${Math.round(extractedData.classification.confidence * 100)}%). Awaiting human verification.`;
-      } else if (extractedData.classification.status === 'UNKNOWN') {
-        verificationNotes =
-          'Automated technical pre-checks passed. Document category unclassified. Awaiting human verification.';
-      }
-    } catch (intelErr: any) {
-      logger.warn(
-        { documentId: doc._id, err: intelErr.message },
-        'Document intelligence extraction encountered non-fatal error'
-      );
-    }
-  }
-
-  // 7b. Cross-Document Consistency & Review Signals
-  if (extractedData) {
-    try {
-      const siblingFilter: any = { _id: { $ne: doc._id } };
-      if (doc.clientId) {
-        siblingFilter.clientId = doc.clientId;
-      } else if (doc.leadId) {
-        siblingFilter.leadId = doc.leadId;
-      }
-
-      let siblingDocs: any[] = [];
-      if (doc.clientId || doc.leadId) {
-        siblingDocs = await DocumentModel.find(
-          withBrokerageScope(payload.brokerageId, siblingFilter)
-        );
-      }
-
-      const signals = documentIntelligenceService.evaluateConsistency(
-        {
-          _id: doc._id,
-          brokerageId: payload.brokerageId,
-          type: doc.type,
-          title: doc.title,
-          extractedData,
-        },
-        siblingDocs
-      );
-
-      extractedData.reviewSignals = signals;
-
-      if (signals.length > 0) {
-        logger.info(
-          {
-            documentId: doc._id,
-            signalCount: signals.length,
-            signalTypes: signals.map((s) => s.type),
-          },
-          'Cross-document review signals detected'
-        );
-      }
-    } catch (consistencyErr: any) {
-      logger.warn(
-        { documentId: doc._id, err: consistencyErr.message },
-        'Cross-document consistency evaluation encountered non-fatal error'
-      );
-    }
-  }
-
-  // 8. Successful Technical Pre-Checks -> PENDING_REVIEW
+  // 6c. Successful Technical Pre-Checks -> PENDING_REVIEW
   const pendingReviewDoc = await DocumentModel.findOneAndUpdate(
     withBrokerageScope(payload.brokerageId, {
       _id: doc._id,
@@ -351,9 +253,7 @@ export async function processDocumentJob(
     {
       $set: {
         status: 'PENDING_REVIEW',
-        verificationNotes,
-        ...(ocrResultText ? { ocrText: ocrResultText } : {}),
-        ...(extractedData ? { extractedData } : {}),
+        verificationNotes: 'Automated technical pre-checks passed. Awaiting human verification.',
       },
       $inc: { __v: 1 },
     },

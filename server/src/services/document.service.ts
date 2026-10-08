@@ -30,7 +30,6 @@ import {
   type DocumentQuery,
   type ReviewDocumentInput,
 } from '../validators/document.validators.js';
-import { documentIntelligenceService } from './document-intelligence.service.js';
 import type { IDomainService } from './base.service.js';
 
 export interface UploadDocumentInput {
@@ -447,30 +446,6 @@ export class DocumentService implements IDomainService {
 
     // Ownership check (anti-IDOR and tenant boundary)
     authorizationService.authorizeDocumentAccess(caller, doc, clientProfileId);
-
-    // If extracted data exists, dynamically ensure review signals are up-to-date with current siblings
-    if (doc.extractedData && (doc.clientId || doc.leadId)) {
-      try {
-        const siblingFilter: any = { _id: { $ne: doc._id } };
-        if (doc.clientId) {
-          siblingFilter.clientId = doc.clientId;
-        } else if (doc.leadId) {
-          siblingFilter.leadId = doc.leadId;
-        }
-        const siblings = await DocumentModel.find(
-          withBrokerageScope(doc.brokerageId, siblingFilter)
-        );
-        doc.extractedData.reviewSignals = documentIntelligenceService.evaluateConsistency(
-          doc,
-          siblings
-        );
-      } catch (err: any) {
-        logger.warn(
-          { documentId: doc._id, err: err.message },
-          'Failed to refresh cross-document review signals on read'
-        );
-      }
-    }
 
     return doc;
   }

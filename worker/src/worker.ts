@@ -1,5 +1,3 @@
-process.env.IS_WORKER = 'true';
-
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http, { type Server as HttpServer } from 'node:http';
@@ -26,7 +24,7 @@ import {
   resumeEmailWorker,
 } from '../../server/src/queues/email.worker.js';
 import { closeEmailQueue } from '../../server/src/queues/email.queue.js';
-import { closeRedisConnections, checkRedisHealth } from '../../server/src/queues/redis.connection.js';
+import { closeRedisConnections } from '../../server/src/queues/redis.connection.js';
 import { documentRecoveryService } from '../../server/src/queues/document-recovery.service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -91,34 +89,21 @@ async function startWorkerProcess(): Promise<void> {
     documentRecoveryService.startPeriodicReconciliation();
     logger.info('Document & email processing workers actively polling for jobs with periodic reconciliation');
 
-    // Render injects PORT dynamically; prioritize process.env.PORT over legacy WORKER_HEALTH_PORT
-    const WORKER_HEALTH_PORT = Number(process.env.PORT || process.env.WORKER_HEALTH_PORT || 5001);
+    const WORKER_HEALTH_PORT = Number(process.env.WORKER_HEALTH_PORT || process.env.PORT || 5001);
     let isShuttingDown = false;
 
-    // 4. Lightweight HTTP healthcheck endpoint for Render / Docker orchestration probes
-    const healthServer: HttpServer = http.createServer(async (req, res) => {
+    // 4. Lightweight HTTP healthcheck endpoint for Docker / orchestration probes
+    const healthServer: HttpServer = http.createServer((req, res) => {
       if (req.url === '/health' || req.url === '/health/live' || req.url === '/health/ready') {
-        const dbConnected = isDatabaseConnected();
-        let redisHealthy = true;
-        let redisLatencyMs: number | undefined;
-
-        if (req.url === '/health/ready' || req.url === '/health') {
-          const redisCheck = await checkRedisHealth(1500);
-          redisHealthy = redisCheck.ok;
-          redisLatencyMs = redisCheck.latencyMs;
-        }
-
-        const isHealthy = !isShuttingDown && dbConnected && redisHealthy;
+        const isHealthy = !isShuttingDown && isDatabaseConnected();
         res.writeHead(isHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify({
             status: isHealthy ? 'ok' : 'degraded',
             worker: true,
-            uptime: Math.round(process.uptime()),
+            uptime: process.uptime(),
             timestamp: new Date().toISOString(),
-            database: dbConnected ? 'up' : 'down',
-            redis: redisHealthy ? 'up' : 'down',
-            ...(redisLatencyMs !== undefined ? { redisLatencyMs } : {}),
+            database: isDatabaseConnected() ? 'up' : 'down',
           })
         );
       } else {
@@ -127,11 +112,10 @@ async function startWorkerProcess(): Promise<void> {
       }
     });
 
-    // Explicitly bind to 0.0.0.0 for seamless container and Render reverse proxy routing
-    healthServer.listen(WORKER_HEALTH_PORT, '0.0.0.0', () => {
+    healthServer.listen(WORKER_HEALTH_PORT, () => {
       logger.info(
-        { port: WORKER_HEALTH_PORT, host: '0.0.0.0' },
-        `Worker health check endpoint listening on 0.0.0.0:${WORKER_HEALTH_PORT}`
+        { port: WORKER_HEALTH_PORT },
+        `Worker health check endpoint listening on port ${WORKER_HEALTH_PORT}`
       );
     });
 

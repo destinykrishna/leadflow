@@ -32,68 +32,6 @@ export const DOCUMENT_STATUSES = [
 
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number]
 
-export const CLASSIFICATION_STATUSES = [
-  'RECOGNIZED',
-  'UNKNOWN',
-  'INSUFFICIENT_DATA',
-] as const
-
-export type ClassificationStatus = (typeof CLASSIFICATION_STATUSES)[number]
-
-export interface ExtractedField<T = string | number> {
-  value: T
-  confidence: number
-}
-
-export interface DocumentClassification {
-  status: ClassificationStatus
-  detectedType: DocumentType | null
-  confidence: number
-  matchedKeywords: string[]
-}
-
-export interface DocumentExtractedFields {
-  borrowerName?: ExtractedField<string> | null
-  pan?: ExtractedField<string> | null
-  employerName?: ExtractedField<string> | null
-  grossIncome?: ExtractedField<number> | null
-  netIncome?: ExtractedField<number> | null
-  currency?: ExtractedField<string> | null
-  documentPeriod?: ExtractedField<string> | null
-  dateOfBirth?: ExtractedField<string> | null
-  accountNumberMasked?: ExtractedField<string> | null
-  bankName?: ExtractedField<string> | null
-  ifscCode?: ExtractedField<string> | null
-  assessmentYear?: ExtractedField<string> | null
-  employeeId?: ExtractedField<string> | null
-}
-
-export type ReviewSignalType =
-  | 'IDENTITY_MISMATCH'
-  | 'INCOME_INCONSISTENCY'
-  | 'DOCUMENT_TYPE_MISMATCH'
-
-export type ReviewSignalSeverity = 'INFO' | 'WARNING'
-
-export interface ReviewSignal {
-  id: string
-  type: ReviewSignalType
-  severity: ReviewSignalSeverity
-  message: string
-  details: string
-  field: string
-  relatedDocumentIds?: string[]
-  relatedDocumentTitles?: string[]
-}
-
-export interface DocumentExtractedData {
-  classification: DocumentClassification
-  fields: DocumentExtractedFields
-  reviewSignals?: ReviewSignal[]
-  extractedAt: string
-  modelVersion: string
-}
-
 export interface DocumentItem {
   _id: string
   brokerageId: string
@@ -115,7 +53,6 @@ export interface DocumentItem {
   rejectionReason?: string | null
   verifiedBy?: string | { _id: string; name?: string; email?: string } | null
   metadata?: Record<string, unknown>
-  extractedData?: DocumentExtractedData | null
   verifiedAt?: string
   __v?: number
   createdAt: string

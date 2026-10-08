@@ -20,67 +20,6 @@ export const DOCUMENT_STATUSES = [
 ] as const;
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
-export const CLASSIFICATION_STATUSES = [
-  'RECOGNIZED',
-  'UNKNOWN',
-  'INSUFFICIENT_DATA',
-] as const;
-export type ClassificationStatus = (typeof CLASSIFICATION_STATUSES)[number];
-
-export interface IExtractedField<T = string | number> {
-  value: T;
-  confidence: number;
-}
-
-export interface IDocumentClassification {
-  status: ClassificationStatus;
-  detectedType: DocumentType | null;
-  confidence: number;
-  matchedKeywords: string[];
-}
-
-export interface IDocumentExtractedFields {
-  borrowerName?: IExtractedField<string> | null;
-  pan?: IExtractedField<string> | null;
-  employerName?: IExtractedField<string> | null;
-  grossIncome?: IExtractedField<number> | null;
-  netIncome?: IExtractedField<number> | null;
-  currency?: IExtractedField<string> | null;
-  documentPeriod?: IExtractedField<string> | null;
-  dateOfBirth?: IExtractedField<string> | null;
-  accountNumberMasked?: IExtractedField<string> | null;
-  bankName?: IExtractedField<string> | null;
-  ifscCode?: IExtractedField<string> | null;
-  assessmentYear?: IExtractedField<string> | null;
-  employeeId?: IExtractedField<string> | null;
-}
-
-export type ReviewSignalType =
-  | 'IDENTITY_MISMATCH'
-  | 'INCOME_INCONSISTENCY'
-  | 'DOCUMENT_TYPE_MISMATCH';
-
-export type ReviewSignalSeverity = 'WARNING' | 'INFO';
-
-export interface IReviewSignal {
-  id: string;
-  type: ReviewSignalType;
-  severity: ReviewSignalSeverity;
-  message: string;
-  details: string;
-  field: string;
-  relatedDocumentIds?: string[];
-  relatedDocumentTitles?: string[];
-}
-
-export interface IDocumentExtractedData {
-  classification: IDocumentClassification;
-  fields: IDocumentExtractedFields;
-  reviewSignals?: IReviewSignal[];
-  extractedAt: Date;
-  modelVersion: string;
-}
-
 export interface IDocument {
   brokerageId: Types.ObjectId;
   title: string;
@@ -97,8 +36,6 @@ export interface IDocument {
   verifiedAt?: Date;
   verifiedBy?: Types.ObjectId | null;
   rejectionReason?: string | null;
-  ocrText?: string | null;
-  extractedData?: IDocumentExtractedData | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -191,115 +128,12 @@ const documentSchema = new Schema<IDocumentDocument>(
       maxlength: [1000, 'Rejection reason cannot exceed 1000 characters'],
       default: null,
     },
-    ocrText: {
-      type: String,
-      trim: true,
-      default: null,
-      select: false,
-    },
-    extractedData: {
-      type: new Schema(
-        {
-          classification: {
-            status: {
-              type: String,
-              enum: CLASSIFICATION_STATUSES,
-              required: true,
-            },
-            detectedType: {
-              type: String,
-              enum: [...DOCUMENT_TYPES, null],
-              default: null,
-            },
-            confidence: { type: Number, required: true, min: 0, max: 1 },
-            matchedKeywords: { type: [String], default: [] },
-          },
-          fields: {
-            borrowerName: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            pan: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            employerName: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            grossIncome: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            netIncome: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            currency: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            documentPeriod: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            dateOfBirth: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            accountNumberMasked: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            bankName: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            ifscCode: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            assessmentYear: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-            employeeId: {
-              type: new Schema({ value: Schema.Types.Mixed, confidence: Number }, { _id: false }),
-              default: null,
-            },
-          },
-          reviewSignals: {
-            type: [
-              new Schema(
-                {
-                  id: { type: String, required: true },
-                  type: { type: String, required: true },
-                  severity: { type: String, required: true },
-                  message: { type: String, required: true },
-                  details: { type: String, required: true },
-                  field: { type: String, required: true },
-                  relatedDocumentIds: { type: [String], default: [] },
-                  relatedDocumentTitles: { type: [String], default: [] },
-                },
-                { _id: false }
-              ),
-            ],
-            default: [],
-          },
-          extractedAt: { type: Date, default: Date.now },
-          modelVersion: { type: String, default: 'rule-engine-1.0' },
-        },
-        { _id: false }
-      ),
-      default: null,
-    },
   },
   {
     timestamps: true,
     toJSON: {
       transform(_doc, ret: Record<string, unknown>) {
         delete ret.fileUrl;
-        delete ret.ocrText;
         return ret;
       },
     },

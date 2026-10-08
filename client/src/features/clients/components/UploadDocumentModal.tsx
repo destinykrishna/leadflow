@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   Upload,
   AlertCircle,
+  CheckCircle2,
   FileCheck,
   FileText,
   Image as ImageIcon,
@@ -9,7 +10,6 @@ import {
   Loader2,
   ShieldCheck,
 } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   Dialog,
   DialogContent,
@@ -100,7 +100,6 @@ export function UploadDocumentModal({
   initialNotes,
   reuploadDoc,
 }: UploadDocumentModalProps) {
-  const queryClient = useQueryClient()
   const uploadMutation = useUploadClientDocument()
 
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
@@ -108,22 +107,10 @@ export function UploadDocumentModal({
   const [title, setTitle] = React.useState(initialTitle || '')
   const [notes, setNotes] = React.useState(initialNotes || '')
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [isSuccess, setIsSuccess] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
+  const [uploadedDoc, setUploadedDoc] = React.useState<DocumentItem | null>(null)
   const [uploadStage, setUploadStage] = React.useState<number>(0)
-
-  const resetForm = React.useCallback(() => {
-    setSelectedFile(null)
-    setDocType(initialType || (reuploadDoc ? reuploadDoc.type : 'IDENTIFICATION'))
-    setTitle(initialTitle || (reuploadDoc ? `${reuploadDoc.title} (Updated)` : ''))
-    setNotes(initialNotes || '')
-    setErrorMessage(null)
-    setIsDragging(false)
-    setUploadStage(0)
-    const fileInput = document.getElementById('client-doc-file-input') as HTMLInputElement | null
-    if (fileInput) {
-      fileInput.value = ''
-    }
-  }, [initialType, initialTitle, initialNotes, reuploadDoc])
 
   // Step through security progress phases during active cloud upload
   React.useEffect(() => {
@@ -145,16 +132,17 @@ export function UploadDocumentModal({
   // Reset or initialize form when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      resetForm()
+      setSelectedFile(null)
+      setDocType(initialType || (reuploadDoc ? reuploadDoc.type : 'IDENTIFICATION'))
+      setTitle(initialTitle || (reuploadDoc ? `${reuploadDoc.title} (Updated)` : ''))
+      setNotes(initialNotes || '')
+      setErrorMessage(null)
+      setIsSuccess(false)
+      setIsDragging(false)
+      setUploadedDoc(null)
+      setUploadStage(0)
     }
-  }, [isOpen, resetForm])
-
-  const handleClose = () => {
-    if (!uploadMutation.isPending) {
-      resetForm()
-      onClose()
-    }
-  }
+  }, [isOpen, initialType, initialTitle, initialNotes, reuploadDoc])
 
   const validateAndSetFile = (file: File) => {
     // 1. Size Validation
@@ -210,7 +198,8 @@ export function UploadDocumentModal({
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
-  const file = e.dataTransfer.files?.[0]
+
+    const file = e.dataTransfer.files?.[0]
     if (file) {
       validateAndSetFile(file)
     }
@@ -219,10 +208,6 @@ export function UploadDocumentModal({
   const handleRemoveFile = () => {
     setSelectedFile(null)
     setErrorMessage(null)
-    const fileInput = document.getElementById('client-doc-file-input') as HTMLInputElement | null
-    if (fileInput) {
-      fileInput.value = ''
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -244,22 +229,9 @@ export function UploadDocumentModal({
         notes: notes.trim() || undefined,
       })
 
-      // Invalidate queries to refresh document list
-      queryClient.invalidateQueries({ queryKey: ['documents'] })
-      queryClient.invalidateQueries({ queryKey: ['client-documents'] })
-      if (clientId) {
-        queryClient.invalidateQueries({ queryKey: ['client-documents', clientId] })
-      }
-      if (leadId) {
-        queryClient.invalidateQueries({ queryKey: ['lead-documents', leadId] })
-      }
-
-      // 1. Reset form state completely so reopening starts fresh
-      resetForm()
-
-      // 2. Notify caller and close modal automatically
+      setUploadedDoc(doc)
+      setIsSuccess(true)
       onSuccess?.(doc)
-      onClose()
     } catch (err: unknown) {
       const errorObj = err as {
         response?: { data?: { error?: { message?: string } } }
@@ -285,12 +257,45 @@ export function UploadDocumentModal({
       open={isOpen}
       onOpenChange={(open) => {
         if (!uploadMutation.isPending && !open) {
-          handleClose()
+          onClose()
         }
       }}
     >
       <DialogContent className="max-w-md sm:max-w-lg p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {isSuccess ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Document Uploaded & Queued
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground max-w-sm leading-relaxed">
+                <span className="font-semibold text-slate-800">{uploadedDoc?.title || selectedFile?.name}</span>{' '}
+                was stored securely in the vault and dispatched for background verification processing.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 w-full justify-center">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>Encrypted and verified for client dossier</span>
+              <span className="sr-only">Brokerage tenant isolation verified</span>
+            </div>
+
+            <DialogFooter className="w-full pt-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onClose}
+                className="w-full text-xs font-semibold"
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <DialogHeader>
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -494,7 +499,7 @@ export function UploadDocumentModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleClose}
+                onClick={onClose}
                 disabled={uploadMutation.isPending}
                 className="w-full sm:w-auto text-xs"
               >
@@ -520,6 +525,7 @@ export function UploadDocumentModal({
               </Button>
             </DialogFooter>
           </form>
+        )}
       </DialogContent>
     </Dialog>
   )

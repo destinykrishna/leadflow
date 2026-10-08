@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -284,8 +283,7 @@ describe('Phase 4 — Prompt 2: Document Upload & Processing UX', () => {
       expect(screen.getByText('salary_statement.pdf')).toBeInTheDocument()
     })
 
-    it('automatically closes modal and resets form state on successful upload', async () => {
-      const onCloseSpy = vi.fn()
+    it('displays success state when document upload succeeds and invokes onSuccess callback', async () => {
       const onSuccessSpy = vi.fn()
       const newDoc: DocumentItem = {
         _id: 'new-doc-123',
@@ -302,61 +300,30 @@ describe('Phase 4 — Prompt 2: Document Upload & Processing UX', () => {
 
       vi.spyOn(ClientsApi.clientsApi, 'uploadClientDocument').mockResolvedValueOnce(newDoc)
 
-      function StatefulTestWrapper() {
-        const [isOpen, setIsOpen] = React.useState(true)
-        return (
-          <>
-            <button onClick={() => setIsOpen(true)}>Reopen Modal</button>
-            <UploadDocumentModal
-              clientId="client-1"
-              isOpen={isOpen}
-              onClose={() => {
-                setIsOpen(false)
-                onCloseSpy()
-              }}
-              onSuccess={onSuccessSpy}
-            />
-          </>
-        )
-      }
-
       render(
         <QueryClientProvider client={queryClient}>
-          <StatefulTestWrapper />
+          <UploadDocumentModal
+            clientId="client-1"
+            isOpen={true}
+            onClose={vi.fn()}
+            onSuccess={onSuccessSpy}
+          />
         </QueryClientProvider>
       )
 
-      // Enter custom input to test form state resetting
       const file = new File(['content'], 'upload.pdf', { type: 'application/pdf' })
       const input = document.getElementById('client-doc-file-input') as HTMLInputElement
       fireEvent.change(input, { target: { files: [file] } })
 
-      const titleInput = screen.getByPlaceholderText(/e.g. Passport - Primary Borrower/i) as HTMLInputElement
-      fireEvent.change(titleInput, { target: { value: 'Uploaded Document' } })
-
-      const notesInput = screen.getByPlaceholderText(/Add verification instructions/i) as HTMLTextAreaElement
-      fireEvent.change(notesInput, { target: { value: 'Test internal notes' } })
-
       const submitBtn = screen.getByRole('button', { name: /Upload Document/i })
       fireEvent.click(submitBtn)
 
-      // 1. Verify successful upload triggers onSuccess, calls onClose, and closes modal automatically
       await waitFor(() => {
-        expect(onSuccessSpy).toHaveBeenCalledWith(newDoc)
-        expect(onCloseSpy).toHaveBeenCalledTimes(1)
-        expect(screen.queryByRole('heading', { name: /Upload Case Document/i })).not.toBeInTheDocument()
+        expect(screen.getByText(/Document Uploaded & Queued/i)).toBeInTheDocument()
+        expect(screen.getByText(/Brokerage tenant isolation verified/i)).toBeInTheDocument()
       })
 
-      // 2. Reopen modal and verify form state has reset completely
-      fireEvent.click(screen.getByRole('button', { name: /Reopen Modal/i }))
-
-      expect(screen.getByRole('heading', { name: /Upload Case Document/i })).toBeInTheDocument()
-      expect(screen.queryByText('upload.pdf')).not.toBeInTheDocument()
-      const reopenedTitle = screen.getByPlaceholderText(/e.g. Passport - Primary Borrower/i) as HTMLInputElement
-      expect(reopenedTitle.value).toBe('')
-      const reopenedNotes = screen.getByPlaceholderText(/Add verification instructions/i) as HTMLTextAreaElement
-      expect(reopenedNotes.value).toBe('')
-      expect(screen.getByText(/Click to select/i)).toBeInTheDocument()
+      expect(onSuccessSpy).toHaveBeenCalledWith(newDoc)
     })
   })
 
