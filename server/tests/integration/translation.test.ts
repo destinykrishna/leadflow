@@ -94,7 +94,7 @@ describe('POST /api/translate Integration', () => {
       .post('/api/translate')
       .set('Authorization', `Bearer ${advisorToken}`)
       .send({
-        text: 'Borrower IBAN is DE89370400440532013000 and temporary password: TempSecret99!',
+        text: 'Borrower IBAN is DE89370400440532013000 and auth_token: mock-sample-token',
         targetLang: 'de',
       });
 

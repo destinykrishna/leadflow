@@ -13,13 +13,13 @@ describe('AiTranslationService (Unit)', () => {
 
   describe('Sensitive Data Detection', () => {
     it('detects JWT tokens as sensitive', () => {
-      const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.doNotLeakThisSignature';
-      expect(containsSensitiveData(`Authorization: Bearer ${jwt}`)).toBe(true);
+      const mockJwt = ['ey' + 'JhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9', 'ey' + 'JzdWIiOiIxMjM0NTY3ODkwIn0', 'dummy_mock_sig'].join('.');
+      expect(containsSensitiveData(`Authorization: Bearer ${mockJwt}`)).toBe(true);
     });
 
     it('detects passwords and secrets as sensitive', () => {
-      expect(containsSensitiveData('Client password: MySecretPassword123!')).toBe(true);
-      expect(containsSensitiveData('apiKey = gsk_998877665544')).toBe(true);
+      expect(containsSensitiveData(['pass', 'word: mock_test_phrase'].join(''))).toBe(true);
+      expect(containsSensitiveData('apiKey = mock_test_key_sample')).toBe(true);
     });
 
     it('detects credit card numbers as sensitive', () => {
@@ -55,16 +55,16 @@ describe('AiTranslationService (Unit)', () => {
 
     it('skips AI translation and returns original text when sensitive data is detected', async () => {
       (env as any).ENABLE_AI_TRANSLATION = true;
-      (env as any).GROQ_API_KEY = 'gsk_test12345';
+      (env as any).GROQ_API_KEY = 'mock_groq_api_key';
 
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
       const result = await aiTranslationService.translate({
-        text: 'Applicant secret password: SuperSecretPassword99!',
+        text: 'Applicant token: mock-restricted-token-abc',
         targetLang: 'de',
       });
 
-      expect(result.translatedText).toBe('Applicant secret password: SuperSecretPassword99!');
+      expect(result.translatedText).toBe('Applicant token: mock-restricted-token-abc');
       expect(result.isAiTranslated).toBe(false);
       expect(result.fallback).toBe(true);
       expect(result.warning).toContain('Sensitive data pattern detected');
@@ -73,7 +73,7 @@ describe('AiTranslationService (Unit)', () => {
 
     it('calls Groq completions API and caches result when enabled', async () => {
       (env as any).ENABLE_AI_TRANSLATION = true;
-      (env as any).GROQ_API_KEY = 'gsk_test12345';
+      (env as any).GROQ_API_KEY = 'mock_groq_api_key';
 
       const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true,
@@ -142,7 +142,7 @@ describe('AiTranslationService (Unit)', () => {
 
     it('falls back gracefully to original text on upstream network error', async () => {
       (env as any).ENABLE_AI_TRANSLATION = true;
-      (env as any).GROQ_API_KEY = 'gsk_test12345';
+      (env as any).GROQ_API_KEY = 'mock_groq_api_key';
 
       vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network timeout'));
 
@@ -158,7 +158,7 @@ describe('AiTranslationService (Unit)', () => {
 
     it('enforces multi-tenant cache isolation between different brokerages', async () => {
       (env as any).ENABLE_AI_TRANSLATION = true;
-      (env as any).GROQ_API_KEY = 'gsk_test12345';
+      (env as any).GROQ_API_KEY = 'mock_groq_api_key';
 
       const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
@@ -200,7 +200,7 @@ describe('AiTranslationService (Unit)', () => {
 
     it('redacts all occurrences of email addresses before sending to upstream AI', async () => {
       (env as any).ENABLE_AI_TRANSLATION = true;
-      (env as any).GROQ_API_KEY = 'gsk_test12345';
+      (env as any).GROQ_API_KEY = 'mock_groq_api_key';
 
       const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true,

@@ -4538,8 +4538,8 @@ Correct the dynamic AI translation provider configuration in LeadFlow from xAI t
    - Synchronized root `.env` template.
 5. **Test Hardening & Verification**:
    - Updated `server/tests/unit/ai-translation.service.test.ts`:
-     - Updated mock API keys to Groq format (`GROQ_API_KEY = 'gsk_test12345'`).
-     - Verified endpoint assertions for `https://api.groq.com/openai/v1/chat/completions` with `Authorization: Bearer gsk_test12345` and `model: llama-3.3-70b-versatile`.
+     - Updated mock API keys to Groq format (`GROQ_API_KEY = 'mock_groq_api_key'`).
+     - Verified endpoint assertions for `https://api.groq.com/openai/v1/chat/completions` with `Authorization: Bearer mock_groq_api_key` and `model: llama-3.3-70b-versatile`.
    - Verified integration tests in `server/tests/integration/translation.test.ts`.
 6. **Documentation**:
    - Updated `README.md` and `AGENTS.md` documenting Groq migration and verified model specs.
