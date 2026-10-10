@@ -18,10 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader } from '@/components/ui/Loader'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from 'react-i18next'
+import { LanguageToggle } from '@/components/common/LanguageToggle'
 import { usePublicForm, useSubmitPublicForm } from './public-form.api'
 import type { IPublicFormField } from '@/types/form.types'
 
 export function PublicFormPage() {
+  const { t } = useTranslation()
   const { brokerageIdentifier, slug } = useParams<{
     brokerageIdentifier: string
     slug: string
@@ -246,7 +249,12 @@ export function PublicFormPage() {
   )
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50/70 p-4 sm:p-6 lg:p-8">
+    <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50/70 p-4 sm:p-6 lg:p-8">
+      {/* Language Toggle in Top Right Corner */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageToggle variant="compact" />
+      </div>
+
       <div className="w-full max-w-xl space-y-4">
         {/* Main Form Card */}
         <Card className="shadow-xs border-border bg-card overflow-hidden">
@@ -441,11 +449,11 @@ export function PublicFormPage() {
                       className="w-full gap-2 text-xs font-semibold shadow-xs"
                     >
                       {submitMutation.isPending ? (
-                        <span>Submitting inquiry...</span>
+                        <span>{t('forms.public.submitting', 'Submitting inquiry...')}</span>
                       ) : (
                         <>
                           <Send className="h-3.5 w-3.5" />
-                          <span>{form.submitButtonText || 'Submit'}</span>
+                          <span>{form.submitButtonText || t('common.submit', 'Submit')}</span>
                         </>
                       )}
                     </Button>
@@ -459,7 +467,7 @@ export function PublicFormPage() {
         {/* Brand & Security Trust Seal */}
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Encrypted & Secure Ingestion · Powered by LeadFlow</span>
+          <span>{t('forms.secureIngestion', 'Encrypted & Secure Ingestion · Powered by LeadFlow')}</span>
         </div>
       </div>
     </div>

@@ -53,6 +53,10 @@ const envSchema = z.object({
   EMAIL_FROM_ADDRESS: z.string().default('notifications@leadflow.io'),
   EMAIL_FROM_NAME: z.string().default('LeadFlow Notifications'),
   EMAIL_REPLY_TO: z.string().optional(),
+  ENABLE_AI_TRANSLATION: z.coerce.boolean().default(false),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  GROQ_API_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
 });
 
 export const DEV_DEFAULT_SECRETS = {

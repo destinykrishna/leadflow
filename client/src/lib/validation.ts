@@ -159,6 +159,8 @@ export const triggerRecipientTypeSchema = z.enum(['LEAD', 'AGENT', 'CUSTOM'], {
   message: 'Invalid recipient type',
 })
 
+export const triggerDelayUnitSchema = z.enum(['IMMEDIATE', 'MINUTES', 'HOURS', 'DAYS'])
+
 export const triggerActionConfigSchema = z.object({
   taskTitle: z.string().trim().max(200).optional(),
   taskDescription: z.string().trim().max(5000).optional(),
@@ -168,6 +170,9 @@ export const triggerActionConfigSchema = z.object({
   templateId: z.string().optional(),
   recipientType: triggerRecipientTypeSchema.default('LEAD'),
   customRecipientEmail: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
+  delayAmount: z.coerce.number().int().min(0).default(0),
+  delayUnit: triggerDelayUnitSchema.default('IMMEDIATE'),
+  cancelOnStageChange: z.boolean().default(true),
 })
 
 export const createTriggerFormSchema = z.object({
@@ -179,6 +184,9 @@ export const createTriggerFormSchema = z.object({
     taskPriority: 'MEDIUM',
     dueDaysOffset: 1,
     recipientType: 'LEAD',
+    delayAmount: 0,
+    delayUnit: 'IMMEDIATE',
+    cancelOnStageChange: true,
   }),
   isActive: z.boolean().default(true),
 })
@@ -213,6 +221,9 @@ export const triggerResponseItemSchema = z.object({
     ]).nullable().optional(),
     recipientType: z.string().optional(),
     customRecipientEmail: z.string().nullable().optional(),
+    delayAmount: z.number().optional(),
+    delayUnit: z.string().optional(),
+    cancelOnStageChange: z.boolean().optional(),
   }),
   isActive: z.boolean(),
   createdAt: z.string().optional(),

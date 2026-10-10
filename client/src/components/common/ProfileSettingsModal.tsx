@@ -16,9 +16,11 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { LanguageToggle } from '@/components/common/LanguageToggle'
 import { api } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useMyCase } from '@/features/clients/api/clients.api'
@@ -56,6 +58,7 @@ export function ProfileSettingsModal({
   isMac = false,
 }: ProfileSettingsModalProps) {
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = React.useState<SettingsTab>('profile')
   const [copiedField, setCopiedField] = React.useState<string | null>(null)
 
@@ -154,7 +157,7 @@ export function ProfileSettingsModal({
               }`}
             >
               <User className="h-3.5 w-3.5" />
-              <span>Identity & Profile</span>
+              <span>{t('settings.tabs.profile', 'Identity & Profile')}</span>
             </button>
 
             <button
@@ -167,7 +170,7 @@ export function ProfileSettingsModal({
               }`}
             >
               <Building2 className="h-3.5 w-3.5" />
-              <span>Organization</span>
+              <span>{t('settings.tabs.organization', 'Organization')}</span>
             </button>
 
             <button
@@ -180,7 +183,7 @@ export function ProfileSettingsModal({
               }`}
             >
               <Globe className="h-3.5 w-3.5" />
-              <span>Preferences</span>
+              <span>{t('settings.tabs.preferences', 'Preferences')}</span>
             </button>
 
             <button
@@ -193,7 +196,7 @@ export function ProfileSettingsModal({
               }`}
             >
               <Lock className="h-3.5 w-3.5" />
-              <span>Security & Roles</span>
+              <span>{t('settings.tabs.security', 'Security & Roles')}</span>
             </button>
           </div>
 
@@ -375,18 +378,33 @@ export function ProfileSettingsModal({
             {/* 3. Localization & Preferences Tab */}
             {activeTab === 'localization' && (
               <div className="space-y-4">
+                {/* Language Selection Setting */}
+                <div className="p-4 rounded-xl border border-border bg-card space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        {t('settings.preferences.languageSelection', 'Application Display Language')}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t('settings.preferences.languageDesc', 'Select preferred interface language. English is default, German is available.')}
+                      </p>
+                    </div>
+                    <LanguageToggle variant="segmented" />
+                  </div>
+                </div>
+
                 <div className="p-4 rounded-xl border border-border bg-card space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Mortgage Financial Standards
+                    {t('settings.preferences.financialStandards', 'Mortgage Financial Standards')}
                   </h4>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-lg border border-slate-100 bg-slate-50/60 space-y-1">
                       <span className="text-[10px] uppercase font-semibold text-slate-400">
-                        Base Currency
+                        {t('settings.preferences.baseCurrency', 'Base Currency')}
                       </span>
                       <p className="font-bold text-slate-900">
-                        Indian Rupee (INR — ₹)
+                        {t('settings.preferences.currencyDesc', 'Indian Rupee (INR — ₹)')}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         Standard Indian Numbering Format (Lakhs & Crores)
@@ -395,7 +413,7 @@ export function ProfileSettingsModal({
 
                     <div className="p-3 rounded-lg border border-slate-100 bg-slate-50/60 space-y-1">
                       <span className="text-[10px] uppercase font-semibold text-slate-400">
-                        Sample Volume Formatting
+                        {t('settings.preferences.sampleVolume', 'Sample Volume Formatting')}
                       </span>
                       <p className="font-bold text-slate-900 font-mono">
                         {formatCurrency(7500000)}
@@ -407,7 +425,7 @@ export function ProfileSettingsModal({
 
                     <div className="p-3 rounded-lg border border-slate-100 bg-slate-50/60 space-y-1">
                       <span className="text-[10px] uppercase font-semibold text-slate-400">
-                        Date Presentation
+                        {t('settings.preferences.datePresentation', 'Date Presentation')}
                       </span>
                       <p className="font-bold text-slate-900">
                         {formatDate(new Date())}
@@ -419,7 +437,7 @@ export function ProfileSettingsModal({
 
                     <div className="p-3 rounded-lg border border-slate-100 bg-slate-50/60 space-y-1">
                       <span className="text-[10px] uppercase font-semibold text-slate-400">
-                        Time Zone & Region
+                        {t('settings.preferences.timeZone', 'Time Zone & Region')}
                       </span>
                       <p className="font-bold text-slate-900">
                         IST (UTC+5:30)

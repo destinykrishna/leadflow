@@ -47,6 +47,7 @@ import { STAGE_DEFINITIONS } from '@/types/pipeline.types'
 import { sanitizeIndianMortgageText, formatUserEmail } from '@/lib/presentation'
 import { useClientTimeline } from '@/features/admin/api/audit.api'
 import { ActivityTimeline } from '@/components/common/ActivityTimeline'
+import { TextTranslate, isEligibleDocumentText } from '@/features/leads/components/LeadNoteTranslate'
 
 export interface ClientDetailViewProps {
   clientId: string
@@ -646,6 +647,14 @@ export function ClientDetailView({
                         lead.notes
                       )}
                     </p>
+                    <TextTranslate
+                      text={sanitizeIndianMortgageText(lead.notes)}
+                      context="lead_note"
+                      label="Originating Note"
+                      variant="link"
+                      testIdPrefix="case-lead-"
+                      className="mt-1"
+                    />
                   </div>
                 )}
               </div>
@@ -880,20 +889,46 @@ export function ClientDetailView({
 
                             {/* Prominent Rejection Reason Callout */}
                             {isRejected && (doc.rejectionReason || doc.verificationNotes || doc.failureReason) && (
-                              <div className="mt-2 flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
-                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                                <div>
-                                  <span className="font-semibold block">Inspection Rejection Issue:</span>
-                                  <span className="leading-relaxed">{doc.rejectionReason || doc.verificationNotes || doc.failureReason}</span>
+                              <div className="mt-2 flex flex-col gap-1.5 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-800">
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                                  <div>
+                                    <span className="font-semibold block">Inspection Rejection Issue:</span>
+                                    <span className="leading-relaxed">{doc.rejectionReason || doc.verificationNotes || doc.failureReason}</span>
+                                  </div>
                                 </div>
+                                {isEligibleDocumentText(
+                                  doc.rejectionReason || doc.verificationNotes || doc.failureReason,
+                                  { ...doc, rejectionReason: doc.rejectionReason || doc.verificationNotes || doc.failureReason }
+                                ) && (
+                                  <TextTranslate
+                                    text={doc.rejectionReason || doc.verificationNotes || doc.failureReason || ''}
+                                    context="document_note"
+                                    label="Rejection Note"
+                                    variant="link"
+                                    testIdPrefix={`doc-${doc._id}-rejection-`}
+                                    className="mt-0.5"
+                                  />
+                                )}
                               </div>
                             )}
 
                             {/* Informational Notes for non-rejected items */}
                             {!isRejected && doc.verificationNotes && (
-                              <p className="text-[11px] text-slate-600 mt-1 italic">
-                                Note: {doc.verificationNotes}
-                              </p>
+                              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                <p className="text-[11px] text-slate-600 italic">
+                                  Note: {doc.verificationNotes}
+                                </p>
+                                {isEligibleDocumentText(doc.verificationNotes, doc) && (
+                                  <TextTranslate
+                                    text={doc.verificationNotes}
+                                    context="document_note"
+                                    label="Verification Note"
+                                    variant="link"
+                                    testIdPrefix={`doc-${doc._id}-note-`}
+                                  />
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

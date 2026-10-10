@@ -86,6 +86,47 @@ describe('Phase 5 — Prompt 2: Automation & Email Tests', () => {
       const invalidToggle = { isActive: 'not-a-boolean' }
       expect(validateForm(updateTriggerStatusSchema, invalidToggle).success).toBe(false)
     })
+
+    it('validates delayed email trigger creation with MINUTES, HOURS, and DAYS units', () => {
+      const validDelayedTrigger = {
+        name: 'Delayed Expat Follow-up',
+        toStage: 'PROPOSAL',
+        actionType: 'SEND_EMAIL',
+        actionConfig: {
+          templateId: '6ac9e9d69d2d4172d890ec66',
+          recipientType: 'LEAD',
+          delayUnit: 'HOURS',
+          delayAmount: 4,
+          cancelOnStageChange: true,
+        },
+      }
+
+      const result = validateForm(createTriggerFormSchema, validDelayedTrigger)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.actionConfig?.delayUnit).toBe('HOURS')
+        expect(result.data.actionConfig?.delayAmount).toBe(4)
+        expect(result.data.actionConfig?.cancelOnStageChange).toBe(true)
+      }
+    })
+
+    it('rejects delayed trigger with non-positive delayAmount or invalid delayUnit', () => {
+      const invalidAmount = {
+        name: 'Invalid Amount',
+        toStage: 'PROPOSAL',
+        actionType: 'SEND_EMAIL',
+        actionConfig: {
+          delayUnit: 'MINUTES',
+          delayAmount: -5,
+        },
+      }
+
+      const result = validateForm(createTriggerFormSchema, invalidAmount)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.errors['actionConfig.delayAmount']).toBeDefined()
+      }
+    })
   })
 
   describe('2. Template Preview & Placeholder Interpolation Logic', () => {
@@ -309,4 +350,66 @@ describe('Phase 5 — Prompt 2: Automation & Email Tests', () => {
       expect(screen.getByText('No preview content available')).toBeInTheDocument()
     })
   })
+
+  describe('5. Delayed Email UI Configuration & TriggerItemCard Display', () => {
+    it('renders Immediate timing badge when trigger has no delay or delayUnit is IMMEDIATE', () => {
+      const immediateTrigger: IPipelineTrigger = {
+        _id: 'trigger-imm',
+        brokerageId: 'brokerage-1',
+        name: 'Immediate Notification',
+        toStage: 'CONTACTED',
+        actionType: 'SEND_EMAIL',
+        actionConfig: {
+          recipientType: 'LEAD',
+          delayUnit: 'IMMEDIATE',
+        },
+        isActive: true,
+        createdAt: '2026-03-26T00:00:00.000Z',
+        updatedAt: '2026-03-26T00:00:00.000Z',
+      }
+
+      render(
+        <TriggerItemCard
+          trigger={immediateTrigger}
+          canMutate={false}
+          onToggleStatus={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Timing:')).toBeInTheDocument()
+      expect(screen.getByText('Immediate')).toBeInTheDocument()
+    })
+
+    it('renders delayed timing badge with auto-cancel indicator when delay is configured', () => {
+      const delayedTrigger: IPipelineTrigger = {
+        _id: 'trigger-delayed-1',
+        brokerageId: 'brokerage-1',
+        name: 'Delayed Follow-up Call',
+        toStage: 'PROPOSAL',
+        actionType: 'SEND_EMAIL',
+        actionConfig: {
+          recipientType: 'LEAD',
+          delayUnit: 'HOURS',
+          delayAmount: 2,
+          cancelOnStageChange: true,
+        },
+        isActive: true,
+        createdAt: '2026-03-26T00:00:00.000Z',
+        updatedAt: '2026-03-26T00:00:00.000Z',
+      }
+
+      render(
+        <TriggerItemCard
+          trigger={delayedTrigger}
+          canMutate={false}
+          onToggleStatus={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Timing:')).toBeInTheDocument()
+      expect(screen.getByText(/Wait 2 hours/i)).toBeInTheDocument()
+      expect(screen.getByText(/\(auto-cancels on stage change\)/i)).toBeInTheDocument()
+    })
+  })
 })
+

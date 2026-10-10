@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 
 interface CommandPaletteProps {
   open: boolean
@@ -39,7 +40,7 @@ interface CommandPaletteProps {
 interface CommandItem {
   id: string
   label: string
-  category: 'Navigation' | 'Actions' | 'Account'
+  category: string
   icon: React.ComponentType<{ className?: string }>
   shortcut?: string[]
   keywords?: string
@@ -54,6 +55,7 @@ export function CommandPalette({
   onOpenShortcuts,
   onOpenProfile,
 }: CommandPaletteProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [search, setSearch] = React.useState('')
@@ -381,7 +383,7 @@ export function CommandPalette({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search pages or type a command..."
+              placeholder={t('shortcuts.commandPalettePlaceholder', 'Search pages or type a command...')}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             <div className="flex items-center gap-1.5">
@@ -395,7 +397,7 @@ export function CommandPalette({
           <div ref={listRef} className="max-h-80 overflow-y-auto p-2 space-y-3">
             {filteredCommands.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">
-                No matching pages or actions found for &ldquo;{search}&rdquo;
+                {t('common.noResults', 'No matching pages or actions found')} &ldquo;{search}&rdquo;
               </div>
             ) : (
               categories.map((cat) => {
@@ -465,20 +467,20 @@ export function CommandPalette({
                 <kbd className="rounded border border-slate-200 bg-white px-1 font-mono text-[9px]">
                   ↓
                 </kbd>
-                <span className="text-[10px]">Navigate</span>
+                <span className="text-[10px]">{t('shortcuts.navigate', 'Navigate')}</span>
               </span>
               <span className="flex items-center gap-1">
                 <kbd className="rounded border border-slate-200 bg-white px-1 font-mono text-[9px]">
                   ↵
                 </kbd>
-                <span className="text-[10px]">Select</span>
+                <span className="text-[10px]">{t('shortcuts.select', 'Select')}</span>
               </span>
             </div>
             <div className="flex items-center gap-1">
               <kbd className="rounded border border-slate-200 bg-white px-1 font-mono text-[9px]">
                 ESC
               </kbd>
-              <span className="text-[10px]">Close</span>
+              <span className="text-[10px]">{t('common.close', 'Close')}</span>
             </div>
           </div>
         </DialogPrimitive.Content>

@@ -15,6 +15,7 @@ import { useAdvisorsList } from '@/features/team/api/team.api'
 import { useCreateTask } from '../api/tasks.api'
 import { useToast } from '@/components/ui/Toast'
 import { CheckSquare, Calendar, User, AlertCircle, Loader2 } from 'lucide-react'
+import { TextTranslate } from '@/features/leads/components/LeadNoteTranslate'
 
 export interface CreateTaskModalProps {
   isOpen: boolean
@@ -248,6 +249,15 @@ export function CreateTaskModal({
               placeholder="Add specific instructions or borrower context..."
               className="w-full rounded-md border border-input bg-white p-2.5 text-xs text-slate-800 shadow-2xs focus:border-primary focus:outline-hidden"
             />
+            {description.trim().length > 0 && (
+              <TextTranslate
+                text={description}
+                context="task_description"
+                label="Task Instructions"
+                testIdPrefix="create-task-"
+                className="mt-1"
+              />
+            )}
           </div>
 
           <DialogFooter className="pt-2">

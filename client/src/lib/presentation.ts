@@ -65,10 +65,17 @@ const REPLACEMENTS: Array<[RegExp, string]> = [
 ]
 
 /**
- * Sanitizes any raw backend string to eliminate legacy European/German/Expat terms.
+ * Sanitizes any raw backend string to eliminate legacy European/German/Expat terms
+ * when running in English mode, while strictly preserving German terms when in German locale.
  */
-export function sanitizeIndianMortgageText(text?: string | null): string {
+export function sanitizeIndianMortgageText(text?: string | null, locale?: string): string {
   if (!text) return ''
+  const activeLocale =
+    locale ||
+    (typeof window !== 'undefined' ? localStorage.getItem('leadflow_language') || 'en' : 'en')
+  if (activeLocale === 'de') {
+    return text
+  }
   let result = text
   for (const [pattern, replacement] of REPLACEMENTS) {
     result = result.replace(pattern, replacement)
@@ -77,14 +84,20 @@ export function sanitizeIndianMortgageText(text?: string | null): string {
 }
 
 /**
- * Sanitizes brokerage names for presentation.
+ * Sanitizes brokerage names for presentation while preserving original name in German.
  */
-export function formatBrokerageName(name?: string | null): string {
+export function formatBrokerageName(name?: string | null, locale?: string): string {
   if (!name) return 'Apex Home Finance'
+  const activeLocale =
+    locale ||
+    (typeof window !== 'undefined' ? localStorage.getItem('leadflow_language') || 'en' : 'en')
+  if (activeLocale === 'de') {
+    return name
+  }
   if (/berlin|expat|gmbh|munich/i.test(name)) {
     return 'Apex Home Finance'
   }
-  return sanitizeIndianMortgageText(name)
+  return sanitizeIndianMortgageText(name, activeLocale)
 }
 
 /**

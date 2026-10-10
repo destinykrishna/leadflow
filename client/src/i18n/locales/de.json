@@ -1,0 +1,564 @@
+{
+  "common": {
+    "save": "Speichern",
+    "saveChanges": "Änderungen speichern",
+    "saving": "Wird gespeichert...",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "archive": "Archivieren",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "done": "Fertig",
+    "confirm": "Bestätigen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "refresh": "Aktualisieren",
+    "loading": "Wird geladen...",
+    "search": "Suchen...",
+    "actions": "Aktionen",
+    "status": "Status",
+    "all": "Alle",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "pending": "Ausstehend",
+    "processing": "Wird geprüft",
+    "verified": "Verifiziert",
+    "rejected": "Abgelehnt",
+    "completed": "Abgeschlossen",
+    "cancelled": "Storniert",
+    "copied": "In die Zwischenablage kopiert",
+    "copy": "Kopieren",
+    "filter": "Filter",
+    "resetFilters": "Filter zurücksetzen",
+    "noResults": "Keine Ergebnisse gefunden",
+    "tryAdjusting": "Passen Sie Ihre Suche oder Filtereinstellungen an.",
+    "page": "Seite",
+    "of": "von",
+    "previous": "Zurück",
+    "viewDetails": "Details anzeigen",
+    "required": "Erforderlich",
+    "optional": "Optional",
+    "dismiss": "Verwerfen",
+    "reload": "Neu laden",
+    "download": "Herunterladen",
+    "upload": "Hochladen",
+    "submit": "Absenden",
+    "submitting": "Wird übermittelt...",
+    "errorTitle": "Ein Fehler ist aufgetreten",
+    "errorDesc": "Daten konnten nicht vom Server geladen werden. Bitte versuchen Sie es erneut.",
+    "retry": "Erneut versuchen",
+    "emptyTitle": "Keine Datensätze vorhanden",
+    "emptyDesc": "In dieser Ansicht liegen derzeit keine Datensätze vor.",
+    "pageNotFound": "Seite nicht gefunden",
+    "pageNotFoundDesc": "Die angeforderte Seite existiert nicht oder wurde verschoben.",
+    "returnToApp": "Zurück zum Arbeitsbereich"
+  },
+  "nav": {
+    "workspace": "Arbeitsbereich",
+    "dashboard": "Übersicht",
+    "pipeline": "Pipeline",
+    "leads": "Interessenten",
+    "clients": "Kunden",
+    "documents": "Dokumente",
+    "tasks": "Aufgaben",
+    "forms": "Formulare",
+    "automations": "Automatisierungen",
+    "stageAutomations": "Phasen-Automatisierungen",
+    "emailTemplates": "E-Mail-Vorlagen",
+    "management": "Verwaltung",
+    "team": "Berater & Team",
+    "portal": "Kreditportal",
+    "myCase": "Mein Kreditantrag",
+    "advisorContact": "Beraterkontakt",
+    "admin": "Administration",
+    "brokerages": "Vermittler & Partner",
+    "health": "Systemzustand",
+    "audit": "Prüfprotokolle",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "searchPlaceholder": "Suchen oder navigieren...",
+    "shortcuts": "Tastenkürzel",
+    "profileSettings": "Profil & Einstellungen",
+    "commandPalette": "Befehlspalette",
+    "signOut": "Abmelden",
+    "viewProfile": "Profil anzeigen",
+    "accountSettings": "Kontoeinstellungen",
+    "toggleNavigation": "Navigation umschalten"
+  },
+  "auth": {
+    "signInTitle": "Anmelden",
+    "signInSubtitle": "Zugang zu Ihrem institutionellen Baufinanzierungs-Portal",
+    "emailLabel": "E-Mail-Adresse",
+    "emailPlaceholder": "berater@vermittler.de",
+    "passwordLabel": "Passwort",
+    "rememberMe": "Diesen Arbeitsplatz merken",
+    "signInButton": "Anmelden",
+    "signingIn": "Anmeldung läuft...",
+    "quickFill": "Demo-Zugangsdaten vorausfüllen",
+    "platformAdmin": "Plattform-Administrator",
+    "brokerageAdmin": "Vermittler-Leitung",
+    "advisor": "Kreditberater",
+    "client": "Kreditnehmer-Portal",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden",
+    "emailRequired": "Eine gültige E-Mail-Adresse ist erforderlich",
+    "passwordRequired": "Passwort ist erforderlich"
+  },
+  "pipeline": {
+    "title": "Pipeline-Übersicht",
+    "stages": {
+      "NEW": "Neue Anfrage",
+      "CONTACTED": "Kontaktiert",
+      "QUALIFIED": "Qualifiziert",
+      "PROPOSAL": "Angebot",
+      "NEGOTIATION": "Verhandlung",
+      "WON": "Gewonnen / Umgewandelt",
+      "LOST": "Verloren"
+    },
+    "searchPlaceholder": "Kreditnehmer oder E-Mail suchen...",
+    "allAdvisors": "Alle Berater",
+    "allSources": "Alle Quellen",
+    "minVolume": "Min. Finanzierungsvolumen",
+    "jumpToStage": "Direktsprung:",
+    "emptyColumn": "Keine aktiven Vorgänge in dieser Phase",
+    "advanceStage": "Phase vorantreiben",
+    "markLost": "Als verloren markieren",
+    "revertStage": "Phase zurücksetzen",
+    "convertToClient": "In Kundenakte umwandeln",
+    "daysInStage": "{{days}} Tage in dieser Phase",
+    "ltv": "Beleihungsauslauf: {{ltv}}%",
+    "conflictTitle": "Phasenkonflikt erkannt",
+    "conflictDesc": "Ein anderer Berater hat diesen Vorgang zwischenzeitlich aktualisiert. Laden Sie die Ansicht neu.",
+    "dragNotice": "{{name}} nach {{stage}} verschoben"
+  },
+  "dashboard": {
+    "title": "Operative Übersicht",
+    "subtitle": "Echtzeit-Finanzierungsvolumen und Team-Geschwindigkeit",
+    "activeVolume": "Aktives Pipeline-Volumen",
+    "activeLeads": "Aktive Interessenten",
+    "conversionRate": "Abschlussquote",
+    "pendingVerifications": "Ausstehende Prüfungen",
+    "stageDistribution": "Phasenverteilung",
+    "recentActivity": "Letzte Aktivitäten",
+    "pendingTasks": "Fällige Aufgaben",
+    "sourceConversion": "Quellen-Konvertierung",
+    "noActivity": "Noch keine Aktivitäten erfasst",
+    "noTasks": "Alle geplanten Aufgaben wurden erledigt",
+    "viewAllTasks": "Alle Aufgaben anzeigen",
+    "viewPipeline": "Zur Pipeline"
+  },
+  "leads": {
+    "title": "Interessenten",
+    "subtitle": "Eingehende Finanzierungsanfragen und Darlehenswünsche",
+    "viewKanban": "Kanban-Pipeline anzeigen",
+    "newLead": "Neue Anfrage",
+    "table": {
+      "borrower": "Darlehensnehmer",
+      "stage": "Phase",
+      "loanAmount": "Darlehensbetrag",
+      "source": "Quelle",
+      "assignedTo": "Zuständiger Berater",
+      "created": "Eingangsdatum"
+    },
+    "detail": {
+      "contactInfo": "Kontaktdaten",
+      "loanRequirements": "Finanzierungsbedarf",
+      "propertyInfo": "Immobiliendaten",
+      "activityTimeline": "Vorgangsverlauf",
+      "alreadyKnownClient": "Bestehende Kundenakte verknüpft",
+      "viewClientCase": "Kundenakte öffnen",
+      "propertyValue": "Kaufpreis / Immobilienwert",
+      "downPayment": "Eigenkapital",
+      "notes": "Interne Notizen",
+      "noNotes": "Noch keine internen Notizen vorhanden."
+    },
+    "convertModal": {
+      "title": "Interessent in Kundenakte umwandeln",
+      "desc": "Überführt diesen qualifizierten Interessenten in einen aktiven Darlehensfall mit vollständiger Dokumentenprüfung und Legitimierung.",
+      "portalAccountHeading": "Zugang zum Kundenportal (Optional)",
+      "portalAccountDesc": "Erstellen Sie Zugangsdaten, damit der Darlehensnehmer selbstständig Gehaltsabrechnungen hochladen und den Bearbeitungsstand einsehen kann.",
+      "portalPasswordLabel": "Vorläufiges Portal-Passwort",
+      "portalPasswordHelp": "Freilassen, um automatisch ein sicheres vorläufiges Kennwort zu generieren.",
+      "confirmButton": "Bestätigen & Fall anlegen",
+      "converting": "Wird umgewandelt...",
+      "successTitle": "Erfolgreich umgewandelt",
+      "successDesc": "Das Kundenkonto und die Darlehensakte wurden erfolgreich initialisiert."
+    }
+  },
+  "clients": {
+    "title": "Kunden",
+    "subtitle": "Aktive Darlehensakten und laufende Finanzierungsanträge",
+    "table": {
+      "client": "Kundenname",
+      "status": "Vorgangsstatus",
+      "targetLoan": "Wunschdarlehen",
+      "property": "Immobilie",
+      "advisor": "Berater",
+      "updated": "Letzte Aktivität"
+    },
+    "detail": {
+      "caseHeader": "Darlehensakte",
+      "financialMetrics": "Finanzierungsstruktur",
+      "propertyDetails": "Finanzierungsobjekt",
+      "checklistHeading": "Erforderliche Unterlagen",
+      "uploadAction": "Dokument hochladen",
+      "ltvRatio": "Beleihungsauslauf (LTV)",
+      "calculatedLtv": "Berechneter Beleihungsauslauf"
+    },
+    "uploadModal": {
+      "title": "Kundendokument hochladen",
+      "desc": "Laden Sie Gehaltsnachweise, Legitimationsunterlagen oder Objektunterlagen zur Prüfung hoch.",
+      "typeLabel": "Dokumentenart",
+      "fileLabel": "Dokumentendatei (PDF, PNG, JPEG, WEBP - Max. 10MB)",
+      "notesLabel": "Beraternotizen (Optional)",
+      "notesPlaceholder": "Prüfhinweise oder Beschreibung ergänzen...",
+      "uploadButton": "Hochladen & Prüfung starten",
+      "uploading": "Wird hochgeladen...",
+      "fileSizeError": "Dateigröße überschreitet das Limit von 10MB.",
+      "fileTypeError": "Nicht unterstütztes Dateiformat. Bitte laden Sie PDF, JPEG, PNG, WEBP oder TIFF hoch."
+    }
+  },
+  "documents": {
+    "title": "Dokumentenprüfung",
+    "subtitle": "Prüfwarteschlange, Legitimationsprüfung und automatisierte Verifizierung",
+    "tabs": {
+      "all": "Alle Dokumente",
+      "pending": "Ausstehende Prüfung",
+      "processing": "Wird geprüft",
+      "verified": "Verifiziert",
+      "rejected": "Abgelehnt"
+    },
+    "types": {
+      "PAYSLIP": "Gehaltsabrechnung",
+      "ID_PASSPORT": "Personalausweis / Reisepass",
+      "BANK_STATEMENT": "Kontoauszug",
+      "PROPERTY_PURCHASE_AGREEMENT": "Kaufvertrag / Entwurf",
+      "TAX_ASSESSMENT": "Einkommensteuerbescheid",
+      "OTHER": "Sonstiges Dokument"
+    },
+    "statuses": {
+      "PENDING": "Ausstehende Prüfung",
+      "PROCESSING": "Wird geprüft",
+      "VERIFIED": "Verifiziert",
+      "REJECTED": "Abgelehnt"
+    },
+    "reviewModal": {
+      "title": "Dokumentenprüfung",
+      "clientName": "Darlehensnehmer",
+      "docType": "Dokumentenklassifikation",
+      "fileSize": "Dateigröße",
+      "uploadedAt": "Hochgeladen am",
+      "verifyAction": "Dokument verifizieren",
+      "rejectAction": "Dokument ablehnen",
+      "rejectionReasonLabel": "Ablehnungsgrund",
+      "rejectionReasonPlaceholder": "Genauen Grund für die Nachforderung angeben (z.B. unleserlicher Stempel, fehlende Seite 3)...",
+      "inspectorNotesLabel": "Interne Prüfnotizen",
+      "inspectorNotesPlaceholder": "Optionale operative Hinweise für das Beraterteam...",
+      "verifying": "Wird verifiziert...",
+      "rejecting": "Wird abgelehnt...",
+      "confirmVerification": "Als verifiziert markieren",
+      "confirmRejection": "Ablehnung einreichen"
+    }
+  },
+  "tasks": {
+    "title": "Aufgaben & Wiedervorlagen",
+    "subtitle": "Berater-Aufgabenliste und automatisierte Nachfass-Wiedervorlagen",
+    "createTask": "Aufgabe erstellen",
+    "metrics": {
+      "total": "Gesamtaufgaben",
+      "overdue": "Überfällig",
+      "dueToday": "Heute fällig",
+      "highPriority": "Hohe Priorität"
+    },
+    "priorities": {
+      "LOW": "Niedrig",
+      "MEDIUM": "Mittel",
+      "HIGH": "Hoch",
+      "URGENT": "Dringend"
+    },
+    "statuses": {
+      "OPEN": "Offen",
+      "IN_PROGRESS": "In Bearbeitung",
+      "COMPLETED": "Erledigt",
+      "CANCELLED": "Storniert"
+    },
+    "dueBadge": {
+      "overdue": "Überfällig",
+      "dueToday": "Heute fällig",
+      "dueTomorrow": "Morgen fällig",
+      "upcoming": "Bevorstehend"
+    },
+    "modal": {
+      "createTitle": "Berater-Aufgabe planen",
+      "detailTitle": "Aufgabendetails",
+      "titleLabel": "Aufgabentitel",
+      "titlePlaceholder": "z.B. Kontoauszug für Dezember nachfordern",
+      "descLabel": "Beschreibung & Anweisungen",
+      "descPlaceholder": "Konkrete Handlungsschritte für den Berater...",
+      "dueDateLabel": "Fälligkeitsdatum",
+      "priorityLabel": "Prioritätsstufe",
+      "statusLabel": "Status",
+      "linkLead": "Verknüpfte Anfrage",
+      "linkClient": "Verknüpfte Kundenakte",
+      "markComplete": "Als erledigt markieren",
+      "markInProgress": "In Bearbeitung setzen"
+    }
+  },
+  "forms": {
+    "title": "Lead-Erfassungsformulare",
+    "subtitle": "Konfigurierbare Fragebögen zur Baufinanzierung und Landingpages",
+    "createForm": "Formular erstellen",
+    "metrics": {
+      "activeForms": "Aktive Formulare",
+      "totalLeads": "Erfasste Anfragen",
+      "avgCompletion": "Durchschnittl. Abschlussquote"
+    },
+    "statuses": {
+      "DRAFT": "Entwurf",
+      "PUBLISHED": "Veröffentlicht",
+      "ARCHIVED": "Archiviert"
+    },
+    "actions": {
+      "copyLink": "Öffentlichen Link kopieren",
+      "preview": "Vorschau anzeigen",
+      "edit": "Schema bearbeiten",
+      "archive": "Formular archivieren"
+    },
+    "builder": {
+      "title": "Formular-Schema-Editor",
+      "formTitle": "Formularname",
+      "slug": "URL-Pfad (Slug)",
+      "desc": "Einleitungstext",
+      "fieldsHeading": "Fragebogen-Felder",
+      "addField": "Feld hinzufügen",
+      "fieldLabel": "Frage- / Feldbezeichnung",
+      "fieldType": "Feldtyp",
+      "fieldRequired": "Pflichtangabe",
+      "saveForm": "Fragebogen speichern"
+    },
+    "public": {
+      "title": "Fragebogen zur Baufinanzierung",
+      "subtitle": "Füllen Sie Ihren Antrag in unter 3 Minuten für eine unverbindliche Prüfung aus.",
+      "submitButton": "Finanzierungsanfrage absenden",
+      "submitting": "Wird übermittelt...",
+      "successTitle": "Anfrage erfolgreich erhalten",
+      "successDesc": "Ihr persönlicher Baufinanzierungsberater wird Ihre Angaben prüfen und sich zeitnah melden."
+    }
+  },
+  "templates": {
+    "title": "E-Mail-Vorlagen",
+    "subtitle": "Standardisierte Kundenkommunikation und Vorlagen für Statusmeldungen",
+    "createTemplate": "Neue Vorlage",
+    "variablesHeading": "Dynamische Platzhalter",
+    "editor": {
+      "title": "Vorlagen-Konfiguration",
+      "name": "Vorlagentitel",
+      "slug": "Vorlagenschlüssel (Slug)",
+      "subject": "E-Mail-Betreff",
+      "body": "E-Mail-Nachrichtentext",
+      "save": "Vorlage speichern"
+    },
+    "preview": {
+      "title": "Versand-Vorschau",
+      "renderedSubject": "Betreff",
+      "renderedBody": "Nachrichteninhalt"
+    }
+  },
+  "triggers": {
+    "title": "Phasen-Automatisierungen",
+    "subtitle": "Ereignisgesteuerte Arbeitsabläufe bei Wechsel von Pipeline-Phasen",
+    "createTrigger": "Neue Automatisierungsregel",
+    "ruleName": "Regelname",
+    "eventStage": "Auslöser-Phase",
+    "actionType": "Aktion",
+    "activeToggle": "Regel aktiv",
+    "actions": {
+      "CREATE_TASK": "Berateraufgabe anlegen",
+      "SEND_EMAIL": "Benachrichtigungs-E-Mail versenden"
+    }
+  },
+  "team": {
+    "title": "Berater & Team",
+    "subtitle": "Baufinanzierungsberater, operative Konten und Lead-Einbindungen",
+    "inviteAdvisor": "Berater anlegen",
+    "createModal": {
+      "title": "Baufinanzierungsberater registrieren",
+      "desc": "Richten Sie ein Benutzerkonto für die Fallbearbeitung ein.",
+      "nameLabel": "Vollständiger Name",
+      "emailLabel": "Geschäftliche E-Mail",
+      "passwordLabel": "Vorläufiges Passwort",
+      "roleLabel": "Benutzerrolle"
+    },
+    "successModal": {
+      "title": "Beraterkonto erfolgreich eingerichtet",
+      "desc": "Teilen Sie diese vorläufigen Zugangsdaten mit dem Teammitglied.",
+      "copyCredentials": "Zugangsdaten kopieren"
+    },
+    "deactivateModal": {
+      "title": "Beraterkonto deaktivieren",
+      "desc": "Die Deaktivierung widerruft aktive Anmeldesitzungen und trennt bestehende Verbindungen.",
+      "reassignLabel": "Aktive Interessenten und Akten übertragen an:",
+      "confirm": "Deaktivierung bestätigen"
+    },
+    "leadSourceCard": {
+      "title": "Externer Lead-Erfassungs-Endpunkt",
+      "desc": "Binden Sie externe Antragsstrecken, Google Forms oder Typeform-Webhooks an.",
+      "webhookUrl": "Webhook-Endpunkt-URL",
+      "webhookSecret": "Webhook-Signatur-Geheimnis",
+      "copySecret": "Geheimnis kopieren"
+    }
+  },
+  "portal": {
+    "case": {
+      "title": "Mein Kreditantrag",
+      "referenceTag": "Antragsnummer:",
+      "caseStatus": "Finanzierungsstatus",
+      "activeSpecialist": "Zuständiger Baufinanzierungsberater",
+      "officeHours": "Mo - Fr, 09:00 - 18:00 Uhr",
+      "stepperHeading": "Bearbeitungsschritte",
+      "milestones": {
+        "submitted": "Antrag eingereicht",
+        "verification": "Unterlagenprüfung",
+        "underwriting": "Kreditprüfung",
+        "offer": "Bankangebot vorliegend",
+        "notary": "Notartermin & Abschluss"
+      },
+      "finances": {
+        "targetLoan": "Wunsch-Darlehensbetrag",
+        "propertyValue": "Immobilienwert",
+        "downPayment": "Eigenkapital",
+        "ltv": "Beleihungsauslauf (LTV)"
+      },
+      "documents": {
+        "heading": "Eingereichte Unterlagen",
+        "uploadCta": "Neue Datei hochladen",
+        "noDocs": "Noch keine Unterlagen hochgeladen. Laden Sie Gehaltsabrechnungen und Nachweise zur Prüfung hoch."
+      }
+    },
+    "advisor": {
+      "title": "Ihr persönlicher Beraterkontakt",
+      "subtitle": "Ihr persönlicher Ansprechpartner für Finanzierungsfragen und Konditionsverhandlungen.",
+      "directPhone": "Direktwahl",
+      "email": "Berater-E-Mail",
+      "sendMessage": "Direktnachricht senden"
+    }
+  },
+  "admin": {
+    "brokerages": {
+      "title": "Partner-Vermittler",
+      "subtitle": "Mandantenfähige Vermittlerbüros und Betriebslizenzen",
+      "onboardBrokerage": "Vermittler anlegen",
+      "status": "Lizenzstatus",
+      "plan": "Tarif",
+      "advisorsCount": "Aktive Berater",
+      "leadsCount": "Verwaltete Leads"
+    },
+    "health": {
+      "title": "Systemdiagnose",
+      "subtitle": "Echtzeit-Telemetrie für Datenbanken, Caches und Hintergrund-Worker",
+      "databaseStatus": "MongoDB Primär-Cluster",
+      "redisStatus": "Redis Speicher & Warteschlangen",
+      "uptime": "System-Laufzeit",
+      "latency": "Antwortzeit"
+    },
+    "audit": {
+      "title": "Sicherheits-Prüfprotokolle",
+      "subtitle": "Unveränderliche Sicherheitsaufzeichnungen und Mandanten-Zugriffsprotokoll",
+      "action": "Ereignis",
+      "actor": "Benutzer",
+      "target": "Zielobjekt",
+      "ip": "Client-IP",
+      "timestamp": "Zeitstempel"
+    }
+  },
+  "settings": {
+    "modalTitle": "Kontoeinstellungen",
+    "tabs": {
+      "profile": "Identität & Profil",
+      "organization": "Organisation",
+      "preferences": "Einstellungen",
+      "security": "Sicherheit & Rollen"
+    },
+    "identity": {
+      "designation": "Funktion / Rolle",
+      "loginEmail": "Anmelde-E-Mail",
+      "accountActive": "Konto aktiv"
+    },
+    "organization": {
+      "firmStatus": "Unternehmensstatus",
+      "accountType": "Kontotyp",
+      "privateWorkspace": "Geschützter Mandanten-Arbeitsbereich",
+      "privateWorkspaceDesc": "Alle Kundenanfragen, Finanzierungsakten und Unterlagen sind strikt vertraulich und nur für autorisierte Mitarbeiter Ihres Hauses zugänglich."
+    },
+    "preferences": {
+      "financialStandards": "Finanzierungs- und Zahlenformate",
+      "baseCurrency": "Basiswährung",
+      "currencyDesc": "Indische Rupie (INR — ₹)",
+      "datePresentation": "Datumsformat",
+      "sampleVolume": "Beispiel-Volumenformatierung",
+      "timeZone": "Zeitzone & Region",
+      "languageSelection": "Anzeigesprache der Anwendung",
+      "languageDesc": "Wählen Sie Ihre bevorzugte Benutzeroberflächensprache. Englisch ist Standard, Deutsch ist verfügbar."
+    },
+    "security": {
+      "heading": "Kontosicherheit & Schutz",
+      "sessionProtection": "Sitzungsschutz",
+      "sessionDesc": "Verschlüsselte Dual-Token-Authentifizierung mit automatischem Inaktivitätsschutz",
+      "roleBasedAccess": "Rollenbasierte Zugriffskontrolle",
+      "roleDesc": "Zugriffsrechte richten sich strikt nach Ihrer zugewiesenen Rolle",
+      "dataConfidentiality": "Datengeheimnis",
+      "dataDesc": "Kundendaten, Gehaltsnachweise und Bonitätsunterlagen sind absolut vertraulich"
+    }
+  },
+  "shortcuts": {
+    "title": "Tastaturkürzel",
+    "subtitle": "Schnelltasten für zügige Navigation",
+    "navigation": "Navigation",
+    "general": "Allgemeine Aktionen",
+    "global": "Global",
+    "pipeline": "Pipeline & Interessenten",
+    "pressSequence": "Nacheinander drücken",
+    "then": "dann",
+    "navigate": "Navigieren",
+    "select": "Auswählen",
+    "commandPalettePlaceholder": "Seiten durchsuchen oder Befehl eingeben...",
+    "openCommandPalette": "Befehlspalette öffnen",
+    "toggleSidebar": "Seitenleiste ein-/ausklappen",
+    "openProfile": "Profil & Einstellungen öffnen",
+    "showShortcuts": "Tastaturkürzel anzeigen",
+    "closeModal": "Fenster oder Menü schließen",
+    "goToCase": "Zu Mein Kreditantrag wechseln",
+    "goToDocuments": "Zu Dokumente wechseln",
+    "goToAdvisor": "Zu Beraterkontakt wechseln",
+    "goToBrokerages": "Zu Vermittler wechseln",
+    "goToHealth": "Zu Systemzustand wechseln",
+    "goToAudit": "Zu Prüfprotokolle wechseln",
+    "goToDashboard": "Zu Übersicht wechseln",
+    "goToPipeline": "Zu Pipeline wechseln",
+    "goToLeads": "Zu Interessenten wechseln",
+    "goToClients": "Zu Kunden wechseln",
+    "goToTasks": "Zu Aufgaben wechseln"
+  },
+  "titles": {
+    "signIn": "Anmelden · LeadFlow",
+    "questionnaire": "Fragebogen · LeadFlow",
+    "dashboard": "Übersicht · LeadFlow",
+    "pipeline": "Pipeline · LeadFlow",
+    "leads": "Interessenten · LeadFlow",
+    "leadDetails": "Vorgangsdetails · LeadFlow",
+    "clients": "Kunden · LeadFlow",
+    "clientDetails": "Kundendetails · LeadFlow",
+    "documents": "Dokumente · LeadFlow",
+    "tasks": "Aufgaben · LeadFlow",
+    "forms": "Formulare · LeadFlow",
+    "templates": "Vorlagen · LeadFlow",
+    "triggers": "Automatisierungen · LeadFlow",
+    "team": "Berater & Team · LeadFlow",
+    "myCase": "Mein Kreditantrag · LeadFlow",
+    "advisor": "Berater · LeadFlow",
+    "brokerages": "Vermittler · LeadFlow",
+    "health": "Systemzustand · LeadFlow",
+    "audit": "Prüfprotokolle · LeadFlow",
+    "default": "LeadFlow — Mortgage OS"
+  }
+}

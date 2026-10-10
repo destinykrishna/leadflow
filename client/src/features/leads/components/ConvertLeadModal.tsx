@@ -29,10 +29,12 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import type { Lead } from '@/types/pipeline.types'
 import type { ClientType } from '@/types/client.types'
+import { useTranslation } from 'react-i18next'
 import {
   useConvertLead,
   type ConvertLeadResponseData,
 } from '../api/leads.api'
+import { TextTranslate } from './LeadNoteTranslate'
 
 interface ConvertLeadModalProps {
   lead: Lead
@@ -79,6 +81,7 @@ export function ConvertLeadModal({
   onClose,
   onSuccess,
 }: ConvertLeadModalProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const convertMutation = useConvertLead()
 
@@ -127,7 +130,7 @@ export function ConvertLeadModal({
       const msg =
         errorObj.response?.data?.error?.message ||
         errorObj.message ||
-        'Failed to convert lead to client case. Please ensure lead is in a qualified stage.'
+        t('common.errorDesc', 'Failed to convert lead to client case. Please ensure lead is in a qualified stage.')
       setErrorMessage(msg)
     }
   }
@@ -157,25 +160,23 @@ export function ConvertLeadModal({
               <div className="flex items-center gap-2 text-emerald-600">
                 <ShieldCheck className="h-5 w-5" />
                 <DialogTitle className="text-base font-bold text-slate-900">
-                  Client Case Established
+                  {t('leads.convertModal.successTitle', 'Client Case Established')}
                 </DialogTitle>
               </div>
               <DialogDescription>
-                Lead inquiry successfully converted into an active mortgage case for{' '}
-                <span className="font-semibold text-slate-800">
-                  {lead.firstName} {lead.lastName}
-                </span>
-                .
+                {t('leads.convertModal.successDesc', 'Lead inquiry successfully converted into an active mortgage case for {{name}}.', {
+                  name: `${lead.firstName} ${lead.lastName || ''}`.trim(),
+                })}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 rounded-xl border border-border/80 bg-slate-50/70 p-3.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Portal Account Email:</span>
+                <span className="text-muted-foreground">{t('portal.accountEmail', 'Portal Account Email')}:</span>
                 <span className="font-semibold text-slate-900">{conversionResult.user.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Account Role:</span>
+                <span className="text-muted-foreground">{t('portal.accountRole', 'Account Role')}:</span>
                 <Badge variant="neutral" size="sm">
                   {conversionResult.user.role}
                 </Badge>
@@ -186,7 +187,7 @@ export function ConvertLeadModal({
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                       <Key className="h-3.5 w-3.5 text-amber-600" />
-                      Generated Portal Password
+                      {t('leads.convertModal.portalPasswordLabel', 'Generated Portal Password')}
                     </span>
                     <Button
                       type="button"
@@ -198,12 +199,12 @@ export function ConvertLeadModal({
                       {copied ? (
                         <>
                           <Check className="h-3 w-3 text-emerald-600" />
-                          Copied
+                          {t('common.copied', 'Copied')}
                         </>
                       ) : (
                         <>
                           <Copy className="h-3 w-3" />
-                          Copy
+                          {t('common.copy', 'Copy')}
                         </>
                       )}
                     </Button>
@@ -212,7 +213,7 @@ export function ConvertLeadModal({
                     {conversionResult.temporaryPassword}
                   </div>
                   <p className="mt-1 text-[11px] text-muted-foreground leading-tight">
-                    Share this temporary password with the borrower for initial portal access.
+                    {t('leads.convertModal.portalPasswordHelp', 'Share this temporary password with the borrower for initial portal access.')}
                   </p>
                 </div>
               )}
@@ -220,7 +221,7 @@ export function ConvertLeadModal({
 
             <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
-                Done
+                {t('common.close', 'Done')}
               </Button>
               <Button
                 type="button"
@@ -228,7 +229,7 @@ export function ConvertLeadModal({
                 onClick={handleViewClientCase}
                 className="w-full sm:w-auto gap-1.5"
               >
-                View Client Case
+                {t('leads.detail.viewClientCase', 'View Client Case')}
                 <ExternalLink className="h-3.5 w-3.5" />
               </Button>
             </DialogFooter>
@@ -240,15 +241,14 @@ export function ConvertLeadModal({
               <div className="flex items-center gap-2 text-primary">
                 <UserCheck className="h-5 w-5" />
                 <DialogTitle className="text-base font-bold text-slate-900">
-                  Convert Lead to Client Case
+                  {t('leads.convertModal.title', 'Convert Lead to Client Case')}
                 </DialogTitle>
               </div>
               <DialogDescription>
-                Create an official client profile and borrower portal account for{' '}
-                <span className="font-semibold text-slate-800">
-                  {lead.firstName} {lead.lastName}
-                </span>{' '}
-                ({lead.email}).
+                {t('leads.convertModal.desc', 'Create an official client profile and borrower portal account for {{name}} ({{email}}).', {
+                  name: `${lead.firstName} ${lead.lastName || ''}`.trim(),
+                  email: lead.email,
+                })}
               </DialogDescription>
             </DialogHeader>
 
@@ -263,7 +263,7 @@ export function ConvertLeadModal({
               {/* Profile Type Selector */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Client Profile Type
+                  {t('clients.profileType', 'Client Profile Type')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {CLIENT_TYPE_OPTIONS.map((opt) => {
@@ -282,7 +282,7 @@ export function ConvertLeadModal({
                       >
                         <div className="flex items-center gap-1.5 font-semibold text-xs mb-0.5">
                           <Icon className={`h-3.5 w-3.5 ${isSelected ? 'text-primary' : 'text-slate-500'}`} />
-                          <span>{opt.label}</span>
+                          <span>{t(`clients.types.${opt.value}`, opt.label)}</span>
                         </div>
                         <span className="text-[10px] text-muted-foreground line-clamp-1">
                           {opt.description}
@@ -297,11 +297,11 @@ export function ConvertLeadModal({
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <Lock className="h-3.5 w-3.5 text-slate-500" />
-                  Portal Password (Optional)
+                  {t('leads.convertModal.portalPasswordLabel', 'Portal Password (Optional)')}
                 </label>
                 <Input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Auto-generated if left blank"
+                  placeholder={t('leads.convertModal.portalPasswordHelp', 'Auto-generated if left blank')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="text-xs h-9"
@@ -310,29 +310,38 @@ export function ConvertLeadModal({
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? t('auth.hidePassword', 'Hide password') : t('auth.showPassword', 'Show password')}
                     >
                       {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
                   }
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Leave empty to generate a cryptographically secure temporary password.
+                  {t('leads.convertModal.portalPasswordHelp', 'Leave empty to generate a cryptographically secure temporary password.')}
                 </p>
               </div>
 
               {/* Initial Notes */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Initial Case Notes (Optional)
+                  {t('leads.detail.notes', 'Initial Case Notes (Optional)')}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="E.g. Target property in Mumbai, pre-approved for ₹45,00,000 mortgage"
+                  placeholder={t('leads.detail.notesPlaceholder', 'E.g. Target property in Mumbai, pre-approved for mortgage')}
                   rows={2}
                   className="w-full rounded-md border border-border bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground resize-none"
                 />
+                {notes.trim().length > 0 && (
+                  <TextTranslate
+                    text={notes}
+                    context="general_note"
+                    label="Case Notes"
+                    testIdPrefix="convert-notes-"
+                    className="mt-1.5"
+                  />
+                )}
               </div>
             </div>
 
@@ -344,7 +353,7 @@ export function ConvertLeadModal({
                 disabled={convertMutation.isPending}
                 className="w-full sm:w-auto"
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </Button>
               <Button
                 type="submit"
@@ -352,7 +361,7 @@ export function ConvertLeadModal({
                 isLoading={convertMutation.isPending}
                 className="w-full sm:w-auto shadow-xs"
               >
-                Confirm Conversion
+                {t('leads.convertModal.confirmButton', 'Confirm Conversion')}
               </Button>
             </DialogFooter>
           </form>

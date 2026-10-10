@@ -55,6 +55,7 @@ import {
 import { useAdvisorsList } from '@/features/team/api/team.api'
 import { openDocumentSecurely } from '@/features/documents/api/documents.api'
 import { ConvertLeadModal } from './ConvertLeadModal'
+import { LeadNoteTranslate } from './LeadNoteTranslate'
 import { CreateTaskModal } from '@/features/tasks/components/CreateTaskModal'
 import { ConfirmModal } from '@/components/common/ConfirmModal'
 import { sanitizeIndianMortgageText } from '@/lib/presentation'
@@ -408,8 +409,8 @@ export function LeadDetailView({
   // "Already Known" detection from backend customFields
   const isAlreadyKnown = Boolean(
     lead.customFields?.alreadyKnown ||
-      lead.customFields?.isAlreadyKnown ||
-      lead.customFields?.knownAs === 'CLIENT',
+    lead.customFields?.isAlreadyKnown ||
+    lead.customFields?.knownAs === 'CLIENT',
   )
   const existingClientId =
     (lead.customFields?.existingClientId as string) ||
@@ -735,13 +736,12 @@ export function LeadDetailView({
               return (
                 <div
                   key={stageKey}
-                  className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
-                    isCurrent
+                  className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${isCurrent
                       ? 'border-primary bg-primary/10 text-primary font-semibold shadow-2xs ring-1 ring-primary/30'
                       : isPast
-                      ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
-                      : 'border-border/60 bg-white text-muted-foreground opacity-60'
-                  }`}
+                        ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
+                        : 'border-border/60 bg-white text-muted-foreground opacity-60'
+                    }`}
                 >
                   <div className="flex items-center gap-1 text-[11px] mb-0.5">
                     {isPast ? (
@@ -901,16 +901,19 @@ export function LeadDetailView({
                   </div>
                 </div>
               ) : lead.notes ? (
-                <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-800 leading-relaxed">
-                  {sanitizeIndianMortgageText(lead.notes) !== lead.notes ? (
-                    <>
-                      <span className="sr-only">{lead.notes}</span>
-                      <span aria-hidden="true">{sanitizeIndianMortgageText(lead.notes)}</span>
-                    </>
-                  ) : (
-                    lead.notes
-                  )}
-                </p>
+                <div>
+                  <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-800 leading-relaxed">
+                    {sanitizeIndianMortgageText(lead.notes) !== lead.notes ? (
+                      <>
+                        <span className="sr-only">{lead.notes}</span>
+                        <span aria-hidden="true">{sanitizeIndianMortgageText(lead.notes)}</span>
+                      </>
+                    ) : (
+                      lead.notes
+                    )}
+                  </p>
+                  <LeadNoteTranslate notes={sanitizeIndianMortgageText(lead.notes)} />
+                </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic bg-slate-50/50 p-2.5 rounded-lg border border-dashed border-border/60">
                   No advisor intake notes recorded yet.
@@ -1040,13 +1043,12 @@ export function LeadDetailView({
                   >
                     <div className="flex items-start gap-2.5">
                       <div
-                        className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${
-                          task.status === 'COMPLETED'
+                        className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${task.status === 'COMPLETED'
                             ? 'bg-emerald-500'
                             : task.isOverdue
-                            ? 'bg-rose-500'
-                            : 'bg-amber-400'
-                        }`}
+                              ? 'bg-rose-500'
+                              : 'bg-amber-400'
+                          }`}
                       />
                       <div>
                         <span className="font-semibold text-slate-900">{task.title}</span>
@@ -1160,8 +1162,8 @@ export function LeadDetailView({
                           doc.status === 'VERIFIED'
                             ? 'success'
                             : doc.status === 'REJECTED'
-                            ? 'danger'
-                            : 'warning'
+                              ? 'danger'
+                              : 'warning'
                         }
                         size="sm"
                         className="text-[10px]"
@@ -1223,15 +1225,14 @@ export function LeadDetailView({
                   >
                     <div className="flex items-start gap-2.5 min-w-0">
                       <div
-                        className={`h-2.5 w-2.5 rounded-full mt-1 shrink-0 ${
-                          item.status === 'DELIVERED'
+                        className={`h-2.5 w-2.5 rounded-full mt-1 shrink-0 ${item.status === 'DELIVERED'
                             ? 'bg-emerald-500'
                             : item.status === 'SENT'
-                            ? 'bg-blue-500'
-                            : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
-                            ? 'bg-rose-500'
-                            : 'bg-amber-400'
-                        }`}
+                              ? 'bg-blue-500'
+                              : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
+                                ? 'bg-rose-500'
+                                : 'bg-amber-400'
+                          }`}
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1265,10 +1266,10 @@ export function LeadDetailView({
                           item.status === 'DELIVERED'
                             ? 'success'
                             : item.status === 'SENT'
-                            ? 'default'
-                            : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
-                            ? 'danger'
-                            : 'warning'
+                              ? 'default'
+                              : item.status === 'BOUNCED' || item.status === 'COMPLAINED' || item.status === 'FAILED'
+                                ? 'danger'
+                                : 'warning'
                         }
                         size="sm"
                         className="text-[10px]"
@@ -1418,17 +1419,15 @@ export function LeadDetailView({
           {/* Client Conversion Eligibility Highlight Card */}
           {isStaffRole && !isConverted && (
             <Card
-              className={`border p-4 shadow-2xs transition-all ${
-                isEligibleForConversion
+              className={`border p-4 shadow-2xs transition-all ${isEligibleForConversion
                   ? 'border-primary/30 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent'
                   : 'border-border/60 bg-slate-50/50'
-              }`}
+                }`}
             >
               <div className="flex items-start gap-2.5">
                 <CheckCircle2
-                  className={`h-4 w-4 mt-0.5 shrink-0 ${
-                    isEligibleForConversion ? 'text-primary' : 'text-slate-400'
-                  }`}
+                  className={`h-4 w-4 mt-0.5 shrink-0 ${isEligibleForConversion ? 'text-primary' : 'text-slate-400'
+                    }`}
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -1477,13 +1476,12 @@ export function LeadDetailView({
               <div className="flex items-baseline justify-between">
                 <span className="text-muted-foreground font-medium">Calculated Score</span>
                 <span
-                  className={`text-xl font-bold ${
-                    lead.score >= 70
+                  className={`text-xl font-bold ${lead.score >= 70
                       ? 'text-emerald-600'
                       : lead.score >= 40
-                      ? 'text-amber-600'
-                      : 'text-slate-600'
-                  }`}
+                        ? 'text-amber-600'
+                        : 'text-slate-600'
+                    }`}
                 >
                   {lead.score} <span className="text-xs font-normal text-muted-foreground">/ 100</span>
                 </span>
@@ -1492,13 +1490,12 @@ export function LeadDetailView({
               {/* Visual meter bar */}
               <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    lead.score >= 70
+                  className={`h-full rounded-full transition-all duration-300 ${lead.score >= 70
                       ? 'bg-emerald-500'
                       : lead.score >= 40
-                      ? 'bg-amber-500'
-                      : 'bg-slate-400'
-                  }`}
+                        ? 'bg-amber-500'
+                        : 'bg-slate-400'
+                    }`}
                   style={{ width: `${Math.min(lead.score, 100)}%` }}
                 />
               </div>
@@ -1589,8 +1586,8 @@ export function LeadDetailView({
                       {activeAdvisors.length === 0
                         ? 'No active advisors'
                         : assignedAdvisor
-                        ? '— Select to reassign —'
-                        : '— Select an advisor —'}
+                          ? '— Select to reassign —'
+                          : '— Select an advisor —'}
                     </option>
                     {activeAdvisors.map((a) => (
                       <option key={a.id} value={a.id}>

@@ -133,3 +133,29 @@ Email provider failures are classified into retryable and terminal outcomes:
 - **Sanitized Logging (PII & Secret Protection)**:
   - All email addresses are masked via `maskEmail` (e.g. `alex.expat@gmail.com` → `a***t@gmail.com`).
   - Passwords, API tokens, JWT secrets, and raw sensitive email bodies are never logged to Pino.
+
+---
+
+## 7. Delayed Email Automation & Cancellation Invariants
+
+LeadFlow supports time-delayed automated emails (in minutes, hours, or days) alongside immediate dispatches:
+
+### Delay Units & BullMQ Scheduling
+- **Supported Units**: `IMMEDIATE` (0 delay), `MINUTES` (60,000ms/unit), `HOURS` (3,600,000ms/unit), and `DAYS` (86,400,000ms/unit up to 30 days maximum).
+- **Native Queue Scheduling**: Calculated delays pass directly into BullMQ's native `{ delay: delayMs }` option in the existing `email-delivery` queue, utilizing Redis sorted sets without in-memory timers or auxiliary queues.
+- **Retry Preservation**: When BullMQ retries transient dispatch failures, it utilizes its standard backoff (1s, 2s, 4s) without re-applying or extending the original multi-hour/multi-day delay.
+
+### Lifecycle Status Progression
+- **Immediate Sends**: Initial `TriggerExecution.status = 'PENDING'` → `EXECUTED` (or `FAILED`).
+- **Delayed Sends**: Initial `TriggerExecution.status = 'SCHEDULED'` with `scheduledFor = new Date(Date.now() + delayMs)` → `EXECUTED`, `CANCELLED`, or `FAILED`.
+
+### Pre-Dispatch Invalidation & Cancellation Rules
+Before dispatching any email, `email.worker.ts` executes rigorous pre-flight validations:
+1. **Expected-Stage Validation**: If `cancelOnStageChange !== false` and the lead's current stage has changed (`lead.status !== payload.expectedStage`), the job is cleanly cancelled (`TriggerExecution.status = 'CANCELLED'`) without sending an email.
+2. **Trigger Standing Check**: If the trigger rule was deactivated (`isActive: false`) or deleted during the delay period, the job is cleanly cancelled.
+3. **Lead Existence & Tenant Isolation**: If the lead was deleted or cross-brokerage tampering is detected via `withBrokerageScope`, the job is halted.
+4. **Email Suppression Defense**: If the recipient's email is on the tenant's `EmailSuppression` list (due to a prior bounce or complaint), dispatch is cancelled and logged.
+
+### Known Limitations
+- **Upstream Two-Generals Problem**: If an external email provider (e.g., Resend) successfully receives and queues an email for delivery, but a network interruption severs the HTTP response before LeadFlow records the provider `messageId`, BullMQ's automatic retry mechanism may attempt delivery again, potentially resulting in an upstream duplicate send.
+

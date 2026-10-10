@@ -62,6 +62,13 @@ The application includes one-click demo login buttons directly on the sign-in sc
 - **Dynamic Template Substitution**: Template engine renders personalized borrower emails supporting dot-notation placeholders (`{{lead.firstName}}`, `{{advisor.name}}`).
 - **Asynchronous Email Queue**: Emails are queued through BullMQ (`email-delivery`) with mock delivery, exponential backoff retries, and operational PII masking (`maskEmail`).
 
+### English & German Localization (EN / DE)
+- **Bilingual Interface**: Full English and German support across all routes, modals, tables, forms, and accessibility labels using `i18next` and `react-i18next`.
+- **Language Toggle & Persistence**: Language selector in application header and login screen persists user preference in `localStorage` (`leadflow_language`) and synchronizes the HTML `lang` attribute.
+- **Locale-Aware Formatting**: Formats currency and dates according to the active locale while strictly preserving the application's underlying numeric precision and Indian Rupee (`INR` / `₹`) domain conventions.
+- **Domain Text Protection**: Hardened sanitization pipeline preserves German mortgage terminology (`Grundschuld`, `Kaufpreis`) when in German mode.
+- **Optional Groq AI Dynamic Translation**: Authenticated backend endpoint (`POST /api/translate`) powered by Groq (`llama-3.3-70b-versatile` via OpenAI-compatible endpoint) for dynamic user free-text translation, with server-side API key protection, 24h caching, rate limiting, and PII redaction. Disabled by default (`ENABLE_AI_TRANSLATION=false`).
+
 ---
 
 ## 🏛️ System Architecture
@@ -225,9 +232,9 @@ npm run build
 ```
 
 ### Verified Test Results
-- **Backend Test Suite**: **443 tests passed across 23 test files** (`vitest`)
-- **Frontend Test Suite**: **131 tests passed across 17 test files** (`vitest`)
-- **Total Test Suite**: **574 tests passed across 40 test files** with 0 failures
+- **Backend Test Suite**: **584 tests passed across 37 test files** (`vitest`)
+- **Frontend Test Suite**: **169 tests passed across 20 test files** (`vitest`)
+- **Total Test Suite**: **753 tests passed across 57 test files** with 0 failures
 - **Type Checking**: Clean TypeScript compilation with 0 errors across `client`, `server`, and `worker`
 - **Critical QA Journey Runner**: 33 passed, 0 failed via `npm --prefix server run qa`
 

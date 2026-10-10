@@ -1,7 +1,13 @@
 import { Schema, model, type Document, Types } from 'mongoose';
 import { TRIGGER_ACTION_TYPES, type TriggerActionType } from './pipeline-trigger.model.js';
 
-export const TRIGGER_EXECUTION_STATUSES = ['PENDING', 'EXECUTED', 'FAILED'] as const;
+export const TRIGGER_EXECUTION_STATUSES = [
+  'PENDING',
+  'SCHEDULED',
+  'EXECUTED',
+  'CANCELLED',
+  'FAILED',
+] as const;
 export type TriggerExecutionStatus = (typeof TRIGGER_EXECUTION_STATUSES)[number];
 
 export interface ITriggerExecution {
@@ -16,6 +22,8 @@ export interface ITriggerExecution {
   emailJobId?: string | null;
   emailLogId?: Types.ObjectId | null;
   recipientEmail?: string | null;
+  scheduledFor?: Date | null;
+  cancellationReason?: string | null;
   error?: string | null;
   executedAt?: Date | null;
   createdAt: Date;
@@ -91,6 +99,15 @@ const triggerExecutionSchema = new Schema<ITriggerExecutionDocument>(
       default: null,
       trim: true,
     },
+    scheduledFor: {
+      type: Date,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     error: {
       type: String,
       default: null,
@@ -108,6 +125,7 @@ const triggerExecutionSchema = new Schema<ITriggerExecutionDocument>(
 // Compound unique index ensuring at most one execution per idempotency key per brokerage
 triggerExecutionSchema.index({ brokerageId: 1, idempotencyKey: 1 }, { unique: true });
 triggerExecutionSchema.index({ brokerageId: 1, leadId: 1, stage: 1 });
+triggerExecutionSchema.index({ brokerageId: 1, leadId: 1, status: 1 });
 
 export const TriggerExecution = model<ITriggerExecutionDocument>(
   'TriggerExecution',

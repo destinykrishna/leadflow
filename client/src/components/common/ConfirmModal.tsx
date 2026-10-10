@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/Dialog'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 
 export interface ConfirmModalProps {
@@ -37,8 +38,9 @@ export function ConfirmModal({
   variant = 'danger',
   isLoading = false,
 }: ConfirmModalProps) {
-  const resolvedConfirmText = confirmLabel || confirmText || 'Confirm'
-  const resolvedCancelText = cancelLabel || cancelText || 'Cancel'
+  const { t } = useTranslation()
+  const resolvedConfirmText = confirmLabel || confirmText || t('common.confirm', 'Confirm')
+  const resolvedCancelText = cancelLabel || cancelText || t('common.cancel', 'Cancel')
   const [internalLoading, setInternalLoading] = React.useState(false)
 
   const handleConfirm = async () => {

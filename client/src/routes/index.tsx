@@ -71,58 +71,60 @@ const PublicFormPage = React.lazy(() =>
   import('@/features/forms/public/PublicFormPage').then((m) => ({ default: m.PublicFormPage })),
 )
 import { useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import * as React from 'react'
 
 function RouteTitleSync() {
   const location = useLocation()
+  const { t, i18n } = useTranslation()
 
   React.useEffect(() => {
     const pathname = location.pathname
 
     if (pathname === '/login') {
-      document.title = 'Sign In · LeadFlow'
+      document.title = t('titles.signIn', 'Sign In · LeadFlow')
     } else if (pathname.startsWith('/forms/')) {
-      document.title = 'Questionnaire · LeadFlow'
+      document.title = t('titles.questionnaire', 'Questionnaire · LeadFlow')
     } else if (pathname === '/app/dashboard') {
-      document.title = 'Dashboard · LeadFlow'
+      document.title = t('titles.dashboard', 'Dashboard · LeadFlow')
     } else if (pathname === '/app/pipeline') {
-      document.title = 'Pipeline · LeadFlow'
+      document.title = t('titles.pipeline', 'Pipeline · LeadFlow')
     } else if (pathname === '/app/leads') {
-      document.title = 'Leads · LeadFlow'
+      document.title = t('titles.leads', 'Leads · LeadFlow')
     } else if (pathname.startsWith('/app/leads/')) {
-      document.title = 'Lead Details · LeadFlow'
+      document.title = t('titles.leadDetails', 'Lead Details · LeadFlow')
     } else if (pathname === '/app/clients') {
-      document.title = 'Clients · LeadFlow'
+      document.title = t('titles.clients', 'Clients · LeadFlow')
     } else if (pathname.startsWith('/app/clients/')) {
-      document.title = 'Client Details · LeadFlow'
+      document.title = t('titles.clientDetails', 'Client Details · LeadFlow')
     } else if (pathname === '/app/documents') {
-      document.title = 'Documents · LeadFlow'
+      document.title = t('titles.documents', 'Documents · LeadFlow')
     } else if (pathname === '/app/tasks') {
-      document.title = 'Tasks · LeadFlow'
+      document.title = t('titles.tasks', 'Tasks · LeadFlow')
     } else if (pathname === '/app/forms' || pathname.startsWith('/app/forms/')) {
-      document.title = 'Forms · LeadFlow'
+      document.title = t('titles.forms', 'Forms · LeadFlow')
     } else if (pathname === '/app/templates') {
-      document.title = 'Templates · LeadFlow'
+      document.title = t('titles.templates', 'Templates · LeadFlow')
     } else if (pathname === '/app/triggers') {
-      document.title = 'Triggers · LeadFlow'
+      document.title = t('titles.triggers', 'Triggers · LeadFlow')
     } else if (pathname === '/app/team' || pathname === '/app/advisors') {
-      document.title = 'Advisors & Team · LeadFlow'
+      document.title = t('titles.team', 'Advisors & Team · LeadFlow')
     } else if (pathname === '/portal/case') {
-      document.title = 'My Case · LeadFlow'
+      document.title = t('titles.myCase', 'My Case · LeadFlow')
     } else if (pathname === '/portal/documents') {
-      document.title = 'Documents · LeadFlow'
+      document.title = t('titles.documents', 'Documents · LeadFlow')
     } else if (pathname === '/portal/advisor') {
-      document.title = 'Advisor · LeadFlow'
+      document.title = t('titles.advisor', 'Advisor · LeadFlow')
     } else if (pathname === '/admin/brokerages') {
-      document.title = 'Brokerages · LeadFlow'
+      document.title = t('titles.brokerages', 'Brokerages · LeadFlow')
     } else if (pathname === '/admin/health') {
-      document.title = 'System Health · LeadFlow'
+      document.title = t('titles.health', 'System Health · LeadFlow')
     } else if (pathname === '/admin/audit') {
-      document.title = 'Audit Logs · LeadFlow'
+      document.title = t('titles.audit', 'Audit Logs · LeadFlow')
     } else {
-      document.title = 'LeadFlow — Mortgage OS'
+      document.title = t('titles.default', 'LeadFlow — Mortgage OS')
     }
-  }, [location.pathname])
+  }, [location.pathname, i18n.language, t])
 
   return null
 }

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { useCreateTrigger } from '../api/triggers.api'
 import { useEmailTemplates } from '@/features/templates/api/templates.api'
-import type { TriggerActionType, TriggerRecipientType } from '@/types/trigger.types'
+import type { TriggerActionType, TriggerRecipientType, TriggerDelayUnit } from '@/types/trigger.types'
 import { validateForm, createTriggerFormSchema } from '@/lib/validation'
 
 interface CreateTriggerModalProps {
@@ -48,6 +48,9 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
   // Email config
   const [templateId, setTemplateId] = React.useState('')
   const [recipientType, setRecipientType] = React.useState<TriggerRecipientType>('LEAD')
+  const [delayUnit, setDelayUnit] = React.useState<TriggerDelayUnit>('IMMEDIATE')
+  const [delayAmount, setDelayAmount] = React.useState(1)
+  const [cancelOnStageChange, setCancelOnStageChange] = React.useState(true)
 
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [serverError, setServerError] = React.useState<string | null>(null)
@@ -65,6 +68,9 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
       setDueDaysOffset(1)
       setTemplateId(templates.length > 0 ? templates[0]._id : '')
       setRecipientType('LEAD')
+      setDelayUnit('IMMEDIATE')
+      setDelayAmount(1)
+      setCancelOnStageChange(true)
       setErrors({})
       setServerError(null)
     }
@@ -97,6 +103,9 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
           : {
               templateId: templateId || undefined,
               recipientType,
+              delayAmount: delayUnit === 'IMMEDIATE' ? 0 : Number(delayAmount) || 0,
+              delayUnit,
+              cancelOnStageChange,
             },
       isActive: true,
     }
@@ -351,6 +360,62 @@ export function CreateTriggerModal({ isOpen, onClose }: CreateTriggerModalProps)
                     <option value="AGENT">Assigned Mortgage Advisor</option>
                   </Select>
                 </div>
+
+                {/* Delay & Timing Configuration */}
+                <div className="pt-2 border-t border-slate-200">
+                  <label htmlFor="delay-unit" className="block text-xs font-medium text-slate-700 mb-1">
+                    Dispatch Timing
+                  </label>
+                  <Select
+                    id="delay-unit"
+                    value={delayUnit}
+                    onChange={(e) => setDelayUnit(e.target.value as TriggerDelayUnit)}
+                    aria-label="Dispatch Timing"
+                  >
+                    <option value="IMMEDIATE">⚡ Send Immediately upon transition</option>
+                    <option value="MINUTES">⏳ Wait Minutes</option>
+                    <option value="HOURS">⏳ Wait Hours</option>
+                    <option value="DAYS">⏳ Wait Days</option>
+                  </Select>
+                </div>
+
+                {delayUnit !== 'IMMEDIATE' && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label htmlFor="delay-amount" className="block text-xs font-medium text-slate-700 mb-1">
+                        Delay Amount ({delayUnit.toLowerCase()}) <span className="text-rose-500">*</span>
+                      </label>
+                      <Input
+                        id="delay-amount"
+                        type="number"
+                        min={1}
+                        value={delayAmount}
+                        onChange={(e) => setDelayAmount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        placeholder="e.g. 2"
+                        className="mt-0.5"
+                      />
+                      {errors.delayAmount && (
+                        <p className="text-[11px] text-rose-600 mt-1">{errors.delayAmount}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-start gap-2 pt-1">
+                      <input
+                        id="cancel-stage-change"
+                        type="checkbox"
+                        checked={cancelOnStageChange}
+                        onChange={(e) => setCancelOnStageChange(e.target.checked)}
+                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="cancel-stage-change" className="text-xs text-slate-700 select-none cursor-pointer">
+                        <span className="font-medium text-slate-800">Cancel if lead stage changes before dispatch</span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          If the lead leaves the target stage before the delay elapses, the scheduled email will be cancelled.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

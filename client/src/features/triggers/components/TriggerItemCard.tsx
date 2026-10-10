@@ -7,6 +7,7 @@ import {
   Loader2,
   Trash2,
   Lock,
+  Clock,
 } from 'lucide-react'
 import type { IPipelineTrigger, IPopulatedEmailTemplate } from '@/types/trigger.types'
 import { Button } from '@/components/ui/Button'
@@ -177,6 +178,21 @@ export function TriggerItemCard({
                     </span>
                   </div>
                 )}
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-slate-700">Timing:</span>
+                  {trigger.actionConfig?.delayUnit && trigger.actionConfig.delayUnit !== 'IMMEDIATE' ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-medium">
+                      <Clock className="h-2.5 w-2.5 text-amber-600" />
+                      Wait {trigger.actionConfig.delayAmount ?? 1} {trigger.actionConfig.delayUnit.toLowerCase()}
+                      {trigger.actionConfig.cancelOnStageChange !== false ? ' (auto-cancels on stage change)' : ''}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
+                      <Zap className="h-2.5 w-2.5 text-slate-500" />
+                      Immediate
+                    </span>
+                  )}
+                </div>
                 {matchedTemplate && onPreviewTemplate && (
                   <Button
                     type="button"

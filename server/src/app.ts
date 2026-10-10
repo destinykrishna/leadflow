@@ -20,6 +20,7 @@ import { dashboardRouter } from './routes/dashboard.routes.js';
 import { emailWebhookRouter } from './routes/email-webhook.routes.js';
 import { auditRouter } from './routes/audit.routes.js';
 import { formRouter } from './routes/form.routes.js';
+import { translationRouter } from './routes/translation.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { NotFoundError } from './utils/errors.js';
 
@@ -158,6 +159,7 @@ export function createApp(): Express {
   app.use('/api/webhooks/email', emailWebhookRouter);
   app.use('/api/audit-logs', auditRouter);
   app.use('/api/forms', formRouter);
+  app.use('/api/translate', translationRouter);
 
   // 404 Handler
   app.use((_req, _res, next) => {

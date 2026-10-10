@@ -10,6 +10,7 @@ import {
   type Lead,
   type LeadStatus,
 } from '@/types/pipeline.types'
+import { useTranslation } from 'react-i18next'
 import { DraggableLeadCard } from './DraggableLeadCard'
 
 interface DroppableColumnProps {
@@ -45,6 +46,7 @@ export function DroppableColumn({
   onLoadMore,
   highlightedLeadId,
 }: DroppableColumnProps) {
+  const { t } = useTranslation()
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
     data: { stage },
@@ -100,7 +102,7 @@ export function DroppableColumn({
             }`}
           />
           <h2 className="text-xs font-bold text-slate-900 truncate tracking-tight">
-            {stageDef?.label || stage}
+            {t(`pipeline.stages.${stage}`, { defaultValue: stageDef?.label || stage })}
           </h2>
           <span className="relative flex h-4.5 min-w-[18px] items-center justify-center overflow-hidden rounded-full bg-slate-200/80 px-1.5 text-[10px] font-semibold text-slate-700">
             <AnimatePresence mode="popLayout" initial={false}>
@@ -155,7 +157,7 @@ export function DroppableColumn({
             }`}
           >
             <span className="text-[11px] text-muted-foreground">
-              {isOver && isValidDrop ? 'Drop lead here' : 'No leads in stage'}
+              {isOver && isValidDrop ? t('pipeline.dropLeadHere', 'Drop lead here') : t('pipeline.emptyColumn', 'No leads in stage')}
             </span>
           </div>
         ) : (
@@ -172,7 +174,7 @@ export function DroppableColumn({
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                   <span className="truncate">
-                    Drop &quot;{activeLead.firstName} {activeLead.lastName || ''}&quot; here
+                    {t('pipeline.dropNotice', 'Drop {{name}} here', { name: `${activeLead.firstName} ${activeLead.lastName || ''}`.trim() })}
                   </span>
                 </div>
               </motion.div>
@@ -200,8 +202,8 @@ export function DroppableColumn({
               className="w-full rounded-md border border-border/80 bg-white/90 py-1.5 px-3 text-[11px] font-medium text-slate-600 hover:bg-white hover:text-primary hover:border-primary/40 transition-colors shadow-2xs disabled:opacity-50"
             >
               {isLoadingMore
-                ? 'Loading more...'
-                : `Load more (${leads.length} of ${totalCount ?? leads.length})`}
+                ? t('common.loading', 'Loading more...')
+                : `${t('common.loadMore', 'Load more')} (${leads.length} ${t('common.of', 'of')} ${totalCount ?? leads.length})`}
             </button>
           </div>
         )}

@@ -29,6 +29,7 @@ import {
 } from '@/types/pipeline.types'
 import { useLeadsList, useArchiveLead, useUnarchiveLead } from './api/leads.api'
 import { useAdvisorsList } from '@/features/team/api/team.api'
+import { useTranslation } from 'react-i18next'
 
 const LEAD_SOURCES = [
   { value: 'ALL', label: 'All Sources' },
@@ -41,6 +42,7 @@ const LEAD_SOURCES = [
 ]
 
 export function LeadsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
@@ -92,14 +94,14 @@ export function LeadsPage() {
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Lead Inquiries
+              {t('leads.title', 'Lead Inquiries')}
             </h1>
             <Badge variant="neutral" size="sm">
-              {total} Total
+              {total} {t('common.total', 'Total')}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Review inbound prospective borrowers, mortgage qualification states, and advisor assignments.
+            {t('leads.subtitle', 'Review inbound prospective borrowers, mortgage qualification states, and advisor assignments.')}
           </p>
         </div>
 
@@ -112,7 +114,7 @@ export function LeadsPage() {
             className="gap-1.5 text-xs text-slate-600"
           >
             <RotateCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <span>{t('common.reload', 'Refresh')}</span>
           </Button>
 
           <Button
@@ -121,7 +123,7 @@ export function LeadsPage() {
             onClick={() => navigate('/app/pipeline')}
             className="gap-1.5 text-xs"
           >
-            View Kanban Pipeline
+            {t('leads.viewKanban', 'View Kanban Pipeline')}
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -143,7 +145,7 @@ export function LeadsPage() {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Active Inquiries
+            {t('leads.activeInquiries', 'Active Inquiries')}
           </button>
           <button
             type="button"
@@ -158,7 +160,7 @@ export function LeadsPage() {
             }`}
           >
             <Archive className="h-3.5 w-3.5 text-amber-600" />
-            <span>Archived</span>
+            <span>{t('leads.archived', 'Archived')}</span>
           </button>
         </div>
 
@@ -167,7 +169,7 @@ export function LeadsPage() {
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <Input
               type="text"
-              placeholder="Search by borrower name, email, phone, or source..."
+              placeholder={t('leads.searchPlaceholder', 'Search by borrower name, email, phone, or source...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 text-xs h-9 bg-white"
@@ -186,12 +188,12 @@ export function LeadsPage() {
                   setSelectedStatus(e.target.value)
                   setPage(1)
                 }}
-                aria-label="Filter by stage"
+                aria-label={t('leads.filterStage', 'Filter by stage')}
               >
-                <option value="ALL">All Stages</option>
+                <option value="ALL">{t('leads.allStages', 'All Stages')}</option>
                 {ORDERED_STAGES.map((s) => (
                   <option key={s} value={s}>
-                    {STAGE_DEFINITIONS[s]?.label || s}
+                    {t(`pipeline.stages.${s}`, STAGE_DEFINITIONS[s]?.label || s)}
                   </option>
                 ))}
               </Select>
@@ -205,11 +207,11 @@ export function LeadsPage() {
                   setSelectedSource(e.target.value)
                   setPage(1)
                 }}
-                aria-label="Filter by inbound source"
+                aria-label={t('leads.filterSource', 'Filter by inbound source')}
               >
                 {LEAD_SOURCES.map((src) => (
                   <option key={src.value} value={src.value}>
-                    {src.label}
+                    {src.value === 'ALL' ? t('leads.allSources', 'All Sources') : t(`leads.sources.${src.value}`, src.label)}
                   </option>
                 ))}
               </Select>
@@ -223,9 +225,9 @@ export function LeadsPage() {
                   setSelectedAdvisor(e.target.value)
                   setPage(1)
                 }}
-                aria-label="Filter by assigned advisor"
+                aria-label={t('leads.filterAdvisor', 'Filter by assigned advisor')}
               >
-                <option value="ALL">All Advisors</option>
+                <option value="ALL">{t('leads.allAdvisors', 'All Advisors')}</option>
                 {activeAdvisors.map((adv) => (
                   <option key={adv._id || adv.id} value={adv._id || adv.id}>
                     {adv.name}
@@ -255,14 +257,14 @@ export function LeadsPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border/80 bg-slate-50/70 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-4">Borrower</th>
-                  <th className="py-3 px-4">Current Stage</th>
-                  <th className="py-3 px-4">Target Loan</th>
-                  <th className="py-3 px-4">Score</th>
-                  <th className="py-3 px-4">Source</th>
-                  <th className="py-3 px-4">Assigned Advisor</th>
-                  <th className="py-3 px-4 text-right">Inquiry Date</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  <th className="py-3 px-4">{t('leads.table.borrower', 'Borrower')}</th>
+                  <th className="py-3 px-4">{t('leads.table.stage', 'Current Stage')}</th>
+                  <th className="py-3 px-4">{t('leads.table.loanAmount', 'Target Loan')}</th>
+                  <th className="py-3 px-4">{t('pipeline.score', 'Score')}</th>
+                  <th className="py-3 px-4">{t('leads.table.source', 'Source')}</th>
+                  <th className="py-3 px-4">{t('leads.table.assignedTo', 'Assigned Advisor')}</th>
+                  <th className="py-3 px-4 text-right">{t('leads.table.created', 'Inquiry Date')}</th>
+                  <th className="py-3 px-4 text-center">{t('common.actions', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -292,8 +294,8 @@ export function LeadsPage() {
         </Card>
       ) : isError ? (
         <ErrorState
-          title="Failed to Load Leads"
-          message={error instanceof Error ? error.message : 'Error fetching inquiries from server.'}
+          title={t('common.errorTitle', 'Failed to Load Leads')}
+          message={error instanceof Error ? error.message : t('common.errorDesc', 'Error fetching inquiries from server.')}
           onRetry={refetch}
         />
       ) : leads.length === 0 ? (
@@ -301,17 +303,17 @@ export function LeadsPage() {
           icon={isArchivedView ? <Archive className="h-8 w-8 text-amber-500" /> : <Users className="h-8 w-8 text-slate-400" />}
           title={
             isArchivedView
-              ? (search ? 'No Matching Archived Inquiries' : 'No Archived Inquiries')
-              : (search ? 'No Matching Inquiries' : 'No Inbound Leads')
+              ? (search ? t('leads.noArchivedMatch', 'No Matching Archived Inquiries') : t('leads.noArchived', 'No Archived Inquiries'))
+              : (search ? t('common.noResults', 'No Matching Inquiries') : t('common.emptyTitle', 'No Inbound Leads'))
           }
           description={
             isArchivedView
               ? (search
-                  ? `No archived inquiries found matching "${search}".`
-                  : 'Inquiries that you archive or soft-delete from the pipeline will be safely stored here.')
+                  ? t('leads.noArchivedMatchDesc', 'No archived inquiries found matching your query.')
+                  : t('leads.noArchivedDesc', 'Inquiries that you archive or soft-delete from the pipeline will be safely stored here.'))
               : (search
-                  ? `No inquiries found matching "${search}". Try clearing your search filters.`
-                  : 'Prospects who submit financing inquiries through webhook forms will appear here.')
+                  ? t('common.tryAdjusting', 'No inquiries found matching your search. Try clearing your search filters.')
+                  : t('leads.emptyDesc', 'Prospects who submit financing inquiries through webhook forms will appear here.'))
           }
           className="py-12"
         />
@@ -321,14 +323,14 @@ export function LeadsPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border/80 bg-slate-50/70 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-4">Borrower</th>
-                  <th className="py-3 px-4">Current Stage</th>
-                  <th className="py-3 px-4">Target Loan</th>
-                  <th className="py-3 px-4">Score</th>
-                  <th className="py-3 px-4">Source</th>
-                  <th className="py-3 px-4">Assigned Advisor</th>
-                  <th className="py-3 px-4 text-right">Inquiry Date</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  <th className="py-3 px-4">{t('leads.table.borrower', 'Borrower')}</th>
+                  <th className="py-3 px-4">{t('leads.table.stage', 'Current Stage')}</th>
+                  <th className="py-3 px-4">{t('leads.table.loanAmount', 'Target Loan')}</th>
+                  <th className="py-3 px-4">{t('pipeline.score', 'Score')}</th>
+                  <th className="py-3 px-4">{t('leads.table.source', 'Source')}</th>
+                  <th className="py-3 px-4">{t('leads.table.assignedTo', 'Assigned Advisor')}</th>
+                  <th className="py-3 px-4 text-right">{t('leads.table.created', 'Inquiry Date')}</th>
+                  <th className="py-3 px-4 text-center">{t('common.actions', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -501,9 +503,12 @@ export function LeadsPage() {
           {/* Subtle Server-Side Pagination Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/80 px-4 py-3 bg-slate-50/50">
             <div className="text-xs text-muted-foreground">
-              Showing <span className="font-semibold text-slate-800">{total === 0 ? 0 : (page - 1) * limit + 1}</span> to{' '}
-              <span className="font-semibold text-slate-800">{Math.min(page * limit, total)}</span> of{' '}
-              <span className="font-semibold text-slate-800">{total}</span> inquiries
+              {t('common.showing', 'Showing')}{' '}
+              <span className="font-semibold text-slate-800">{total === 0 ? 0 : (page - 1) * limit + 1}</span>{' '}
+              {t('common.to', 'to')}{' '}
+              <span className="font-semibold text-slate-800">{Math.min(page * limit, total)}</span>{' '}
+              {t('common.of', 'of')}{' '}
+              <span className="font-semibold text-slate-800">{total}</span> {t('leads.leads', 'inquiries')}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -513,10 +518,10 @@ export function LeadsPage() {
                 disabled={page <= 1 || isFetching}
                 className="h-8 text-xs px-3 text-slate-700"
               >
-                Previous
+                {t('common.previous', 'Previous')}
               </Button>
               <span className="text-xs font-medium text-slate-600 px-1">
-                Page {page} of {totalPages}
+                {t('common.page', 'Page')} {page} {t('common.of', 'of')} {totalPages}
               </span>
               <Button
                 variant="outline"
@@ -525,7 +530,7 @@ export function LeadsPage() {
                 disabled={page >= totalPages || isFetching}
                 className="h-8 text-xs px-3 text-slate-700"
               >
-                Next
+                {t('common.next', 'Next')}
               </Button>
             </div>
           </div>
@@ -541,9 +546,12 @@ export function LeadsPage() {
           await archiveMutation.mutateAsync(leadToArchive._id)
           setLeadToArchive(null)
         }}
-        title="Archive Borrower Inquiry"
-        description={`Are you sure you want to archive the inquiry for ${[leadToArchive?.firstName, leadToArchive?.lastName].filter(Boolean).join(' ')}? It will be safely moved out of the active pipeline board into archive storage.`}
-        confirmText="Archive Inquiry"
+        title={t('leads.archiveModalTitle', 'Archive Borrower Inquiry')}
+        description={t('leads.archiveModalDesc', 'Are you sure you want to archive the inquiry for {{name}}? It will be safely moved out of the active pipeline board into archive storage.', {
+          name: [leadToArchive?.firstName, leadToArchive?.lastName].filter(Boolean).join(' '),
+        })}
+        confirmText={t('leads.archiveAction', 'Archive Inquiry')}
+        cancelText={t('common.cancel', 'Cancel')}
         variant="warning"
         isLoading={archiveMutation.isPending}
       />

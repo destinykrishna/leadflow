@@ -20,6 +20,9 @@ export interface EmailJobPayload {
   subject: string;
   body: string;
   idempotencyKey: string;
+  expectedStage?: string | undefined;
+  cancelOnStageChange?: boolean | undefined;
+  scheduledFor?: string | undefined;
   simulateFailure?: boolean | undefined;
   simulateTerminalFailure?: boolean | undefined;
 }

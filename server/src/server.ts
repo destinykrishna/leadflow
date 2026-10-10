@@ -154,3 +154,4 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export { app, httpServer, io };
+// Live server watch trigger

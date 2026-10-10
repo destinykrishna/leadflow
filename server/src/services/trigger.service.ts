@@ -40,6 +40,35 @@ export interface TriggerExecutionSummary {
   errors: number;
 }
 
+/**
+ * Calculates delay in milliseconds based on trigger configuration.
+ * Validates against negative values and returns 0 for IMMEDIATE.
+ */
+export function calculateTriggerDelayMs(
+  delayAmount?: number | null,
+  delayUnit?: 'IMMEDIATE' | 'MINUTES' | 'HOURS' | 'DAYS' | string | null
+): number {
+  if (!delayAmount || delayAmount <= 0 || !delayUnit || delayUnit === 'IMMEDIATE') {
+    return 0;
+  }
+  let ms = 0;
+  switch (delayUnit) {
+    case 'MINUTES':
+      ms = delayAmount * 60 * 1000;
+      break;
+    case 'HOURS':
+      ms = delayAmount * 60 * 60 * 1000;
+      break;
+    case 'DAYS':
+      ms = delayAmount * 24 * 60 * 60 * 1000;
+      break;
+    default:
+      return 0;
+  }
+  const MAX_DELAY_MS = 30 * 24 * 60 * 60 * 1000; // 30-day safety cap
+  return Math.min(ms, MAX_DELAY_MS);
+}
+
 export class TriggerService {
   /**
    * Evaluates and executes configured stage triggers when a lead enters a pipeline stage.
@@ -483,27 +512,40 @@ export class TriggerService {
       return false;
     }
 
-    // 4. Enqueue to BullMQ asynchronously without blocking HTTP response
-    const job = await enqueueEmailJob({
-      brokerageId: brokerageIdStr,
-      leadId: lead._id.toString(),
-      triggerId: trigger._id.toString(),
-      templateId: template._id.toString(),
-      to: recipientEmail,
-      recipientName,
-      recipientType: config.recipientType || 'LEAD',
-      subject: renderedSubject,
-      body: renderedBody,
-      idempotencyKey,
-      simulateFailure: simulateEmailFailure,
-      simulateTerminalFailure: simulateEmailTerminalFailure,
-    });
+    // 4. Calculate delay in milliseconds
+    const delayMs = calculateTriggerDelayMs(config.delayAmount, config.delayUnit);
+    const scheduledFor = delayMs > 0 ? new Date(Date.now() + delayMs) : null;
+    const initialStatus = delayMs > 0 ? 'SCHEDULED' : 'PENDING';
+
+    // 5. Enqueue to BullMQ asynchronously without blocking HTTP response
+    const job = await enqueueEmailJob(
+      {
+        brokerageId: brokerageIdStr,
+        leadId: lead._id.toString(),
+        triggerId: trigger._id.toString(),
+        templateId: template._id.toString(),
+        to: recipientEmail,
+        recipientName,
+        recipientType: config.recipientType || 'LEAD',
+        subject: renderedSubject,
+        body: renderedBody,
+        idempotencyKey,
+        expectedStage: trigger.toStage,
+        cancelOnStageChange: config.cancelOnStageChange !== false,
+        scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
+        simulateFailure: simulateEmailFailure,
+        simulateTerminalFailure: simulateEmailTerminalFailure,
+      },
+      delayMs > 0 ? { delay: delayMs } : undefined
+    );
 
     if (job) {
       await TriggerExecution.findByIdAndUpdate(executionId, {
         $set: {
+          status: initialStatus,
           emailJobId: job.id,
           recipientEmail,
+          scheduledFor,
         },
       });
     }
@@ -512,16 +554,31 @@ export class TriggerService {
       ? `${recipientName} (${maskEmail(recipientEmail)})`
       : maskEmail(recipientEmail);
 
-    emitAutomationEvent({
-      event: 'automation:email_queued',
-      payload: {
-        brokerageId: brokerageIdStr,
-        leadId: lead._id.toString(),
-        triggerId: trigger._id.toString(),
-        recipient: recipientDisplay,
-        message: `Email queued to ${recipientDisplay}.`,
-      },
-    });
+    if (delayMs > 0) {
+      emitAutomationEvent({
+        event: 'automation:email_scheduled',
+        payload: {
+          brokerageId: brokerageIdStr,
+          leadId: lead._id.toString(),
+          triggerId: trigger._id.toString(),
+          recipient: recipientDisplay,
+          scheduledFor: scheduledFor ? scheduledFor.toISOString() : null,
+          delayMinutes: Math.round(delayMs / 60000),
+          message: `Email scheduled for ${recipientDisplay} (delay: ${config.delayAmount} ${config.delayUnit?.toLowerCase()}).`,
+        },
+      });
+    } else {
+      emitAutomationEvent({
+        event: 'automation:email_queued',
+        payload: {
+          brokerageId: brokerageIdStr,
+          leadId: lead._id.toString(),
+          triggerId: trigger._id.toString(),
+          recipient: recipientDisplay,
+          message: `Email queued to ${recipientDisplay}.`,
+        },
+      });
+    }
 
     logger.info(
       {
@@ -530,8 +587,13 @@ export class TriggerService {
         recipient: maskEmail(recipientEmail),
         templateId: template._id.toString(),
         jobId: job?.id,
+        delayMs,
+        status: initialStatus,
+        scheduledFor: scheduledFor?.toISOString(),
       },
-      'TriggerService: Email job successfully dispatched to background queue'
+      delayMs > 0
+        ? 'TriggerService: Delayed email job successfully scheduled in background queue'
+        : 'TriggerService: Email job successfully dispatched to background queue'
     );
     return true;
   }

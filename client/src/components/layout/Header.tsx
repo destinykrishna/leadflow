@@ -9,10 +9,12 @@ import {
   User,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { LanguageToggle } from '@/components/common/LanguageToggle'
 import { formatRoleLabel, getRoleBadgeVariant } from '@/lib/presentation'
 
 interface HeaderProps {
@@ -34,26 +36,27 @@ export function Header({
   isMac = false,
 }: HeaderProps) {
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
   const location = useLocation()
   const modKey = isMac ? '⌘' : 'Ctrl'
 
   const getPageTitle = (pathname: string) => {
-    if (pathname.includes('/dashboard')) return 'Operations Dashboard'
-    if (pathname.includes('/pipeline')) return 'Pipeline'
-    if (pathname.includes('/leads')) return 'Leads'
-    if (pathname.includes('/clients')) return 'Clients'
-    if (pathname.includes('/documents')) return 'Documents'
-    if (pathname.includes('/tasks')) return 'Tasks'
-    if (pathname.includes('/forms')) return 'Lead Capture Forms'
-    if (pathname.includes('/templates')) return 'Email Templates'
-    if (pathname.includes('/triggers')) return 'Stage Automations'
-    if (pathname.includes('/case')) return 'Loan Case'
-    if (pathname.includes('/team') || pathname.includes('/advisors')) return 'Advisors & Team'
-    if (pathname.includes('/advisor')) return 'Advisor'
-    if (pathname.includes('/brokerages')) return 'Brokerages'
-    if (pathname.includes('/health')) return 'System Health'
-    if (pathname.includes('/audit')) return 'Audit Logs'
-    return 'Workspace'
+    if (pathname.includes('/dashboard')) return t('dashboard.title', 'Operations Dashboard')
+    if (pathname.includes('/pipeline')) return t('nav.pipeline', 'Pipeline')
+    if (pathname.includes('/leads')) return t('nav.leads', 'Leads')
+    if (pathname.includes('/clients')) return t('nav.clients', 'Clients')
+    if (pathname.includes('/documents')) return t('nav.documents', 'Documents')
+    if (pathname.includes('/tasks')) return t('nav.tasks', 'Tasks')
+    if (pathname.includes('/forms')) return t('forms.title', 'Lead Capture Forms')
+    if (pathname.includes('/templates')) return t('templates.title', 'Email Templates')
+    if (pathname.includes('/triggers')) return t('triggers.title', 'Stage Automations')
+    if (pathname.includes('/case')) return t('portal.case.title', 'Loan Case')
+    if (pathname.includes('/team') || pathname.includes('/advisors')) return t('team.title', 'Advisors & Team')
+    if (pathname.includes('/advisor')) return t('portal.advisor.title', 'Advisor')
+    if (pathname.includes('/brokerages')) return t('admin.brokerages.title', 'Brokerages')
+    if (pathname.includes('/health')) return t('admin.health.title', 'System Health')
+    if (pathname.includes('/audit')) return t('admin.audit.title', 'Audit Logs')
+    return t('nav.workspace', 'Workspace')
   }
 
   const currentTitle = getPageTitle(location.pathname)
@@ -97,7 +100,7 @@ export function Header({
         >
           <div className="flex items-center gap-2 truncate">
             <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-slate-600" />
-            <span className="truncate">Search or jump to...</span>
+            <span className="truncate">{t('nav.searchPlaceholder', 'Search or jump to...')}</span>
           </div>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-slate-400 shadow-2xs">
             {modKey}K
@@ -105,14 +108,18 @@ export function Header({
         </button>
       </div>
 
-      {/* Right: Keyboard Shortcuts & Profile Menu */}
+      {/* Right: Language Toggle, Keyboard Shortcuts & Profile Menu */}
       <div className="flex items-center gap-2">
+        {/* Language Selection Toggle (EN / DE) */}
+        <LanguageToggle variant="compact" />
+
         {/* Keyboard Shortcuts Trigger Button */}
         <button
           type="button"
           onClick={onOpenShortcuts}
-          title="Keyboard shortcuts (?)"
-          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none"
+          title={t('nav.shortcuts', 'Keyboard shortcuts (?)')}
+          aria-label={t('nav.shortcuts', 'Keyboard shortcuts')}
+          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
         >
           <Keyboard className="h-4 w-4" />
         </button>
@@ -166,7 +173,7 @@ export function Header({
                 >
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-slate-400" />
-                    <span>Profile & Settings</span>
+                    <span>{t('nav.profileSettings', 'Profile & Settings')}</span>
                   </div>
                   <kbd className="font-mono text-[10px] text-slate-400">G U</kbd>
                 </DropdownMenu.Item>
@@ -177,7 +184,7 @@ export function Header({
                 >
                   <div className="flex items-center gap-2">
                     <Search className="h-3.5 w-3.5 text-slate-400" />
-                    <span>Command Palette</span>
+                    <span>{t('nav.commandPalette', 'Command Palette')}</span>
                   </div>
                   <kbd className="font-mono text-[10px] text-slate-400">{modKey}K</kbd>
                 </DropdownMenu.Item>
@@ -188,7 +195,7 @@ export function Header({
                 >
                   <div className="flex items-center gap-2">
                     <Keyboard className="h-3.5 w-3.5 text-slate-400" />
-                    <span>Shortcuts</span>
+                    <span>{t('nav.shortcuts', 'Shortcuts')}</span>
                   </div>
                   <kbd className="font-mono text-[10px] text-slate-400">?</kbd>
                 </DropdownMenu.Item>
@@ -200,7 +207,7 @@ export function Header({
                   className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 focus:bg-rose-50 focus:text-rose-700 focus:outline-none"
                 >
                   <LogOut className="h-3.5 w-3.5" />
-                  Sign Out
+                  {t('nav.signOut', 'Sign Out')}
                 </DropdownMenu.Item>
               </div>
             </DropdownMenu.Content>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useReviewDocument } from '../api/documents.api'
 import type { DocumentItem } from '@/types/document.types'
+import { TextTranslate } from '@/features/leads/components/LeadNoteTranslate'
 
 export interface ReviewDocumentModalProps {
   document: DocumentItem | null
@@ -168,6 +169,16 @@ export function ReviewDocumentModal({
                   className="mt-1 text-xs"
                   required
                 />
+                {rejectionReason.trim().length > 0 && (
+                  <TextTranslate
+                    text={rejectionReason}
+                    context="document_note"
+                    label="Rejection Reason"
+                    variant="link"
+                    testIdPrefix="review-rejection-"
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -187,6 +198,16 @@ export function ReviewDocumentModal({
               onChange={(e) => setNotes(e.target.value)}
               className="w-full rounded-md border border-border bg-white px-3 py-2 text-xs text-slate-900 shadow-2xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
             />
+            {notes.trim().length > 0 && (
+              <TextTranslate
+                text={notes}
+                context="document_note"
+                label="Verification Note"
+                variant="link"
+                testIdPrefix="review-notes-"
+                className="mt-1"
+              />
+            )}
           </div>
 
           <DialogFooter className="pt-2 gap-2 sm:gap-0">

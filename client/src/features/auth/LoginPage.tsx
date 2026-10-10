@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import type { LoginCredentials, UserRole } from '@/types/auth.types'
+import { useTranslation } from 'react-i18next'
+import { LanguageToggle } from '@/components/common/LanguageToggle'
 
 interface DemoPreset {
   role: UserRole
@@ -67,6 +69,7 @@ const DEMO_PRESETS: DemoPreset[] = [
 ]
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { login, isAuthenticated, user } = useAuth()
@@ -145,20 +148,40 @@ export function LoginPage() {
         const axiosErr = err as { response?: { data?: { error?: { message?: string } } } }
         setErrorMessage(
           axiosErr.response?.data?.error?.message ||
-            'Invalid email or password. Please verify your credentials.',
+            t('common.errorDesc', 'Invalid email or password. Please verify your credentials.'),
         )
       } else if (err instanceof Error) {
         setErrorMessage(err.message)
       } else {
-        setErrorMessage('Unable to connect to service. Please try again.')
+        setErrorMessage(t('common.errorDesc', 'Unable to connect to service. Please try again.'))
       }
     } finally {
       setIsLoading(false)
     }
   }
 
+  const getPresetLabel = (role: UserRole, defaultLabel: string) => {
+    switch (role) {
+      case 'BROKERAGE_ADMIN':
+        return t('auth.brokerageAdmin', defaultLabel)
+      case 'ADVISOR':
+        return t('auth.advisor', defaultLabel)
+      case 'CLIENT':
+        return t('auth.client', defaultLabel)
+      case 'PLATFORM_ADMIN':
+        return t('auth.platformAdmin', defaultLabel)
+      default:
+        return defaultLabel
+    }
+  }
+
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50/70 p-4 sm:p-6 lg:p-8">
+    <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50/70 p-4 sm:p-6 lg:p-8">
+      {/* Language Toggle in Top Right Corner */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageToggle variant="compact" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-2">
@@ -179,7 +202,7 @@ export function LoginPage() {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">LeadFlow</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Mortgage Lead and Case Management Platform
+              {t('auth.signInSubtitle', 'Mortgage Lead and Case Management Platform')}
             </p>
           </div>
         </div>
@@ -187,9 +210,11 @@ export function LoginPage() {
         {/* Login Card */}
         <Card className="shadow-xs border-border bg-card">
           <CardHeader className="p-6 pb-4 space-y-1">
-            <CardTitle className="text-base font-semibold text-slate-900">Sign In</CardTitle>
+            <CardTitle className="text-base font-semibold text-slate-900">
+              {t('auth.signInTitle', 'Sign In')}
+            </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Enter your account credentials to access your workspace.
+              {t('auth.enterCredentials', 'Enter your account credentials to access your workspace.')}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0 space-y-4">
@@ -202,18 +227,18 @@ export function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
               <Input
-                label="Email"
+                label={t('auth.emailLabel', 'Email')}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="advisor@brokerage.com"
+                placeholder={t('auth.emailPlaceholder', 'advisor@brokerage.com')}
                 required
                 autoComplete="email"
                 startIcon={<Mail className="h-4 w-4" />}
               />
 
               <Input
-                label="Password"
+                label={t('auth.passwordLabel', 'Password')}
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -226,7 +251,7 @@ export function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="text-slate-600 hover:text-slate-800 focus:outline-none transition-colors"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('auth.hidePassword', 'Hide password') : t('auth.showPassword', 'Show password')}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -234,12 +259,12 @@ export function LoginPage() {
               />
 
               <Input
-                label="Brokerage Identifier"
+                label={t('auth.brokerageIdentifier', 'Brokerage Identifier')}
                 type="text"
                 value={brokerageSlug}
                 onChange={(e) => setBrokerageSlug(e.target.value)}
                 placeholder="e.g. apex-home-finance"
-                helperText="Enter your brokerage ID or slug if applicable"
+                helperText={t('auth.brokerageHelper', 'Enter your brokerage ID or slug if applicable')}
                 startIcon={<Building className="h-4 w-4" />}
               />
 
@@ -249,7 +274,7 @@ export function LoginPage() {
                 className="w-full mt-2 gap-2 text-xs font-semibold h-10"
                 isLoading={isLoading}
               >
-                <span>Sign In</span>
+                <span>{isLoading ? t('auth.signingIn', 'Signing In...') : t('auth.signInButton', 'Sign In')}</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
@@ -258,7 +283,9 @@ export function LoginPage() {
 
         {/* Subtle Demo Role Switcher */}
         <div className="space-y-2 pt-1 text-center">
-          <p className="text-[11px] font-medium text-slate-600">Quick sign-in with demo accounts:</p>
+          <p className="text-[11px] font-medium text-slate-600">
+            {t('auth.quickFill', 'Quick sign-in with demo accounts:')}
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {DEMO_PRESETS.map((preset) => (
               <button
@@ -271,7 +298,7 @@ export function LoginPage() {
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                {preset.label}
+                {getPresetLabel(preset.role, preset.label)}
               </button>
             ))}
           </div>

@@ -1,0 +1,565 @@
+{
+  "common": {
+    "save": "Save",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "archive": "Archive",
+    "edit": "Edit",
+    "close": "Close",
+    "done": "Done",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "search": "Search...",
+    "actions": "Actions",
+    "status": "Status",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "processing": "Processing",
+    "verified": "Verified",
+    "rejected": "Rejected",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "copied": "Copied to clipboard",
+    "copy": "Copy",
+    "filter": "Filter",
+    "resetFilters": "Reset Filters",
+    "noResults": "No results found",
+    "tryAdjusting": "Try adjusting your search or filters.",
+    "page": "Page",
+    "of": "of",
+    "previous": "Previous",
+    "viewDetails": "View Details",
+    "required": "Required",
+    "optional": "Optional",
+    "dismiss": "Dismiss",
+    "reload": "Refresh",
+    "refresh": "Refresh",
+    "download": "Download",
+    "upload": "Upload",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "errorTitle": "An error occurred",
+    "errorDesc": "Failed to load data from server. Please try again.",
+    "retry": "Try again",
+    "emptyTitle": "No records found",
+    "emptyDesc": "There are no records to display in this view.",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundDesc": "The page you are looking for does not exist or has been moved.",
+    "returnToApp": "Return to Workspace"
+  },
+  "nav": {
+    "workspace": "Workspace",
+    "dashboard": "Dashboard",
+    "pipeline": "Pipeline",
+    "leads": "Leads",
+    "clients": "Clients",
+    "documents": "Documents",
+    "tasks": "Tasks",
+    "forms": "Forms",
+    "automations": "Automations",
+    "stageAutomations": "Stage Automations",
+    "emailTemplates": "Email Templates",
+    "management": "Management",
+    "team": "Advisors & Team",
+    "portal": "Mortgage Portal",
+    "myCase": "My Loan Case",
+    "advisorContact": "Advisor Contact",
+    "admin": "Administration",
+    "brokerages": "Brokerages",
+    "health": "System Health",
+    "audit": "Audit Logs",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "searchPlaceholder": "Search or jump to...",
+    "shortcuts": "Shortcuts",
+    "profileSettings": "Profile & Settings",
+    "commandPalette": "Command Palette",
+    "signOut": "Sign Out",
+    "viewProfile": "View Profile",
+    "accountSettings": "Account Settings",
+    "toggleNavigation": "Toggle navigation"
+  },
+  "auth": {
+    "signInTitle": "Sign In",
+    "signInSubtitle": "Access your institutional mortgage workspace",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "advisor@brokerage.com",
+    "passwordLabel": "Password",
+    "rememberMe": "Remember this workstation",
+    "signInButton": "Sign In",
+    "signingIn": "Signing in...",
+    "quickFill": "Quick Demo Credentials",
+    "platformAdmin": "Platform Admin",
+    "brokerageAdmin": "Brokerage Admin",
+    "advisor": "Loan Advisor",
+    "client": "Borrower Portal",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "emailRequired": "Valid email address is required",
+    "passwordRequired": "Password is required"
+  },
+  "pipeline": {
+    "title": "Pipeline Board",
+    "stages": {
+      "NEW": "New Inquiry",
+      "CONTACTED": "Contacted",
+      "QUALIFIED": "Qualified",
+      "PROPOSAL": "Proposal",
+      "NEGOTIATION": "Negotiation",
+      "WON": "Won / Converted",
+      "LOST": "Lost"
+    },
+    "searchPlaceholder": "Search borrower or email...",
+    "allAdvisors": "All Advisors",
+    "allSources": "All Sources",
+    "minVolume": "Min Volume",
+    "jumpToStage": "Quick Jump:",
+    "emptyColumn": "No active inquiries in this stage",
+    "advanceStage": "Advance Stage",
+    "markLost": "Mark as Lost",
+    "revertStage": "Revert Stage",
+    "convertToClient": "Convert to Client",
+    "daysInStage": "{{days}}d in stage",
+    "ltv": "LTV: {{ltv}}%",
+    "conflictTitle": "Stage Conflict Detected",
+    "conflictDesc": "Another advisor updated this lead while you were reviewing. Reload to review latest stage.",
+    "dragNotice": "Dragged {{name}} to {{stage}}"
+  },
+  "dashboard": {
+    "title": "Operations Dashboard",
+    "subtitle": "Real-time mortgage pipeline velocity and team performance",
+    "activeVolume": "Active Pipeline Volume",
+    "activeLeads": "Active Leads",
+    "conversionRate": "Conversion Rate",
+    "pendingVerifications": "Pending Verifications",
+    "stageDistribution": "Pipeline Distribution",
+    "recentActivity": "Recent Activity",
+    "pendingTasks": "Pending Tasks",
+    "sourceConversion": "Source Conversion",
+    "noActivity": "No recent activity recorded yet",
+    "noTasks": "All scheduled tasks are completed",
+    "viewAllTasks": "View All Tasks",
+    "viewPipeline": "Open Pipeline"
+  },
+  "leads": {
+    "title": "Lead Inquiries",
+    "subtitle": "Prospective borrower inquiries and financing requests",
+    "viewKanban": "View Kanban Pipeline",
+    "newLead": "New Inquiry",
+    "table": {
+      "borrower": "Borrower",
+      "stage": "Stage",
+      "loanAmount": "Loan Amount",
+      "source": "Source",
+      "assignedTo": "Assigned Advisor",
+      "created": "Created"
+    },
+    "detail": {
+      "contactInfo": "Contact Information",
+      "loanRequirements": "Financing Requirements",
+      "propertyInfo": "Property Details",
+      "activityTimeline": "Inquiry History",
+      "alreadyKnownClient": "Existing Client dossier linked",
+      "viewClientCase": "View Client Case",
+      "propertyValue": "Property Value",
+      "downPayment": "Equity / Down Payment",
+      "notes": "Internal Notes",
+      "noNotes": "No internal notes added yet."
+    },
+    "convertModal": {
+      "title": "Convert Lead to Client Case",
+      "desc": "Converts this qualified lead into an active borrower client case with full KYC and document verification workflows.",
+      "portalAccountHeading": "Borrower Portal Access (Optional)",
+      "portalAccountDesc": "Generate login credentials to give the borrower self-service access to upload payslips and track underwriting progress.",
+      "portalPasswordLabel": "Temporary Portal Password",
+      "portalPasswordHelp": "Leave blank to auto-generate a secure temporary password.",
+      "confirmButton": "Confirm Conversion",
+      "converting": "Converting...",
+      "successTitle": "Client Case Established",
+      "successDesc": "Borrower account and client case dossier have been initialized."
+    }
+  },
+  "clients": {
+    "title": "Clients",
+    "subtitle": "Active borrower dossiers and underway mortgage applications",
+    "table": {
+      "client": "Client Name",
+      "status": "Case Status",
+      "targetLoan": "Target Loan",
+      "property": "Property",
+      "advisor": "Advisor",
+      "updated": "Last Activity"
+    },
+    "detail": {
+      "caseHeader": "Mortgage Case Dossier",
+      "financialMetrics": "Financial Structure",
+      "propertyDetails": "Target Real Estate",
+      "checklistHeading": "Document Requirements Checklist",
+      "uploadAction": "Upload Document",
+      "ltvRatio": "Loan-to-Value (LTV)",
+      "calculatedLtv": "Calculated LTV ratio"
+    },
+    "uploadModal": {
+      "title": "Upload Borrower Document",
+      "desc": "Upload KYC, income verification, or property documentation for case review.",
+      "typeLabel": "Document Classification",
+      "fileLabel": "Document File (PDF, PNG, JPEG, WEBP - Max 10MB)",
+      "notesLabel": "Advisor Notes (Optional)",
+      "notesPlaceholder": "Add verification context or document description...",
+      "uploadButton": "Upload & Queue Verification",
+      "uploading": "Uploading...",
+      "fileSizeError": "File size exceeds 10MB limit.",
+      "fileTypeError": "Unsupported file format. Please upload PDF, JPEG, PNG, WEBP, or TIFF."
+    }
+  },
+  "documents": {
+    "title": "Document Verification",
+    "subtitle": "Underwriting queue, KYC inspection, and automated verification checks",
+    "tabs": {
+      "all": "All Documents",
+      "pending": "Pending Inspection",
+      "processing": "Verification in progress",
+      "verified": "Verified",
+      "rejected": "Rejected"
+    },
+    "types": {
+      "PAYSLIP": "Salary Slip / Gehaltsabrechnung",
+      "ID_PASSPORT": "Identity Document / Reisepass",
+      "BANK_STATEMENT": "Bank Statement / Kontoauszug",
+      "PROPERTY_PURCHASE_AGREEMENT": "Purchase Agreement / Kaufvertrag",
+      "TAX_ASSESSMENT": "Tax Assessment / Steuerbescheid",
+      "OTHER": "Other Supporting Document"
+    },
+    "statuses": {
+      "PENDING": "Pending Inspection",
+      "PROCESSING": "Verification in progress",
+      "VERIFIED": "Verified",
+      "REJECTED": "Rejected"
+    },
+    "reviewModal": {
+      "title": "Document Inspection",
+      "clientName": "Borrower",
+      "docType": "Document Classification",
+      "fileSize": "File Size",
+      "uploadedAt": "Uploaded On",
+      "verifyAction": "Verify Document",
+      "rejectAction": "Reject Document",
+      "rejectionReasonLabel": "Rejection Rationale",
+      "rejectionReasonPlaceholder": "State exact reason for borrower rectification (e.g. illegible stamp, missing page 3)...",
+      "inspectorNotesLabel": "Internal Inspector Notes",
+      "inspectorNotesPlaceholder": "Optional operational notes for advisory team...",
+      "verifying": "Verifying...",
+      "rejecting": "Rejecting...",
+      "confirmVerification": "Mark as Verified",
+      "confirmRejection": "Submit Rejection"
+    }
+  },
+  "tasks": {
+    "title": "Tasks & Follow-ups",
+    "subtitle": "Advisor workflow queue and automated mortgage follow-up schedules",
+    "createTask": "Create Task",
+    "metrics": {
+      "total": "Total Tasks",
+      "overdue": "Overdue",
+      "dueToday": "Due Today",
+      "highPriority": "High Priority"
+    },
+    "priorities": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "statuses": {
+      "OPEN": "Open",
+      "IN_PROGRESS": "In Progress",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "dueBadge": {
+      "overdue": "Overdue",
+      "dueToday": "Due Today",
+      "dueTomorrow": "Due Tomorrow",
+      "upcoming": "Upcoming"
+    },
+    "modal": {
+      "createTitle": "Schedule Advisor Task",
+      "detailTitle": "Task Details",
+      "titleLabel": "Task Title",
+      "titlePlaceholder": "e.g. Follow up on bank statement submission",
+      "descLabel": "Description & Instructions",
+      "descPlaceholder": "Specific action items for the advisor...",
+      "dueDateLabel": "Due Date",
+      "priorityLabel": "Priority Level",
+      "statusLabel": "Status",
+      "linkLead": "Linked Lead Inquiry",
+      "linkClient": "Linked Client File",
+      "markComplete": "Mark Complete",
+      "markInProgress": "Mark In Progress"
+    }
+  },
+  "forms": {
+    "title": "Lead Capture Forms",
+    "subtitle": "Configurable mortgage inquiry questionnaires and public landing pages",
+    "createForm": "Create Form",
+    "metrics": {
+      "activeForms": "Active Forms",
+      "totalLeads": "Ingested Inquiries",
+      "avgCompletion": "Avg Completion Rate"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Archived"
+    },
+    "actions": {
+      "copyLink": "Copy Public Link",
+      "preview": "Live Preview",
+      "edit": "Edit Schema",
+      "archive": "Archive Form"
+    },
+    "builder": {
+      "title": "Form Schema Builder",
+      "formTitle": "Form Name",
+      "slug": "URL Identifier (Slug)",
+      "desc": "Introduction Text",
+      "fieldsHeading": "Questionnaire Fields",
+      "addField": "Add Field",
+      "fieldLabel": "Question / Field Label",
+      "fieldType": "Field Type",
+      "fieldRequired": "Mandatory response",
+      "saveForm": "Save Questionnaire"
+    },
+    "public": {
+      "title": "Mortgage Financing Questionnaire",
+      "subtitle": "Complete your application in under 3 minutes for personalized underwriting assessment.",
+      "submitButton": "Submit Mortgage Inquiry",
+      "submitting": "Submitting Inquiry...",
+      "successTitle": "Inquiry Received Successfully",
+      "successDesc": "Your dedicated mortgage specialist will review your parameters and follow up shortly."
+    }
+  },
+  "templates": {
+    "title": "Email Templates",
+    "subtitle": "Standardized client communications and stage trigger notification formats",
+    "createTemplate": "New Template",
+    "variablesHeading": "Dynamic Field Placeholders",
+    "editor": {
+      "title": "Template Configuration",
+      "name": "Template Title",
+      "slug": "Template Key / Slug",
+      "subject": "Email Subject Line",
+      "body": "Email Body Template",
+      "save": "Save Template"
+    },
+    "preview": {
+      "title": "Email Dispatch Preview",
+      "renderedSubject": "Subject",
+      "renderedBody": "Message Body"
+    }
+  },
+  "triggers": {
+    "title": "Stage Automations",
+    "subtitle": "Event-driven workflow rules executed upon pipeline stage transitions",
+    "createTrigger": "New Automation Rule",
+    "ruleName": "Rule Name",
+    "eventStage": "Trigger Stage Transition",
+    "actionType": "Automated Action",
+    "activeToggle": "Rule Active",
+    "actions": {
+      "CREATE_TASK": "Create Advisor Task",
+      "SEND_EMAIL": "Dispatch Notification Email"
+    }
+  },
+  "team": {
+    "title": "Advisors & Team",
+    "subtitle": "Licensed mortgage specialists, operational accounts, and lead capture setups",
+    "inviteAdvisor": "Add Advisor",
+    "createModal": {
+      "title": "Register Mortgage Advisor",
+      "desc": "Provision an advisor user account for client case management.",
+      "nameLabel": "Full Name",
+      "emailLabel": "Professional Email",
+      "passwordLabel": "Initial Temporary Password",
+      "roleLabel": "User Role"
+    },
+    "successModal": {
+      "title": "Advisor Account Provisioned",
+      "desc": "Share these temporary credentials with the team member.",
+      "copyCredentials": "Copy Credentials"
+    },
+    "deactivateModal": {
+      "title": "Deactivate Advisor Account",
+      "desc": "Deactivating this account will revoke login sessions and disconnect active sockets.",
+      "reassignLabel": "Reassign Active Leads & Cases To:",
+      "confirm": "Confirm Deactivation"
+    },
+    "leadSourceCard": {
+      "title": "External Lead Ingestion Endpoint",
+      "desc": "Connect external intake forms, Google Forms, or Typeform webhooks to this brokerage.",
+      "webhookUrl": "Webhook Ingestion URL",
+      "webhookSecret": "Webhook Signing Secret",
+      "copySecret": "Copy Secret"
+    }
+  },
+  "portal": {
+    "case": {
+      "title": "My Loan Case",
+      "referenceTag": "Case Reference:",
+      "caseStatus": "Financing Status",
+      "activeSpecialist": "Assigned Mortgage Specialist",
+      "officeHours": "Mon - Fri, 09:00 - 18:00 IST",
+      "stepperHeading": "Underwriting Milestones",
+      "milestones": {
+        "submitted": "Application Submitted",
+        "verification": "Document Inspection",
+        "underwriting": "Credit Assessment",
+        "offer": "Bank Offer Issued",
+        "notary": "Notarized & Completed"
+      },
+      "finances": {
+        "targetLoan": "Target Loan Volume",
+        "propertyValue": "Property Valuation",
+        "downPayment": "Equity / Down Payment",
+        "ltv": "Loan-to-Value (LTV)"
+      },
+      "documents": {
+        "heading": "Uploaded Case Documentation",
+        "uploadCta": "Upload New File",
+        "noDocs": "No documents uploaded yet. Upload your salary slips and KYC to begin inspection."
+      }
+    },
+    "advisor": {
+      "title": "Advisory Desk Contact",
+      "subtitle": "Your assigned institutional mortgage advisor for underwriting guidance and banking negotiations.",
+      "directPhone": "Direct Desk Phone",
+      "email": "Official Advisory Email",
+      "sendMessage": "Send Direct Message"
+    }
+  },
+  "admin": {
+    "brokerages": {
+      "title": "Partner Brokerages",
+      "subtitle": "Multi-tenant brokerage workspaces and operational licensing",
+      "onboardBrokerage": "Onboard Brokerage",
+      "status": "Licensing Status",
+      "plan": "Subscription Plan",
+      "advisorsCount": "Active Advisors",
+      "leadsCount": "Managed Leads"
+    },
+    "health": {
+      "title": "System Health Diagnostics",
+      "subtitle": "Live telemetry for database connections, caching layers, and background workers",
+      "databaseStatus": "MongoDB Primary Cluster",
+      "redisStatus": "Redis Memory Store & Queues",
+      "uptime": "Application Uptime",
+      "latency": "Response Latency"
+    },
+    "audit": {
+      "title": "Security Audit Logs",
+      "subtitle": "Immutable security records and tenant access auditing trail",
+      "action": "Action Event",
+      "actor": "Actor Identity",
+      "target": "Target Entity",
+      "ip": "Client IP",
+      "timestamp": "Timestamp"
+    }
+  },
+  "settings": {
+    "modalTitle": "Account Settings",
+    "tabs": {
+      "profile": "Identity & Profile",
+      "organization": "Organization",
+      "preferences": "Preferences",
+      "security": "Security & Roles"
+    },
+    "identity": {
+      "designation": "Designation",
+      "loginEmail": "Login Email",
+      "accountActive": "Account Active"
+    },
+    "organization": {
+      "firmStatus": "Firm Status",
+      "accountType": "Account Type",
+      "privateWorkspace": "Private Brokerage Workspace",
+      "privateWorkspaceDesc": "All borrower inquiries, loan cases, and financial dossiers are strictly private and accessible only to authorized team members within your firm."
+    },
+    "preferences": {
+      "financialStandards": "Mortgage Financial Standards",
+      "baseCurrency": "Base Currency",
+      "currencyDesc": "Indian Rupee (INR — ₹)",
+      "datePresentation": "Date Presentation",
+      "sampleVolume": "Sample Volume Formatting",
+      "timeZone": "Time Zone & Region",
+      "languageSelection": "Application Display Language",
+      "languageDesc": "Select preferred interface language. English is default, German is available."
+    },
+    "security": {
+      "heading": "Account Security & Protection",
+      "sessionProtection": "Session Protection",
+      "sessionDesc": "Encrypted dual-token authentication with automatic inactivity protection",
+      "roleBasedAccess": "Role-Based Access",
+      "roleDesc": "Access permissions are strictly governed by your assigned role",
+      "dataConfidentiality": "Data Confidentiality",
+      "dataDesc": "Borrower KYC records and financial dossiers are strictly private"
+    }
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "subtitle": "Quick key bindings for rapid navigation",
+    "navigation": "Navigation",
+    "general": "General Actions",
+    "global": "Global",
+    "pipeline": "Pipeline & Leads",
+    "pressSequence": "Press in sequence",
+    "then": "then",
+    "navigate": "Navigate",
+    "select": "Select",
+    "commandPalettePlaceholder": "Search pages or type a command...",
+    "openCommandPalette": "Open command palette",
+    "toggleSidebar": "Toggle navigation sidebar",
+    "openProfile": "Open Profile & Settings",
+    "showShortcuts": "Show keyboard shortcuts",
+    "closeModal": "Close modal or menu",
+    "goToCase": "Go to My Loan Case",
+    "goToDocuments": "Go to Documents",
+    "goToAdvisor": "Go to Advisor Contact",
+    "goToBrokerages": "Go to Brokerages",
+    "goToHealth": "Go to System Health",
+    "goToAudit": "Go to Audit Logs",
+    "goToDashboard": "Go to Dashboard",
+    "goToPipeline": "Go to Pipeline",
+    "goToLeads": "Go to Leads",
+    "goToClients": "Go to Clients",
+    "goToTasks": "Go to Tasks"
+  },
+  "titles": {
+    "signIn": "Sign In · LeadFlow",
+    "questionnaire": "Questionnaire · LeadFlow",
+    "dashboard": "Dashboard · LeadFlow",
+    "pipeline": "Pipeline · LeadFlow",
+    "leads": "Leads · LeadFlow",
+    "leadDetails": "Lead Details · LeadFlow",
+    "clients": "Clients · LeadFlow",
+    "clientDetails": "Client Details · LeadFlow",
+    "documents": "Documents · LeadFlow",
+    "tasks": "Tasks · LeadFlow",
+    "forms": "Forms · LeadFlow",
+    "templates": "Templates · LeadFlow",
+    "triggers": "Triggers · LeadFlow",
+    "team": "Advisors & Team · LeadFlow",
+    "myCase": "My Case · LeadFlow",
+    "advisor": "Advisor · LeadFlow",
+    "brokerages": "Brokerages · LeadFlow",
+    "health": "System Health · LeadFlow",
+    "audit": "Audit Logs · LeadFlow",
+    "default": "LeadFlow — Mortgage OS"
+  }
+}

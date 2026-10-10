@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Types } from 'mongoose';
 import { renderTemplate, buildTemplateContext } from '../../src/utils/template.js';
+import { calculateTriggerDelayMs } from '../../src/services/trigger.service.js';
 import { maskEmail } from '../../src/utils/mask.js';
 import { Task, type ITaskDocument } from '../../src/models/task.model.js';
 import { Brokerage } from '../../src/models/brokerage.model.js';
@@ -247,6 +248,42 @@ describe('Trigger Service & Automation Unit Tests', () => {
       // Legitimate business fields remain accessible
       expect(renderTemplate('Loan: {{loanAmount}}', context)).toBe('Loan: 350000');
       expect(renderTemplate('Note: {{safeNote}}', context)).toBe('Note: Follow up by tomorrow');
+    });
+  });
+
+  describe('5. Delayed Email Automation - Delay Calculation', () => {
+    it('returns 0 for IMMEDIATE delay unit or missing delay configuration', () => {
+      expect(calculateTriggerDelayMs()).toBe(0);
+      expect(calculateTriggerDelayMs(undefined, 'IMMEDIATE')).toBe(0);
+      expect(calculateTriggerDelayMs(null, 'IMMEDIATE')).toBe(0);
+      expect(calculateTriggerDelayMs(5, 'IMMEDIATE')).toBe(0);
+      expect(calculateTriggerDelayMs(0, 'MINUTES')).toBe(0);
+      expect(calculateTriggerDelayMs(-10, 'HOURS')).toBe(0);
+      expect(calculateTriggerDelayMs(10, undefined)).toBe(0);
+    });
+
+    it('converts MINUTES to exact milliseconds', () => {
+      expect(calculateTriggerDelayMs(1, 'MINUTES')).toBe(60 * 1000);
+      expect(calculateTriggerDelayMs(15, 'MINUTES')).toBe(15 * 60 * 1000);
+      expect(calculateTriggerDelayMs(60, 'MINUTES')).toBe(3600 * 1000);
+    });
+
+    it('converts HOURS to exact milliseconds', () => {
+      expect(calculateTriggerDelayMs(1, 'HOURS')).toBe(3600 * 1000);
+      expect(calculateTriggerDelayMs(2, 'HOURS')).toBe(2 * 3600 * 1000);
+      expect(calculateTriggerDelayMs(24, 'HOURS')).toBe(24 * 3600 * 1000);
+    });
+
+    it('converts DAYS to exact milliseconds', () => {
+      expect(calculateTriggerDelayMs(1, 'DAYS')).toBe(24 * 3600 * 1000);
+      expect(calculateTriggerDelayMs(3, 'DAYS')).toBe(3 * 24 * 3600 * 1000);
+      expect(calculateTriggerDelayMs(7, 'DAYS')).toBe(7 * 24 * 3600 * 1000);
+    });
+
+    it('caps excessive delays at the 30-day ceiling', () => {
+      const maxMs = 30 * 24 * 60 * 60 * 1000;
+      expect(calculateTriggerDelayMs(45, 'DAYS')).toBe(maxMs);
+      expect(calculateTriggerDelayMs(1000, 'HOURS')).toBe(maxMs);
     });
   });
 });

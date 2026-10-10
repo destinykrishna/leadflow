@@ -35,6 +35,7 @@ import { TaskStatusBadge } from './TaskStatusBadge'
 import { TaskPriorityBadge } from './TaskPriorityBadge'
 import { TaskDueBadge } from './TaskDueBadge'
 import { useUpdateTaskStatus } from '../api/tasks.api'
+import { TextTranslate } from '@/features/leads/components/LeadNoteTranslate'
 
 interface TaskDetailModalProps {
   task: Task | null
@@ -107,6 +108,15 @@ export function TaskDetailModal({ task, isOpen, onClose }: TaskDetailModalProps)
                 </span>
               )}
             </div>
+            {task.description && (
+              <TextTranslate
+                text={task.description}
+                context="task_description"
+                label="Task Description"
+                testIdPrefix="task-"
+                className="mt-2"
+              />
+            )}
           </div>
 
           {/* Associated Entities Grid */}

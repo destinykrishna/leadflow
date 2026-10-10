@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X, Command } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 
 interface KeyboardShortcutsModalProps {
   open: boolean
@@ -15,41 +16,42 @@ interface ShortcutItem {
 }
 
 export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardShortcutsModalProps) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const modKey = isMac ? '⌘' : 'Ctrl'
 
   const globalShortcuts: ShortcutItem[] = [
-    { keys: [modKey, 'K'], description: 'Open command palette' },
-    { keys: [modKey, 'B'], description: 'Toggle navigation sidebar' },
-    { keys: ['G', 'U'], description: 'Open Profile & Settings' },
-    { keys: ['?'], description: 'Show keyboard shortcuts' },
-    { keys: ['Esc'], description: 'Close modal or menu' },
+    { keys: [modKey, 'K'], description: t('shortcuts.openCommandPalette', 'Open command palette') },
+    { keys: [modKey, 'B'], description: t('shortcuts.toggleSidebar', 'Toggle navigation sidebar') },
+    { keys: ['G', 'U'], description: t('shortcuts.openProfile', 'Open Profile & Settings') },
+    { keys: ['?'], description: t('shortcuts.showShortcuts', 'Show keyboard shortcuts') },
+    { keys: ['Esc'], description: t('shortcuts.closeModal', 'Close modal or menu') },
   ]
 
   const getNavigationShortcuts = (): ShortcutItem[] => {
     if (user?.role === 'CLIENT') {
       return [
-        { keys: ['G', 'C'], description: 'Go to My Loan Case' },
-        { keys: ['G', 'D'], description: 'Go to Documents' },
-        { keys: ['G', 'A'], description: 'Go to Advisor Contact' },
+        { keys: ['G', 'C'], description: t('shortcuts.goToCase', 'Go to My Loan Case') },
+        { keys: ['G', 'D'], description: t('shortcuts.goToDocuments', 'Go to Documents') },
+        { keys: ['G', 'A'], description: t('shortcuts.goToAdvisor', 'Go to Advisor Contact') },
       ]
     }
 
     if (user?.role === 'PLATFORM_ADMIN') {
       return [
-        { keys: ['G', 'B'], description: 'Go to Brokerages' },
-        { keys: ['G', 'H'], description: 'Go to System Health' },
-        { keys: ['G', 'A'], description: 'Go to Audit Logs' },
+        { keys: ['G', 'B'], description: t('shortcuts.goToBrokerages', 'Go to Brokerages') },
+        { keys: ['G', 'H'], description: t('shortcuts.goToHealth', 'Go to System Health') },
+        { keys: ['G', 'A'], description: t('shortcuts.goToAudit', 'Go to Audit Logs') },
       ]
     }
 
     return [
-      { keys: ['G', 'O'], description: 'Go to Dashboard' },
-      { keys: ['G', 'P'], description: 'Go to Pipeline' },
-      { keys: ['G', 'L'], description: 'Go to Leads' },
-      { keys: ['G', 'C'], description: 'Go to Clients' },
-      { keys: ['G', 'D'], description: 'Go to Documents' },
-      { keys: ['G', 'T'], description: 'Go to Tasks' },
+      { keys: ['G', 'O'], description: t('shortcuts.goToDashboard', 'Go to Dashboard') },
+      { keys: ['G', 'P'], description: t('shortcuts.goToPipeline', 'Go to Pipeline') },
+      { keys: ['G', 'L'], description: t('shortcuts.goToLeads', 'Go to Leads') },
+      { keys: ['G', 'C'], description: t('shortcuts.goToClients', 'Go to Clients') },
+      { keys: ['G', 'D'], description: t('shortcuts.goToDocuments', 'Go to Documents') },
+      { keys: ['G', 'T'], description: t('shortcuts.goToTasks', 'Go to Tasks') },
     ]
   }
 
@@ -67,16 +69,16 @@ export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardSh
               </div>
               <div>
                 <DialogPrimitive.Title className="text-sm font-semibold text-slate-900">
-                  Keyboard Shortcuts
+                  {t('shortcuts.title', 'Keyboard Shortcuts')}
                 </DialogPrimitive.Title>
                 <DialogPrimitive.Description className="text-xs text-muted-foreground">
-                  Quick key bindings for rapid navigation
+                  {t('shortcuts.subtitle', 'Quick key bindings for rapid navigation')}
                 </DialogPrimitive.Description>
               </div>
             </div>
             <DialogPrimitive.Close className="rounded-md p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none">
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t('common.close', 'Close')}</span>
             </DialogPrimitive.Close>
           </div>
 
@@ -84,7 +86,7 @@ export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardSh
             {/* Global Shortcuts */}
             <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Global
+                {t('shortcuts.global', 'Global')}
               </p>
               <div className="space-y-1.5">
                 {globalShortcuts.map((item) => (
@@ -112,9 +114,9 @@ export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardSh
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Navigation
+                  {t('shortcuts.navigation', 'Navigation')}
                 </p>
-                <span className="text-[10px] text-muted-foreground">Press in sequence</span>
+                <span className="text-[10px] text-muted-foreground">{t('shortcuts.pressSequence', 'Press in sequence')}</span>
               </div>
               <div className="space-y-1.5">
                 {navShortcuts.map((item) => (
@@ -129,7 +131,7 @@ export function KeyboardShortcutsModal({ open, onOpenChange, isMac }: KeyboardSh
                           <kbd className="inline-flex min-w-[20px] items-center justify-center rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-700 shadow-2xs">
                             {k}
                           </kbd>
-                          {idx === 0 && <span className="text-[10px] text-slate-400">then</span>}
+                          {idx === 0 && <span className="text-[10px] text-slate-400">{t('shortcuts.then', 'then')}</span>}
                         </React.Fragment>
                       ))}
                     </div>

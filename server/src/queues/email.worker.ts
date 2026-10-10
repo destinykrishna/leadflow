@@ -1,6 +1,7 @@
 import { Worker, type Job, UnrecoverableError, type WorkerOptions } from 'bullmq';
 import { Types } from 'mongoose';
 import { Lead } from '../models/lead.model.js';
+import { PipelineTrigger } from '../models/pipeline-trigger.model.js';
 import { TriggerExecution } from '../models/trigger-execution.model.js';
 import { EmailLog } from '../models/email-log.model.js';
 import { EmailSuppression } from '../models/email-suppression.model.js';
@@ -19,7 +20,7 @@ export interface EmailProcessingResult {
   jobId: string;
   leadId: string;
   recipient: string;
-  status: 'SENT' | 'ALREADY_EXECUTED' | 'FAILED';
+  status: 'SENT' | 'ALREADY_EXECUTED' | 'CANCELLED' | 'FAILED';
   messageId?: string | undefined;
 }
 
@@ -88,34 +89,176 @@ export async function processEmailJob(
       );
     }
 
+    const reason = 'Lead not found or has been deleted';
     logger.warn(
       { leadId: payload.leadId, jobId: job.id },
-      'Lead resource not found for email job processing'
+      'Lead resource not found for email job processing; cancelling delayed email job'
     );
+
+    await TriggerExecution.findOneAndUpdate(
+      withBrokerageScope(payload.brokerageId, {
+        idempotencyKey: payload.idempotencyKey,
+      }),
+      {
+        $set: {
+          status: 'CANCELLED',
+          emailJobId: job.id,
+          cancellationReason: reason,
+        },
+      }
+    ).catch(() => {});
+
+    emitAutomationEvent({
+      event: 'automation:email_cancelled',
+      payload: {
+        brokerageId: payload.brokerageId,
+        leadId: payload.leadId,
+        jobId: job.id ?? '',
+        recipient: maskedRecipient,
+        reason,
+        message: `Scheduled email cancelled: ${reason}.`,
+      },
+    });
+
     throw new UnrecoverableError('Lead resource not found');
   }
 
-  // 3. Idempotency Check: if execution already marked EXECUTED, skip duplicate dispatch
+  // 2.5. Trigger Validity Check: Verify trigger exists and is active (Requirement 5 & 7)
+  if (payload.triggerId && Types.ObjectId.isValid(payload.triggerId)) {
+    const trigger = await PipelineTrigger.findOne(
+      withBrokerageScope(payload.brokerageId, {
+        _id: new Types.ObjectId(payload.triggerId),
+      })
+    );
+
+    const isAutomationJob = Boolean(
+      payload.expectedStage ||
+      payload.scheduledFor ||
+      payload.cancelOnStageChange !== undefined
+    );
+    const shouldCancel = (trigger && !trigger.isActive) || (!trigger && isAutomationJob);
+
+    if (shouldCancel) {
+      const reason = !trigger ? 'Trigger was deleted' : 'Trigger was deactivated';
+      logger.info(
+        {
+          jobId: job.id,
+          brokerageId: payload.brokerageId,
+          leadId: payload.leadId,
+          triggerId: payload.triggerId,
+          reason,
+        },
+        'EmailWorker: Trigger is deleted or inactive; cancelling delayed email job'
+      );
+
+      await TriggerExecution.findOneAndUpdate(
+        withBrokerageScope(payload.brokerageId, {
+          idempotencyKey: payload.idempotencyKey,
+        }),
+        {
+          $set: {
+            status: 'CANCELLED',
+            emailJobId: job.id,
+            cancellationReason: reason,
+          },
+        }
+      ).catch(() => {});
+
+      emitAutomationEvent({
+        event: 'automation:email_cancelled',
+        payload: {
+          brokerageId: payload.brokerageId,
+          leadId: payload.leadId,
+          jobId: job.id ?? '',
+          recipient: maskedRecipient,
+          reason,
+          message: `Scheduled email cancelled: ${reason}.`,
+        },
+      });
+
+      return {
+        jobId: job.id ?? '',
+        leadId: payload.leadId,
+        recipient: maskedRecipient,
+        status: 'CANCELLED',
+      };
+    }
+  }
+
+  // 2.6. Expected Stage Validation: Verify lead is still in the expected stage (Requirement 3 & 5)
+  if (
+    payload.expectedStage &&
+    payload.cancelOnStageChange !== false &&
+    lead.status !== payload.expectedStage
+  ) {
+    const reason = `Lead transitioned from ${payload.expectedStage} to ${lead.status}`;
+    logger.info(
+      {
+        jobId: job.id,
+        brokerageId: payload.brokerageId,
+        leadId: payload.leadId,
+        expectedStage: payload.expectedStage,
+        currentStage: lead.status,
+        idempotencyKey: payload.idempotencyKey,
+      },
+      'EmailWorker: Lead stage condition no longer satisfied; cancelling delayed email job'
+    );
+
+    await TriggerExecution.findOneAndUpdate(
+      withBrokerageScope(payload.brokerageId, {
+        idempotencyKey: payload.idempotencyKey,
+      }),
+      {
+        $set: {
+          status: 'CANCELLED',
+          emailJobId: job.id,
+          cancellationReason: reason,
+        },
+      }
+    ).catch(() => {});
+
+    emitAutomationEvent({
+      event: 'automation:email_cancelled',
+      payload: {
+        brokerageId: payload.brokerageId,
+        leadId: payload.leadId,
+        jobId: job.id ?? '',
+        recipient: maskedRecipient,
+        reason,
+        message: `Scheduled email cancelled: ${reason}.`,
+      },
+    });
+
+    return {
+      jobId: job.id ?? '',
+      leadId: payload.leadId,
+      recipient: maskedRecipient,
+      status: 'CANCELLED',
+    };
+  }
+
+  // 3. Idempotency Check: if execution already marked EXECUTED or CANCELLED, skip duplicate dispatch
   const existingExecution = await TriggerExecution.findOne(
     withBrokerageScope(payload.brokerageId, {
       idempotencyKey: payload.idempotencyKey,
     })
   );
 
-  if (existingExecution && existingExecution.status === 'EXECUTED') {
+  if (existingExecution && (existingExecution.status === 'EXECUTED' || existingExecution.status === 'CANCELLED')) {
     logger.info(
       {
         jobId: job.id,
         idempotencyKey: payload.idempotencyKey,
+        status: existingExecution.status,
         recipient: maskedRecipient,
       },
-      'Email has already been successfully delivered; skipping duplicate execution'
+      'Email has already been processed or cancelled; skipping duplicate execution'
     );
     return {
       jobId: job.id ?? '',
       leadId: payload.leadId,
       recipient: maskedRecipient,
-      status: 'ALREADY_EXECUTED',
+      status: existingExecution.status === 'EXECUTED' ? 'ALREADY_EXECUTED' : 'CANCELLED',
     };
   }
 
@@ -136,6 +279,7 @@ export async function processEmailJob(
       'EmailWorker: Recipient email is suppressed due to prior bounce/complaint; skipping delivery'
     );
 
+    const reason = 'Recipient email is suppressed (previous bounce or complaint)';
     await TriggerExecution.findOneAndUpdate(
       withBrokerageScope(payload.brokerageId, {
         idempotencyKey: payload.idempotencyKey,
@@ -145,7 +289,8 @@ export async function processEmailJob(
           status: 'FAILED',
           emailJobId: job.id,
           recipientEmail: payload.to,
-          error: 'Recipient email is suppressed (previous bounce or complaint)',
+          error: reason,
+          cancellationReason: reason,
         },
       }
     ).catch(() => {});
@@ -160,8 +305,20 @@ export async function processEmailJob(
       subject: payload.subject,
       provider: env.EMAIL_PROVIDER === 'resend' ? 'RESEND' : 'MOCK',
       status: 'FAILED',
-      error: 'Recipient email is suppressed (previous bounce or complaint)',
+      error: reason,
     }).catch(() => {});
+
+    emitAutomationEvent({
+      event: 'automation:email_cancelled',
+      payload: {
+        brokerageId: payload.brokerageId,
+        leadId: payload.leadId,
+        jobId: job.id ?? '',
+        recipient: maskedRecipient,
+        reason,
+        message: `Scheduled email cancelled: ${reason}.`,
+      },
+    });
 
     throw new UnrecoverableError('Recipient email is suppressed (previous bounce or complaint)');
   }

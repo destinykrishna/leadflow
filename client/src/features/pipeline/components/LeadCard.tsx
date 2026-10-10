@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { formatCurrency, formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Lead } from '@/types/pipeline.types'
+import { useTranslation } from 'react-i18next'
 
 interface LeadCardProps {
   lead: Lead
@@ -12,6 +13,7 @@ interface LeadCardProps {
 }
 
 export function LeadCard({ lead, onClick, isHighlighted = false }: LeadCardProps) {
+  const { t } = useTranslation()
   const loanAmount = Number(lead.customFields?.loanAmount)
   const isHighValue = loanAmount >= 500000
 
@@ -35,12 +37,12 @@ export function LeadCard({ lead, onClick, isHighlighted = false }: LeadCardProps
             </span>
             {lead.convertedClientId && (
               <Badge variant="success" size="sm" className="text-[9px] py-0 px-1 shrink-0 font-medium">
-                Case
+                {t('leads.case', 'Case')}
               </Badge>
             )}
             {(lead.customFields?.alreadyKnown || lead.customFields?.isAlreadyKnown) && (
               <Badge variant="warning" size="sm" className="text-[9px] py-0 px-1 shrink-0 font-medium">
-                Known
+                {t('leads.known', 'Known')}
               </Badge>
             )}
           </div>
@@ -66,7 +68,7 @@ export function LeadCard({ lead, onClick, isHighlighted = false }: LeadCardProps
         {/* Loan Amount & Financial Metrics */}
         {loanAmount > 0 && (
           <div className="flex items-baseline justify-between rounded-md bg-slate-50/80 px-2.5 py-1.5 border border-slate-100">
-            <span className="text-[11px] text-muted-foreground">Target Loan</span>
+            <span className="text-[11px] text-muted-foreground">{t('leads.table.loanAmount', 'Target Loan')}</span>
             <span
               className={`text-xs font-bold ${
                 isHighValue ? 'text-primary' : 'text-slate-900'
@@ -97,7 +99,7 @@ export function LeadCard({ lead, onClick, isHighlighted = false }: LeadCardProps
             className="flex items-center gap-1 cursor-help"
             title="Lead Qualification Score (0-100 based on verified contact details, income, and loan eligibility)"
           >
-            <span className="font-medium text-slate-600">Score:</span>
+            <span className="font-medium text-slate-600">{t('pipeline.score', 'Score')}:</span>
             <span
               className={`font-semibold ${
                 lead.score >= 70

@@ -10,6 +10,9 @@ export type TriggerActionType = (typeof TRIGGER_ACTION_TYPES)[number];
 export const TRIGGER_RECIPIENT_TYPES = ['LEAD', 'AGENT', 'CUSTOM'] as const;
 export type TriggerRecipientType = (typeof TRIGGER_RECIPIENT_TYPES)[number];
 
+export const TRIGGER_DELAY_UNITS = ['IMMEDIATE', 'MINUTES', 'HOURS', 'DAYS'] as const;
+export type TriggerDelayUnit = (typeof TRIGGER_DELAY_UNITS)[number];
+
 export interface ITriggerActionConfig {
   taskTitle?: string;
   taskDescription?: string;
@@ -19,6 +22,9 @@ export interface ITriggerActionConfig {
   templateId?: Types.ObjectId;
   recipientType?: TriggerRecipientType;
   customRecipientEmail?: string;
+  delayAmount?: number;
+  delayUnit?: TriggerDelayUnit;
+  cancelOnStageChange?: boolean;
 }
 
 export interface IPipelineTrigger {
@@ -49,6 +55,13 @@ const triggerActionConfigSchema = new Schema<ITriggerActionConfig>(
       default: 'LEAD',
     },
     customRecipientEmail: { type: String, trim: true, default: null },
+    delayAmount: { type: Number, default: 0, min: 0 },
+    delayUnit: {
+      type: String,
+      enum: TRIGGER_DELAY_UNITS,
+      default: 'IMMEDIATE',
+    },
+    cancelOnStageChange: { type: Boolean, default: true },
   },
   { _id: false }
 );

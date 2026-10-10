@@ -56,23 +56,46 @@ export interface AutomationEmailBouncedPayload {
   message: string;
 }
 
+export interface AutomationEmailScheduledPayload {
+  brokerageId: string;
+  leadId: string;
+  triggerId: string;
+  recipient: string;
+  scheduledFor?: string | null | undefined;
+  delayMinutes?: number | undefined;
+  message: string;
+}
+
+export interface AutomationEmailCancelledPayload {
+  brokerageId: string;
+  leadId: string;
+  jobId: string;
+  recipient: string;
+  reason: string;
+  message: string;
+}
+
 export type AutomationEventType =
   | 'automation:task_created'
   | 'automation:email_queued'
+  | 'automation:email_scheduled'
   | 'automation:email_sent'
   | 'automation:email_failed'
   | 'automation:email_delivered'
-  | 'automation:email_bounced';
+  | 'automation:email_bounced'
+  | 'automation:email_cancelled';
 
 export interface AutomationEventEnvelope {
   event: AutomationEventType;
   payload:
     | AutomationTaskCreatedPayload
     | AutomationEmailQueuedPayload
+    | AutomationEmailScheduledPayload
     | AutomationEmailSentPayload
     | AutomationEmailFailedPayload
     | AutomationEmailDeliveredPayload
-    | AutomationEmailBouncedPayload;
+    | AutomationEmailBouncedPayload
+    | AutomationEmailCancelledPayload;
 }
 
 /**

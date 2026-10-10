@@ -1,5 +1,6 @@
 export type TriggerActionType = 'CREATE_TASK' | 'SEND_EMAIL' | 'NOTIFICATION'
 export type TriggerRecipientType = 'LEAD' | 'AGENT' | 'CUSTOM'
+export type TriggerDelayUnit = 'IMMEDIATE' | 'MINUTES' | 'HOURS' | 'DAYS'
 
 export interface IPopulatedEmailTemplate {
   _id: string
@@ -17,6 +18,9 @@ export interface ITriggerActionConfig {
   templateId?: string | IPopulatedEmailTemplate | null
   recipientType?: TriggerRecipientType
   customRecipientEmail?: string | null
+  delayAmount?: number
+  delayUnit?: TriggerDelayUnit
+  cancelOnStageChange?: boolean
 }
 
 export interface IPipelineTrigger {

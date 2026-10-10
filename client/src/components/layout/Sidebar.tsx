@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatRoleLabel } from '@/lib/presentation'
@@ -54,6 +55,7 @@ export function Sidebar({
   isMac = false,
 }: SidebarProps) {
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
   const reducedMotion = usePrefersReducedMotion()
   const modKey = isMac ? '⌘' : 'Ctrl'
 
@@ -64,11 +66,11 @@ export function Sidebar({
     if (user.role === 'PLATFORM_ADMIN') {
       return [
         {
-          heading: 'Administration',
+          heading: t('nav.admin', 'Administration'),
           items: [
-            { label: 'Brokerages', to: '/admin/brokerages', icon: Building2, shortcut: 'G B' },
-            { label: 'System Health', to: '/admin/health', icon: Activity, shortcut: 'G H' },
-            { label: 'Audit Logs', to: '/admin/audit', icon: ShieldAlert, shortcut: 'G A' },
+            { label: t('nav.brokerages', 'Brokerages'), to: '/admin/brokerages', icon: Building2, shortcut: 'G B' },
+            { label: t('nav.health', 'System Health'), to: '/admin/health', icon: Activity, shortcut: 'G H' },
+            { label: t('nav.audit', 'Audit Logs'), to: '/admin/audit', icon: ShieldAlert, shortcut: 'G A' },
           ],
         },
       ]
@@ -77,11 +79,11 @@ export function Sidebar({
     if (user.role === 'CLIENT') {
       return [
         {
-          heading: 'Mortgage Portal',
+          heading: t('nav.portal', 'Mortgage Portal'),
           items: [
-            { label: 'My Loan Case', to: '/portal/case', icon: Home, shortcut: 'G C' },
-            { label: 'Documents', to: '/portal/documents', icon: UploadCloud, shortcut: 'G D' },
-            { label: 'Advisor Contact', to: '/portal/advisor', icon: UserCheck, shortcut: 'G A' },
+            { label: t('nav.myCase', 'My Loan Case'), to: '/portal/case', icon: Home, shortcut: 'G C' },
+            { label: t('nav.documents', 'Documents'), to: '/portal/documents', icon: UploadCloud, shortcut: 'G D' },
+            { label: t('nav.advisorContact', 'Advisor Contact'), to: '/portal/advisor', icon: UserCheck, shortcut: 'G A' },
           ],
         },
       ]
@@ -89,34 +91,34 @@ export function Sidebar({
 
     // BROKERAGE_ADMIN & ADVISOR
     const baseItems: NavItem[] = [
-      { label: 'Dashboard', to: '/app/dashboard', icon: LayoutDashboard, shortcut: 'G O' },
-      { label: 'Pipeline', to: '/app/pipeline', icon: Kanban, shortcut: 'G P' },
-      { label: 'Leads', to: '/app/leads', icon: Users, shortcut: 'G L' },
-      { label: 'Clients', to: '/app/clients', icon: Briefcase, shortcut: 'G C' },
-      { label: 'Documents', to: '/app/documents', icon: FileText, shortcut: 'G D' },
-      { label: 'Tasks', to: '/app/tasks', icon: CheckSquare, shortcut: 'G T' },
-      { label: 'Forms', to: '/app/forms', icon: FileSpreadsheet, shortcut: 'G F' },
+      { label: t('nav.dashboard', 'Dashboard'), to: '/app/dashboard', icon: LayoutDashboard, shortcut: 'G O' },
+      { label: t('nav.pipeline', 'Pipeline'), to: '/app/pipeline', icon: Kanban, shortcut: 'G P' },
+      { label: t('nav.leads', 'Leads'), to: '/app/leads', icon: Users, shortcut: 'G L' },
+      { label: t('nav.clients', 'Clients'), to: '/app/clients', icon: Briefcase, shortcut: 'G C' },
+      { label: t('nav.documents', 'Documents'), to: '/app/documents', icon: FileText, shortcut: 'G D' },
+      { label: t('nav.tasks', 'Tasks'), to: '/app/tasks', icon: CheckSquare, shortcut: 'G T' },
+      { label: t('nav.forms', 'Forms'), to: '/app/forms', icon: FileSpreadsheet, shortcut: 'G F' },
     ]
 
     const sections = [
       {
-        heading: 'Workspace',
+        heading: t('nav.workspace', 'Workspace'),
         items: baseItems,
       },
       {
-        heading: 'Automations',
+        heading: t('nav.automations', 'Automations'),
         items: [
-          { label: 'Stage Automations', to: '/app/triggers', icon: Zap, shortcut: 'G S' },
-          { label: 'Email Templates', to: '/app/templates', icon: Mail, shortcut: 'G E' },
+          { label: t('nav.stageAutomations', 'Stage Automations'), to: '/app/triggers', icon: Zap, shortcut: 'G S' },
+          { label: t('nav.emailTemplates', 'Email Templates'), to: '/app/templates', icon: Mail, shortcut: 'G E' },
         ],
       },
     ]
 
     if (user.role === 'BROKERAGE_ADMIN') {
       sections.push({
-        heading: 'Management',
+        heading: t('nav.management', 'Management'),
         items: [
-          { label: 'Advisors & Team', to: '/app/team', icon: UserCheck, shortcut: 'G M' },
+          { label: t('nav.team', 'Advisors & Team'), to: '/app/team', icon: UserCheck, shortcut: 'G M' },
         ],
       })
     }
@@ -300,7 +302,7 @@ export function Sidebar({
                   >
                     <div className="flex items-center gap-2">
                       <UserIcon className="h-3.5 w-3.5 text-slate-400" />
-                      <span>View Profile</span>
+                      <span>{t('nav.viewProfile', 'View Profile')}</span>
                     </div>
                     <kbd className="font-mono text-[9px] text-slate-400">G U</kbd>
                   </DropdownMenu.Item>
@@ -311,7 +313,7 @@ export function Sidebar({
                   >
                     <div className="flex items-center gap-2">
                       <Settings className="h-3.5 w-3.5 text-slate-400" />
-                      <span>Account Settings</span>
+                      <span>{t('nav.accountSettings', 'Account Settings')}</span>
                     </div>
                   </DropdownMenu.Item>
                 </div>
@@ -322,7 +324,7 @@ export function Sidebar({
                     className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 focus:bg-rose-50 focus:text-rose-700 focus:outline-none"
                   >
                     <LogOut className="h-3.5 w-3.5" />
-                    Sign Out
+                    {t('nav.signOut', 'Sign Out')}
                   </DropdownMenu.Item>
                 </div>
               </DropdownMenu.Content>
@@ -335,7 +337,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            title={isCollapsed ? `Expand sidebar (${modKey}B)` : `Collapse sidebar (${modKey}B)`}
+            title={isCollapsed ? `${t('nav.expand', 'Expand')} (${modKey}B)` : `${t('nav.collapse', 'Collapse')} (${modKey}B)`}
             className={cn(
               'flex w-full items-center rounded-md text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer',
               isCollapsed ? 'justify-center p-2' : 'justify-between px-2.5 py-2',
@@ -347,7 +349,7 @@ export function Sidebar({
               ) : (
                 <>
                   <PanelLeftClose className="h-4 w-4 shrink-0 text-slate-500" />
-                  <span>Collapse</span>
+                  <span>{t('nav.collapse', 'Collapse')}</span>
                 </>
               )}
             </div>
